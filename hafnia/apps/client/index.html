@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Copper &amp; Current</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: one centered console, harbour-at-dusk frame, controls under the screen. Deliberately single dark theme. */
+:root {
+  --night: #0b1830; --harbour: #16305a; --brick: #d9473a; --lantern: #ffd36b; --paper: #fbf7ee; --mist: #9fb3d9;
+  --pixel: "Pixelify Sans", "Courier New", monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--night); color: var(--paper); font-family: var(--pixel);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px; box-sizing: border-box;
+  background-image: radial-gradient(ellipse at 50% 120%, #2b4f86 0%, var(--night) 60%);
+}
+.wrap { max-width: 1024px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-size: 22px; margin: 0; font-weight: 600; letter-spacing: 0.06em; color: var(--lantern); }
+h1 span { color: var(--mist); font-weight: 400; font-size: 14px; letter-spacing: 0.02em; margin-left: 8px; }
+#mute {
+  font: inherit; font-size: 14px; color: var(--paper); background: var(--harbour); border: 2px solid var(--mist);
+  border-radius: 6px; padding: 4px 12px; cursor: pointer;
+}
+#mute:focus-visible, .pad button:focus-visible { outline: 3px solid var(--lantern); outline-offset: 2px; }
+.screen-frame { border: 4px solid var(--brick); border-radius: 10px; background: #000; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+canvas:focus { outline: none; }
+canvas { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; max-width: 100%; image-rendering: pixelated; touch-action: none; }
+.pad { display: grid; grid-template-columns: auto auto; grid-template-areas: "dpad ab" "mid mid"; justify-content: space-between; align-items: center; gap: 8px 12px; max-width: 520px; width: 100%; margin: 0 auto; user-select: none; -webkit-user-select: none; touch-action: none; }
+.dpad { grid-area: dpad; display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 4px; }
+.pad button {
+  font: inherit; font-weight: 600; color: var(--paper); background: var(--harbour); border: 2px solid #2d5590;
+  border-radius: 10px; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent;
+}
+.pad button.down { background: var(--brick); border-color: var(--brick); }
+.dpad .u { grid-column: 2; grid-row: 1; } .dpad .l { grid-column: 1; grid-row: 2; }
+.dpad .r { grid-column: 3; grid-row: 2; } .dpad .d { grid-column: 2; grid-row: 3; }
+.mid { grid-area: mid; display: flex; justify-content: center; }
+.mid button { padding: 8px 14px; font-size: 13px; border-radius: 16px; }
+.ab { grid-area: ab; display: flex; gap: 12px; align-items: center; padding-top: 14px; }
+.ab button { width: 64px; height: 64px; border-radius: 50%; font-size: 20px; }
+.ab .a { background: var(--brick); border-color: #f07a6e; transform: translateY(-14px); }
+.keys { color: var(--mist); font-size: 14px; line-height: 1.5; margin: 0; }
+kbd { font-family: var(--pixel); background: var(--harbour); border: 1px solid #2d5590; border-radius: 4px; padding: 0 5px; color: var(--paper); }
+footer { color: #7286ad; font-size: 12px; line-height: 1.5; max-width: 70ch; }
+@media (hover: none), (pointer: coarse) { .keys { display: none; } }
+@media (max-width: 380px) { .dpad { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 44px); } .ab button { width: 56px; height: 56px; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>COPPER &amp; CURRENT <span>Prologue · solo</span></h1>
+    <button id="mute" type="button" aria-pressed="true">Sound on</button>
+  </header>
+  <div class="screen-frame"><canvas id="screen" width="512" height="384" tabindex="0" aria-label="Game screen. Tap or press A to continue."></canvas></div>
+  <div class="pad" aria-label="Touch controls">
+    <div class="dpad">
+      <button class="u" data-key="up" aria-label="Up">▲</button>
+      <button class="l" data-key="left" aria-label="Left">◀</button>
+      <button class="r" data-key="right" aria-label="Right">▶</button>
+      <button class="d" data-key="down" aria-label="Down">▼</button>
+    </div>
+    <div class="mid"><button data-key="MENU">Menu</button></div>
+    <div class="ab"><button class="b" data-key="B">B</button><button class="a" data-key="A">A</button></div>
+  </div>
+  <p class="keys">Move <kbd>Arrows</kbd> or <kbd>WASD</kbd> · Talk / confirm <kbd>Z</kbd> <kbd>Space</kbd> <kbd>Enter</kbd> · Back <kbd>X</kbd> <kbd>Esc</kbd> · Menu <kbd>C</kbd> or <kbd>M</kbd> · Progress saves automatically in this browser.</p>
+  <footer>Non-commercial fan game. Pokémon and all related names, sprites and sounds are © Nintendo, Game Freak and The Pokémon Company. Graphics and audio from Pokémon Essentials v21.1 with Unofficial EBDX (Essentials team, Luka S.J., Gen 9 Pack contributors, Smogon sprite projects and community spriters).</footer>
+</div>
+<script type="module" src="./src/main.ts"></script>
+</body>
+</html>
