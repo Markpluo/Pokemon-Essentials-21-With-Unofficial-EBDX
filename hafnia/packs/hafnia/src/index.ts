@@ -111,13 +111,14 @@ const majaBattle: Script = function* (s) {
 const gymTalk: Script = function* (s) {
   if (s.flag('badge')) { s.say('Tariq: Keep the streets loud and the squares\nfor the people. See you on the mural.'); return; }
   if (!s.flag('starter')) { s.say('Tariq: No Pokémon, no battle, little bro.\nThe Professor\'s handing them out today.'); return; }
+  if (!s.flag('beatSkater')) { s.say('Tariq: Noor is guarding the gym door today.\nGet past Noor first, then we talk.'); return; }
   s.say('Tariq: Welcome to Superkilen. I\'m Tariq.\nThis square belongs to the neighbourhood.');
   s.say('Tariq: Vanguard wants to "upgrade" it.\nMy Poison-types disagree.');
   if (!s.partyAlive()) { s.say('Tariq: Your team needs a rest first.\nThe Pokémon Center is up the street.'); return; }
   const c: number = yield s.ask('Tariq: Ready to roll?', ['Yes', 'Not yet'], 1);
   if (c !== 0) { s.say('Tariq: Train in the Lakes\' tall grass first.\nI\'ll be here.'); return; }
   const r = yield s.battle({ kind: 'trainer', leader: true, trainer: { name: 'Tariq', title: 'Leader', sprite: 'tr/tariq' },
-    foes: [{ species: 'toxel', level: 10 }, { species: 'trubbish', level: 11 }, { species: 'shroodle', level: 12 }], bg: 'city' });
+    foes: [{ species: 'toxel', level: 9 }, { species: 'trubbish', level: 10 }, { species: 'shroodle', level: 11 }], bg: 'city' });
   if (r !== 'win') return;
   s.setFlag('badge', true);
   s.say('Tariq: Respect. You fight like you belong here.\nThis is the Spray Badge.');
@@ -164,29 +165,30 @@ const NPCS: Record<keyof typeof MAPS, NpcDef[]> = {
     { id: 'tourist', sprite: 'chars/kid', x: 25, y: 10, dir: 'left',
       talk: talk('Tourist: We saw the statue at Langelinie today.\nIt\'s so... tiny! Everyone says that.',
         'Tourist: The water there was strangely cold, too.\nIn June!') },
-    { id: 'skater', sprite: 'chars/skater', x: 17, y: 14, dir: 'left', trainer: { sight: 3, flag: 'beatSkater' }, when: f => !!f('starter'),
+    { id: 'skater', sprite: 'chars/skater', x: 19, y: 14, dir: 'right', trainer: { sight: 1, flag: 'beatSkater' }, when: f => !!f('starter'),
       talk: trainer({
         flag: 'beatSkater',
         intro: ['Skater Noor: This is Superkilen, the Red Square.\nYou want Tariq? Get past me first!'],
         win: ['Skater Noor: Bailed hard. Respect.'],
         after: ['Skater Noor: Tariq painted that whole mural.\nHe\'ll smoke you. Respectfully.'],
-        battle: { trainer: { name: 'Noor', title: 'Skater', sprite: 'tr/skater' }, foes: [{ species: 'grimer', level: 8 }, { species: 'trubbish', level: 9 }], bg: 'city' }
+        battle: { trainer: { name: 'Noor', title: 'Skater', sprite: 'tr/skater' }, foes: [{ species: 'grimer', level: 7 }, { species: 'trubbish', level: 8 }], bg: 'city' }
       }) },
     { id: 'tariq', sprite: 'chars/tariq', x: 21, y: 14, dir: 'down', talk: gymTalk },
     { id: 'freja', sprite: 'chars/freja', x: 0, y: 0, dir: 'down', hidden: true }
   ],
   route1: [
     { id: 'jogger', sprite: 'chars/kid', x: 12, y: 6, dir: 'left',
-      talk: talk('Jogger: Tall grass means wild Pokémon!\nWeaken them first, then throw a Poké Ball.') },
-    { id: 'mads', sprite: 'chars/biker', x: 9, y: 19, dir: 'down', trainer: { sight: 5, flag: 'beatMads' }, when: f => !!f('starter'),
+      talk: talk('Jogger: Tall grass means wild Pokémon!\nWeaken them first, then throw a Poké Ball.',
+        'Jogger: Going for Tariq\'s badge? Poison hates Psychic\nmoves. The Psyduck here learn Confusion.') },
+    { id: 'mads', sprite: 'chars/biker', x: 10, y: 19, dir: 'down', trainer: { sight: 5, flag: 'beatMads' }, when: f => !!f('starter'),
       talk: trainer({
         flag: 'beatMads',
         intro: ['Cyclist Mads: Hey! You\'re walking in the bike lane!\nThat calls for a battle!'],
         win: ['Mads: Okay, okay. You can use the lane.\nJust ring your bell next time.'],
         after: ['Mads: Remember: stay in the bike lane,\nand always signal before you stop!'],
-        battle: { trainer: { name: 'Mads', title: 'Cyclist', sprite: 'tr/biker' }, foes: [{ species: 'lillipup', level: 7 }, { species: 'pidgey', level: 8 }], bg: 'field' }
+        battle: { trainer: { name: 'Mads', title: 'Cyclist', sprite: 'tr/biker' }, foes: [{ species: 'lillipup', level: 6 }, { species: 'pidgey', level: 6 }], bg: 'field' }
       }) },
-    { id: 'maja2', sprite: 'chars/maja', x: 10, y: 27, dir: 'down', trainer: { sight: 4, flag: 'beatMaja' },
+    { id: 'maja2', sprite: 'chars/maja', x: 12, y: 27, dir: 'left', trainer: { sight: 3, flag: 'beatMaja' },
       when: f => !!f('beatLukas') && !f('beatMaja'), talk: majaBattle },
     { id: 'deckhand', sprite: 'chars/deckhand', x: 8, y: 14, dir: 'left',
       talk: talk('Oilskin sailor: ...What? I\'m just looking at the lake.\nNot at those Vanguard sensor buoys. No.',

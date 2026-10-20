@@ -52,6 +52,20 @@ kbd { font-family: var(--pixel); background: var(--harbour); border: 1px solid #
 footer { color: #7286ad; font-size: 12px; line-height: 1.5; max-width: 70ch; }
 @media (hover: none), (pointer: coarse) { .keys { display: none; } }
 @media (max-width: 380px) { .dpad { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 44px); } .ab button { width: 56px; height: 56px; } }
+/* Mouse-and-keyboard screens: keep the whole game screen inside the window height. */
+@media (hover: hover) and (pointer: fine) { .wrap { max-width: min(1024px, calc((100vh - 110px) * 4 / 3)); } }
+/* Phones held sideways: screen in the middle at full height, D-pad left, A/B right, so nothing needs scrolling while playing. */
+@media (orientation: landscape) and (max-height: 520px) {
+  body { padding-block: 8px; }
+  .wrap { max-width: none; display: grid; grid-template-columns: 1fr auto 1fr; grid-template-areas: "dpad screen top" "dpad screen ab" "dpad screen mid" "keys keys keys" "foot foot foot"; gap: 8px 16px; align-items: center; }
+  header { grid-area: top; justify-content: flex-end; } header h1 { display: none; }
+  .screen-frame { grid-area: screen; height: min(calc(100vh - 24px), calc((100vw - 340px) * 0.75)); height: min(calc(100dvh - 24px), calc((100vw - 340px) * 0.75)); aspect-ratio: 4 / 3; }
+  .dpad { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 44px); } .ab button { width: 52px; height: 52px; }
+  .screen-frame canvas { height: 100%; width: 100%; }
+  .pad { display: contents; }
+  .dpad { grid-area: dpad; justify-self: center; } .ab { grid-area: ab; justify-self: center; padding-top: 14px; } .mid { grid-area: mid; }
+  .keys { grid-area: keys; } footer { grid-area: foot; }
+}
 </style>
 </head>
 <body>

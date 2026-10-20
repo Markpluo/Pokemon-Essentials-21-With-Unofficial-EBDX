@@ -425,6 +425,13 @@ const AUTO: Record<string, string> = { '=': 'brick', '~': 'sea', 'o': 'still' };
 function hash(x: number, y: number) { return ((x * 73856093) ^ (y * 19349663)) >>> 0; }
 function drawOutsideTile(sx: number, sy: number, dx: number, dy: number) { ctx.drawImage(packImg('outside'), sx * 32, sy * 32, 32, 32, dx, dy, 32, 32); }
 function drawGrass(dx: number, dy: number, x: number, y: number) { drawOutsideTile(1 + hash(x, y) % 5, 0, dx, dy); }
+// Trees are two tiles wide: pair halves from the start of each horizontal run so no half-tree is cut off next to open ground.
+function treeHalf(x: number, y: number) {
+  const isT = (i: number) => { const t = tileAt(i, y); return t === null || t === 'T'; };
+  if (!isT(x + 1)) return 1;
+  let s = x; while (s > 0 && isT(s - 1)) s--;
+  return s === 0 ? x & 1 : (x - s) & 1;
+}
 function drawAuto(ch: string, x: number, y: number, dx: number, dy: number) {
   const im = packImg(AUTO[ch]);
   if (!im.naturalWidth) return;
@@ -432,21 +439,32 @@ function drawAuto(ch: string, x: number, y: number, dx: number, dy: number) {
   const fx = (Math.floor(G.t / 16) % frames) * 96;
   const same = (ox: number, oy: number) => { const t = tileAt(x + ox, y + oy); return t === null || t === ch; };
   const u = same(0, -1), d = same(0, 1), l = same(-1, 0), r = same(1, 0);
-  const q = [
+  const q: (number[] | null)[] = [
     u && l ? (same(-1, -1) ? [32, 64] : [64, 0]) : u ? [0, 64] : l ? [32, 32] : [0, 32],
     u && r ? (same(1, -1) ? [48, 64] : [80, 0]) : u ? [80, 64] : r ? [48, 32] : [80, 32],
     d && l ? (same(-1, 1) ? [32, 80] : [64, 16]) : d ? [0, 80] : l ? [32, 112] : [0, 112],
     d && r ? (same(1, 1) ? [48, 80] : [80, 16]) : d ? [80, 80] : r ? [48, 112] : [80, 112]
   ];
   const off = [[0, 0], [16, 0], [0, 16], [16, 16]];
-  q.forEach(([sx, sy], i) => ctx.drawImage(im, fx + sx, sy, 16, 16, dx + off[i][0], dy + off[i][1], 16, 16));
+  if (ch === 'o') { // the pond autotile has no bottom bank, so mirror the top bank for the lower quarters
+    const dl = same(-1, 1), dr = same(1, 1);
+    for (const [i, side, diag] of [[2, l, dl], [3, r, dr]] as [number, boolean, boolean][]) {
+      if (d && side && diag) continue;
+      const top = i === 2 ? (d && l ? [64, 0] : d ? [0, 64] : l ? [32, 32] : [0, 32]) : (d && r ? [80, 0] : d ? [80, 64] : r ? [48, 32] : [80, 32]);
+      if (d && !side) { q[i] = top; continue; }
+      ctx.save(); ctx.translate(dx + off[i][0], dy + off[i][1] + 16); ctx.scale(1, -1);
+      ctx.drawImage(im, fx + top[0], top[1], 16, 16, 0, 0, 16, 16); ctx.restore();
+      q[i] = null;
+    }
+  }
+  q.forEach((c, i) => c && ctx.drawImage(im, fx + c[0], c[1], 16, 16, dx + off[i][0], dy + off[i][1], 16, 16));
 }
 // Superkilen: Den Røde Plads (red rubber surface) and Den Sorte Plads (black with white wave stripes).
 function drawSquareTile(t: string, x: number, y: number, dx: number, dy: number) {
   if (t === 'r') {
     ctx.fillStyle = '#c8473d'; ctx.fillRect(dx, dy, 32, 32);
     ctx.fillStyle = '#b13a32';
-    for (let i = 0; i < 6; i++) { const h = hash(x * 7 + i, y * 13 - i); ctx.fillRect(dx + h % 30, dy + (h >> 5) % 30, 2, 2); }
+    for (let i = 0; i < 6; i++) { const h = hash(x * 7 + i, y * 13 - i); ctx.fillRect(dx + h % 30, dy + (h >>> 5) % 30, 2, 2); }
     if (tileAt(x, y - 1) !== 'r') { ctx.fillStyle = '#e8e2d6'; ctx.fillRect(dx, dy, 32, 2); }
   } else {
     ctx.fillStyle = '#26272c'; ctx.fillRect(dx, dy, 32, 32);
@@ -456,6 +474,64 @@ function drawSquareTile(t: string, x: number, y: number, dx: number, dy: number)
       for (let k = 0; k < 2; k++) { const yy = ((k * 16 + base + 64) % 32); ctx.fillRect(dx + px, dy + yy, 2, 2); }
     }
   }
+}
+// Hand-drawn buildings that the tileset has no match for, cached as one bitmap each.
+const BUILDING_CACHE: Record<string, HTMLCanvasElement> = {};
+function customBuilding(kind: string) {
+  if (BUILDING_CACHE[kind]) return BUILDING_CACHE[kind];
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+  const g = c.getContext('2d')!;
+  if (kind === 'palmHouse') drawPalmHouse(g);
+  return (BUILDING_CACHE[kind] = c);
+}
+// The Palm House (1874): white iron-and-glass greenhouse, tall domed centre and two curved wings, palms inside.
+function drawPalmHouse(g: CanvasRenderingContext2D) {
+  const FRAME = '#f3f1e8', LINE = '#4b5a6b', GLASS = '#a9dce0', GLASS2 = '#86c6cf', PALM = '#4e9a55', PALM2 = '#2f6f3c';
+  const glassBody = (x: number, y: number, w: number, h: number) => {
+    const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, GLASS); gr.addColorStop(1, GLASS2);
+    g.fillStyle = gr; g.fillRect(x, y, w, h);
+  };
+  const palm = (x: number, base: number, h: number) => {
+    g.fillStyle = '#7a5a3a'; g.fillRect(x - 1, base - h, 3, h);
+    g.fillStyle = PALM2; for (const [dx, dy] of [[-9, 2], [9, 2], [-6, -2], [6, -2], [0, -4]]) g.fillRect(x + dx - 5, base - h + dy, 11, 4);
+    g.fillStyle = PALM; for (const [dx, dy] of [[-8, 0], [8, 0], [-4, -3], [4, -3]]) g.fillRect(x + dx - 4, base - h + dy, 9, 3);
+  };
+  const ribs = (x: number, y: number, w: number, h: number, step: number) => {
+    g.fillStyle = FRAME;
+    for (let i = x; i <= x + w; i += step) g.fillRect(i, y, 2, h);
+    for (let j = y + h - 2; j >= y; j -= 14) g.fillRect(x, j, w + 2, 2);
+  };
+  // stone plinth
+  g.fillStyle = '#cfc6b4'; g.fillRect(4, 112, 248, 14); g.fillStyle = '#a89f8c'; g.fillRect(4, 124, 248, 3); g.fillRect(4, 112, 248, 2);
+  // wings: barrel-vaulted roofs over glass walls
+  for (const [x, w] of [[8, 76], [172, 76]]) {
+    g.fillStyle = LINE; g.beginPath(); g.moveTo(x - 2, 64); g.quadraticCurveTo(x + w / 2, 30, x + w + 2, 64); g.lineTo(x + w + 2, 113); g.lineTo(x - 2, 113); g.fill();
+    g.save(); g.beginPath(); g.moveTo(x, 64); g.quadraticCurveTo(x + w / 2, 33, x + w, 64); g.lineTo(x + w, 112); g.lineTo(x, 112); g.clip();
+    glassBody(x, 36, w, 76); palm(x + 20, 112, 30); palm(x + 54, 112, 36); ribs(x, 36, w, 76, 12);
+    g.restore();
+    g.fillStyle = FRAME; g.fillRect(x - 2, 62, w + 4, 3);
+  }
+  // centre: tall walls and a dome with a lantern on top
+  const cx = 128;
+  g.fillStyle = LINE; g.fillRect(78, 46, 100, 67);
+  g.beginPath(); g.ellipse(cx, 48, 52, 42, 0, Math.PI, 0); g.fill();
+  g.save(); g.beginPath(); g.rect(80, 46, 96, 66); g.ellipse(cx, 48, 50, 40, 0, Math.PI, 0); g.clip();
+  glassBody(80, 6, 96, 106); palm(100, 112, 54); palm(152, 112, 48); palm(cx, 112, 70);
+  g.fillStyle = FRAME;
+  for (let a = 0; a <= 8; a++) { const t = Math.PI + a * Math.PI / 8;
+    g.beginPath(); g.moveTo(cx, 48); g.lineTo(cx + Math.cos(t) * 52, 48 + Math.sin(t) * 42); g.lineWidth = 2; g.strokeStyle = FRAME; g.stroke(); }
+  for (const r of [0.45, 0.75]) { g.beginPath(); g.ellipse(cx, 48, 50 * r, 40 * r, 0, Math.PI, 0); g.lineWidth = 2; g.strokeStyle = FRAME; g.stroke(); }
+  ribs(80, 46, 96, 66, 12);
+  g.restore();
+  g.fillStyle = FRAME; g.fillRect(76, 44, 104, 4);
+  g.fillStyle = LINE; g.fillRect(cx - 7, 0, 14, 10); g.fillStyle = FRAME; g.fillRect(cx - 5, 2, 10, 7); g.fillStyle = LINE; g.fillRect(cx - 1, 0, 2, 3);
+  // double doors under a small pediment
+  g.fillStyle = LINE; g.fillRect(cx - 17, 82, 34, 31);
+  g.fillStyle = '#2f6f4a'; g.fillRect(cx - 15, 86, 14, 27); g.fillRect(cx + 1, 86, 14, 27);
+  g.fillStyle = GLASS; g.fillRect(cx - 12, 89, 8, 12); g.fillRect(cx + 4, 89, 8, 12);
+  g.fillStyle = '#e8c35a'; g.fillRect(cx - 4, 100, 2, 3); g.fillRect(cx + 2, 100, 2, 3);
+  g.fillStyle = FRAME; g.beginPath(); g.moveTo(cx - 20, 83); g.lineTo(cx, 72); g.lineTo(cx + 20, 83); g.fill();
+  g.strokeStyle = LINE; g.lineWidth = 1; g.stroke();
 }
 function camera(): [number, number] {
   const p = G.player, m = mapOf(G.mapKey).map;
@@ -484,11 +560,13 @@ function drawOverworld() {
     else if (t === 'r' || t === 'k') drawSquareTile(t, x, y, dx, dy);
     else if (t === 'T') { // forest rows cycle body, trunk, next crown from the top of each run
       let k = 0; while (k < 6 && tileAt(x, y - k - 1) === 'T') k++;
-      drawOutsideTile(x & 1, [53, 54, 52][k % 3], dx, dy);
+      drawOutsideTile(treeHalf(x, y), [53, 54, 52][k % 3], dx, dy);
     }
   }
   for (const b of m.buildings) {
-    for (const [sx, sy, w, h, ox, oy] of stamps[b.s].parts)
+    const st = stamps[b.s];
+    if (st.draw) { ctx.drawImage(customBuilding(st.draw), b.x * TILE - cx, b.y * TILE - cy); continue; }
+    for (const [sx, sy, w, h, ox, oy] of st.parts ?? [])
       ctx.drawImage(packImg('outside'), sx * 32, sy * 32, w * 32, h * 32, (b.x + ox) * TILE - cx, (b.y + oy) * TILE - cy, w * 32, h * 32);
   }
   const p = G.player;

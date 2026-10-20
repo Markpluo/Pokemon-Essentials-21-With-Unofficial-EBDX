@@ -115,7 +115,7 @@ describe('Hafnia prologue', () => {
     // Nørrebro -> Route 1 -> Botanical Garden
     d.exit('down', 13, 21);
     expect(d.s.map).toBe('hafnia:route1');
-    d.exit('down', 9, 31);
+    d.exit('down', 11, 31);
     expect(d.s.map).toBe('hafnia:garden');
 
     d.talkTo(13, 11); // Professor Ørsted: starter + Lukas
@@ -133,16 +133,21 @@ describe('Hafnia prologue', () => {
 
     d.exit('up', 13, 0);
     expect(d.s.map).toBe('hafnia:route1');
-    d.walkTo(10, 28); // into Maja's line of sight
+    d.walkTo(11, 26); // past Maja, who watches both lanes
     expect(d.s.flags['hafnia:beatMaja']).toBe(true);
-    d.walkTo(9, 23);  // and Mads's
+    d.walkTo(10, 23);  // into Mads's line of sight
     expect(d.s.flags['hafnia:beatMaja']).toBe(true);
     expect(d.s.flags['hafnia:beatMads']).toBe(true);
 
-    d.exit('up', 9, 0);
+    d.exit('up', 11, 0);
     expect(d.s.map).toBe('hafnia:norrebro');
     d.talkTo(22, 7); // Pokémon Center door is at (22, 7)
-    d.talkTo(21, 14); // Tariq
+    d.talkTo(21, 14); // Tariq sends us to Noor first
+    expect(d.s.flags['hafnia:badge']).toBeFalsy();
+    expect(d.said.at(-1)).toContain('Get past Noor first');
+    d.walkTo(20, 14); // Noor guards the gym door
+    expect(d.s.flags['hafnia:beatSkater']).toBe(true);
+    d.talkTo(21, 14);
     expect(d.s.flags['hafnia:badge'], d.battles + ' / ' + d.said.slice(-8).join(' | ') + ' @' + d.s.x + ',' + d.s.y).toBe(true);
     expect(d.log.some(e => e.t === 'chapterEnd')).toBe(true);
     expect(d.said).toContain('Mark received the Spray Badge!');
@@ -159,7 +164,7 @@ describe('Hafnia prologue', () => {
     void g;
     // Force a save by playing to the starter.
     const d = newGame(5);
-    d.exit('down', 13, 21); d.exit('down', 9, 31); d.talkTo(13, 11);
+    d.exit('down', 13, 21); d.exit('down', 11, 31); d.talkTo(13, 11);
     stored = d.game.toSave();
     const title = await server.handle({ t: 'title' });
     expect(title[0]).toMatchObject({ t: 'title', hasSave: true });

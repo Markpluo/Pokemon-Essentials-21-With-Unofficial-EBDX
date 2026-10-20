@@ -1,6 +1,7 @@
 // Copies the graphics and audio each content pack lists from the Essentials repo
 // (../Graphics, ../Audio) into the client's public folder. Pokémon sprites and cries are
-// shared by all packs and found by their Essentials ID (e.g. SPRIGATITO).
+// shared by all packs and found by their Essentials ID (e.g. SPRIGATITO). A source starting with
+// "pack:" is a file inside the pack's own folder (e.g. a recoloured sprite).
 // Usage: npm run assets
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -12,8 +13,8 @@ const out = join(root, 'apps', 'client', 'public', 'game-assets');
 const species = JSON.parse(readFileSync(join(root, 'packages', 'core', 'data', 'species.json'), 'utf8'));
 
 let copied = 0, missing = [];
-function copy(src, dest) {
-  const from = join(repo, src);
+function copy(src, dest, packDir) {
+  const from = src.startsWith('pack:') ? join(packDir, src.slice(5)) : join(repo, src);
   if (!existsSync(from)) { missing.push(src); return; }
   mkdirSync(dirname(dest), { recursive: true });
   copyFileSync(from, dest);
@@ -24,7 +25,8 @@ for (const dir of readdirSync(join(root, 'packs'))) {
   const manifestPath = join(root, 'packs', dir, 'pack.json');
   if (!existsSync(manifestPath)) continue;
   const pack = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  for (const [key, src] of Object.entries(pack.images)) copy(src, join(out, pack.id, `${key}.png`));
+  const packDir = join(root, 'packs', dir);
+  for (const [key, src] of Object.entries(pack.images)) copy(src, join(out, pack.id, `${key}.png`), packDir);
   for (const [key, src] of Object.entries(pack.audio)) copy(src, join(out, pack.id, 'audio', `${key}.ogg`));
   for (const id of pack.species) {
     const key = species[id]?.key ?? id.toUpperCase();

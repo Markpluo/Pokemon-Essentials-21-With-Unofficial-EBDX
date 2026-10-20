@@ -8,7 +8,8 @@ import { registerSpeciesExtra, type SpeciesExtra } from './pokemon';
 import type { Script } from './script';
 
 /** A building drawn from the tileset: parts are [srcX, srcY, w, h, dx, dy] in tiles. */
-export interface Stamp { parts: number[][]; w: number; h: number; door?: [number, number] }
+/** A building: tileset parts [srcX, srcY, w, h, dx, dy], or `draw` naming a client-drawn building. */
+export interface Stamp { parts?: number[][]; draw?: string; w: number; h: number; door?: [number, number] }
 
 export interface NpcDef {
   id: string;
