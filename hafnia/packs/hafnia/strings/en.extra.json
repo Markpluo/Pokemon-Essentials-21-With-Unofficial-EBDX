@@ -1,1 +1,18 @@
-{}
+{
+ "p.bed.note": "A note on a paper bag: \"The Professor called.\nDon't be late. Cardamom buns inside. Jacket!\n— Mum\"",
+ "p.mum.2": "Mum: Professor Ørsted rang twice. Twice!\nThe Palm House, in the Botanical Garden.\nSouth, past the Lakes.",
+ "p.yard.maja.2": "Maja: Statistically, you're unbearable.\nCome on, {player}. Last one to the Palm House\nis a Magikarp.",
+ "p.bridge.sign": "Sign: Dronning Louises Bro. Busiest bike bridge\nin the world. Keep right. Signal.\nDon't stop in the lane.",
+ "p.orsted.2": "Ørsted: I study Bio-Resonance: how Pokémon\nand a city can hum together. Like a song.\nLike a... where was I?",
+ "p.orsted.dex": "Ørsted: And this: the Bio-Resonance Pokédex.\nIt records every Pokémon you meet.\nAnd it hums. Don't be alarmed.",
+ "p.news.1": "TV: \"...harbour water at Langelinie measured\nat 2°C today. Vanguard Energy says\nthe sensors are faulty.\"",
+ "c1.kaas.1": "Commander Kaas: Mr. Haddad. Vanguard will\ninstall a grid relay on this wall.\nIt's for the public good.",
+ "c1.mural.done.2": "The mural shows a great sea creature\nwith its mouth open. No sound comes out.",
+ "c2.ny.maja.4": "Maja: They're headed for Refshaleøen.\nThe harbour bus goes there. Come on!",
+ "c2.freja.3": "Freja: The water at Langelinie is freezing.\nAsk yourself why the company that heats\nyour flat doesn't care.",
+ "c2.nail.3": "Rotom: Bzzt! Copper! I can make Patina armour\nwith this! Tougher hide, but it seals\nthe held item.",
+ "c2.chr.maja.1": "Maja: Welcome to my favourite part of the city.\nDon't run, don't take photos of people.\nPhotos of Pokémon, fine.",
+ "c2.alva.1": "Alva: Careful on the planks. The moat's choking.\nAlgae everywhere, and it's June.\nToo warm here, freezing there.",
+ "c2.alva.2": "Alva: Warm water from those pipes. Vanguard's\noutflow. Can you help my barges?\nPush the floating booms together.",
+ "p.coil.got": "Current unlocked! Your Coil can now charge up\nand power a move with Current."
+}

@@ -58,7 +58,8 @@ function preload(onProgress: (p: number) => void): Promise<void> {
   const list: Img[] = [];
   for (const [id, w] of Object.entries(WORLDS)) {
     for (const k of Object.keys(w.manifest.images)) list.push(packImg(k, id));
-    for (const sp of w.manifest.species) for (const kind of ['front', 'back', 'icons'] as const) list.push(monImg(kind, sp.toUpperCase()));
+    const keys: Record<string, string> = (w.manifest as { spriteKeys?: Record<string, string> }).spriteKeys ?? {};
+    for (const sp of w.manifest.species) for (const kind of ['front', 'back', 'icons'] as const) list.push(monImg(kind, keys[sp] ?? sp.toUpperCase()));
   }
   let done = 0;
   return Promise.all(list.map(im => new Promise<void>(res => {
@@ -208,7 +209,9 @@ async function playEvents(evs: ServerEvent[]) {
       case 'view': applyView(e.view); break;
       case 'say': await say(e.text); break;
       case 'prompt': {
-        G.ui.text = { full: e.text, shown: e.text.length };
+        const ln = wrapText(e.text, VW - 16 - 44, 17), text = ln.slice(-3).join('\n');
+        if (ln.length > 3) await say(ln.slice(0, -3).join('\n')); // the question stays on screen with the options
+        G.ui.text = { full: text, shown: text.length };
         const i = await choose(e.options, e.cancel ?? -1);
         G.ui.text = null;
         return send({ t: 'answer', index: i });
@@ -291,7 +294,8 @@ async function changeMap(e: Extract<ServerEvent, { t: 'map' }>) {
   if (G.mapKey) Sound.se('door', 0.3);
   await fadeTo(1, first ? 12 : 10);
   G.mapKey = e.map; G.npcs = new Map();
-  if (G.world) applyView({ ...G.world, map: e.map, npcs: G.world.map === e.map ? G.world.npcs : [] });
+  if (G.world) applyView({ ...G.world, map: e.map, x: e.x, y: e.y, dir: e.dir, npcs: e.npcs });
+  else for (const n of e.npcs) G.npcs.set(n.id, { ...n, px: 0, py: 0, moving: false, step: 0, anim: 0 });
   Object.assign(G.player, { x: e.x, y: e.y, dir: e.dir, px: 0, py: 0, moving: false });
   G.scene = 'overworld'; G.mapBanner = 120;
   if (mapOf(e.map).map.indoor) G.biking = false;
@@ -314,6 +318,9 @@ function wrapText(str: string, maxW: number, size: number) {
   return out;
 }
 async function say(str: string) {
+  // The box holds three lines: longer text continues on another page instead of being cut off.
+  const lines = wrapText(str, VW - 16 - 44, 17);
+  if (lines.length > 3) { for (let i = 0; i < lines.length; i += 3) await say(lines.slice(i, i + 3).join('\n')); return; }
   G.ui.text = { full: str, shown: 0 };
   for (;;) {
     await nextFrame();
@@ -700,7 +707,7 @@ function drawChar(sprite: string, x: number, y: number, dir: Dir, frame: number,
 }
 function drawOverworld() {
   const { map: m, stamps } = mapOf(G.mapKey), [cx, cy] = camera();
-  ctx.fillStyle = '#2f6b3a'; ctx.fillRect(0, 0, VW, VH);
+  ctx.fillStyle = m.indoor ? '#0d1220' : '#2f6b3a'; ctx.fillRect(0, 0, VW, VH); // rooms smaller than the screen sit on black, not grass
   const x0 = Math.floor(cx / TILE) - 1, y0 = Math.floor(cy / TILE) - 1;
   for (let y = y0; y < y0 + 14; y++) for (let x = x0; x < x0 + 18; x++) {
     const t = tileAt(x, y); if (t === null) continue;
@@ -765,7 +772,7 @@ let turnDelay = 0;
 async function overworldTick() {
   const p = G.player;
   const menu = sticky.has('MENU'), a = sticky.has('A');
-  // A quick tap shorter than a frame still turns the player.
+  // A quick tap shorter than a frame still turns the player, or steps if already facing that way.
   const tapped = (['up', 'down', 'left', 'right'] as Dir[]).find(d => sticky.has(d));
   sticky.clear();
   if (menu) { await startMenu(); return; }
@@ -774,6 +781,7 @@ async function overworldTick() {
   if (!dir) {
     turnDelay = 0;
     if (tapped && tapped !== p.dir) { p.dir = tapped; conn.send({ t: 'turn', dir: tapped }); }
+    else if (tapped) await send({ t: 'step', dir: tapped });
     return;
   }
   if (p.dir !== dir && turnDelay === 0) { p.dir = dir; turnDelay = 5; conn.send({ t: 'turn', dir }); return; }
@@ -802,6 +810,7 @@ async function startMenu() {
     try { c = await choose(items, items.length - 1, { x: VW - 168, y: 8, w: 160 }); } finally { G.overlays.pop(); }
     const pick = items[c];
     if (pick === 'Save') {
+      if (!w?.party.length) { await say('There is nothing to save yet.'); continue; } // don't offer slots that can't be used
       const r = await conn.send({ t: 'slots' });
       const slots = r.find(e => e.t === 'slots');
       if (!slots || slots.t !== 'slots') continue;
