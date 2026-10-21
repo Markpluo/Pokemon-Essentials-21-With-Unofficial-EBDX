@@ -6,8 +6,9 @@ export type Dir = 'up' | 'down' | 'left' | 'right';
 export type StatusId = '' | 'brn' | 'par' | 'psn' | 'tox' | 'slp' | 'frz';
 
 // ---------- client -> server ----------
+export type CoilMode = 'copper' | 'current';
 export type BattleAction =
-  | { kind: 'move'; index: number }
+  | { kind: 'move'; index: number; mode?: CoilMode }
   | { kind: 'switch'; uid: string }
   | { kind: 'item'; item: string; uid: string }
   | { kind: 'ball'; item: string }
@@ -16,7 +17,7 @@ export type BattleAction =
 export type Intent =
   | { t: 'title' }
   | { t: 'newGame' }
-  | { t: 'continue' }
+  | { t: 'continue'; slot?: SaveSlot }
   | { t: 'turn'; dir: Dir }
   | { t: 'step'; dir: Dir }
   | { t: 'interact' }
@@ -24,10 +25,17 @@ export type Intent =
   | { t: 'battle'; action: BattleAction }
   | { t: 'useItem'; item: string; uid: string }
   | { t: 'lead'; uid: string }
-  | { t: 'save' };
+  | { t: 'save'; slot?: SaveSlot }
+  | { t: 'slots' }
+  | { t: 'autosave' }
+  | { t: 'debug'; cmd: DebugCommand; arg?: string | number };
+
+export type SaveSlot = 'auto' | 1 | 2 | 3;
+export interface SlotInfo { slot: SaveSlot; summary: string | null }
+export type DebugCommand = 'heal' | 'levelUp' | 'items' | 'money' | 'unlockCoil' | 'encounters' | 'warp' | 'badge';
 
 // ---------- server -> client ----------
-export interface MoveView { id: string; name: string; type: string; pp: number; maxpp: number; disabled?: boolean }
+export interface MoveView { id: string; name: string; type: string; category: 'Physical' | 'Special' | 'Status'; power: number; pp: number; maxpp: number; disabled?: boolean }
 export interface MonView {
   uid: string; species: string; key: string; name: string; types: string[]; level: number;
   hp: number; maxhp: number; status: StatusId; moves: MoveView[];
@@ -37,6 +45,7 @@ export interface NpcView { id: string; sprite: string; x: number; y: number; dir
 export interface WorldView {
   name: string; map: string; x: number; y: number; dir: Dir;
   npcs: NpcView[]; party: MonView[]; bag: Record<string, number>; money: number;
+  badges: number; debug?: boolean;
 }
 
 export type BattleSide = 'ally' | 'foe';
@@ -55,7 +64,14 @@ export type BattleEvent =
   | { b: 'faint'; side: BattleSide; text: string }
   | { b: 'exp'; side: BattleSide; exp: number; expLo: number; expHi: number; level: number; hp: number; maxhp: number }
   | { b: 'throw'; shakes: number; caught: boolean }
-  | { b: 'flee' };
+  | { b: 'flee' }
+  | { b: 'coil'; side: BattleSide; coil: CoilView }
+  | { b: 'copper'; side: BattleSide; text: string }
+  | { b: 'current'; side: BattleSide; text: string }
+  | { b: 'overcharge'; side: BattleSide; text: string };
+
+/** A side's Coil gauge. `ready` is the pip count needed to activate. */
+export interface CoilView { pips: number; max: number; ready: number; used: boolean; overcharge?: boolean }
 
 export interface BattleRequest {
   moves: MoveView[];
@@ -65,6 +81,8 @@ export interface BattleRequest {
   activeUid: string;
   party: MonView[];
   bag: Record<string, number>;
+  /** Present when the player's Coil is online. A string says why a mode can't be used now. */
+  coil?: CoilView & { copper: string | null; current: string | null };
 }
 
 export interface BattleStart {
@@ -73,10 +91,13 @@ export interface BattleStart {
   bgm: string;
   trainer?: { name: string; title: string; sprite: string };
   foeCount: number;
+  coil?: { ally?: CoilView; foe?: CoilView };
 }
 
 export type ServerEvent =
-  | { t: 'title'; hasSave: boolean; summary?: string }
+  | { t: 'title'; hasSave: boolean; summary?: string; slots?: SlotInfo[] }
+  | { t: 'slots'; slots: SlotInfo[] }
+  | { t: 'evolve'; from: string; to: string; fromName: string; toName: string }
   | { t: 'view'; view: WorldView }
   | { t: 'say'; text: string }
   | { t: 'prompt'; text: string; options: string[]; cancel?: number }

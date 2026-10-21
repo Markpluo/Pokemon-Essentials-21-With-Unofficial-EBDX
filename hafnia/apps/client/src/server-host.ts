@@ -7,5 +7,5 @@ import { browserSaveStore } from './store';
 export const PACKS = [hafnia];
 
 export function createLocalServer() {
-  return new LocalServer(new Content(PACKS), browserSaveStore());
+  return new LocalServer(new Content(PACKS), browserSaveStore(), { debug: import.meta.env.DEV || import.meta.env.VITE_DEBUG === '1' });
 }

@@ -14,8 +14,16 @@ export interface BattleOptions {
   /** A soft battle does not send the player to the last heal point on a loss (rival intro fights). */
   soft?: boolean;
   leader?: boolean;
-  /** Prize money per level of the strongest foe (Essentials uses the trainer type's base money). */
+  /** Prize money per level of the last foe; defaults to the rules' base for the trainer's title. */
   prize?: number;
+  /** Trainer AI tier (systems.md §2.4): 1 basic, 2 smart, 3 expert. Default: 2 for leaders and rivals, else 1. */
+  ai?: 1 | 2 | 3;
+  /** false turns the Copper & Current Coil off for both sides (a "plain" battle). */
+  coil?: boolean;
+  /** Coil modes the opponent may use. Most trainers have none. */
+  foeCoil?: { copper?: boolean; current?: boolean };
+  /** Villain teams: the Coil refills and each activation is Copper and Current at once, with HP drain. */
+  overcharge?: boolean;
 }
 
 export type Pause =
@@ -55,6 +63,13 @@ export interface ScriptApi {
   giveItem(item: string, qty?: number): void;
   hasItem(item: string): number;
   giveMoney(amount: number): void;
+  readonly money: number;
+  takeMoney(amount: number): boolean;
+  giveBadge(id: string, name: string): void;
+  readonly badges: number;
+  unlockCoil(mode: 'copper' | 'current' | 'harmony'): void;
+  /** Opens the Mart: the player buys from the stock that the badge count allows. */
+  mart(stock: string[]): Generator<Pause, void, any>;
   heal(): void;
   partyAlive(): boolean;
 

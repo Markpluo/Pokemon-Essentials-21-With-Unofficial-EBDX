@@ -1,11 +1,16 @@
 // Battles run on the Pokémon Showdown simulator (@pkmn/sim). This file builds the teams,
 // makes the opponent's choices, turns Showdown's protocol log into BattleEvents for the
 // client, and adds what Showdown leaves to the main game: Poké Balls, running away,
-// bag items, EXP and levelling up mid-battle.
+// bag items, EXP (Exp Share), move learning, trainer AI and the Copper & Current Coil.
 import { Battle, Dex } from '@pkmn/sim';
-import type { BattleEvent, BattleMonView, BattleRequest, BattleResult, BattleSide, ServerEvent, StatusId } from './protocol';
+import { applyCurrent, applyOvercharge, applyPatina, coilBlock, installCoil, type CoilUnlocks } from './coil';
+import type { Rules } from './content';
+import { ITEMS, itemEffect } from './items';
+import type {
+  BattleEvent, BattleMonView, BattleRequest, BattleResult, BattleSide, CoilMode, CoilView, ServerEvent, StatusId
+} from './protocol';
 import {
-  calcStats, gainExp, makeMon, maxPp, monName, monView, moveView, speciesExtra, speciesName, type Mon
+  calcStats, gainExp, makeMon, maxPp, monName, monView, moveView, replaceMove, speciesExtra, speciesName, type Mon
 } from './pokemon';
 import type { Rng } from './rng';
 import type { BattleOptions } from './script';
@@ -27,22 +32,22 @@ function installWaitMove() {
   };
 }
 
-export const ITEMS: Record<string, { name: string; heal?: number; ball?: number }> = {
-  potion: { name: 'Potion', heal: 20 },
-  superpotion: { name: 'Super Potion', heal: 60 },
-  pokeball: { name: 'Poké Ball', ball: 1 },
-  greatball: { name: 'Great Ball', ball: 1.5 }
-};
-
 export interface BattleHost {
   readonly rng: Rng;
   readonly party: Mon[];
   readonly bag: Record<string, number>;
   readonly playerName: string;
+  readonly rules: Rules;
+  readonly badges: number;
+  readonly coil: CoilUnlocks;
   emit(ev: ServerEvent): void;
+  /** Takes the whiteout money and returns how much was lost. */
+  whiteout(): number;
   addMon(m: Mon): 'party' | 'box';
   giveMoney(n: number): void;
 }
+
+interface CoilSide { enabled: boolean; pips: number; used: boolean; unlocks: CoilUnlocks; overcharge: boolean; seTurn: number }
 
 const STAT_NAMES: Record<string, string> = {
   atk: 'Attack', def: 'Defense', spa: 'Sp. Atk', spd: 'Sp. Def', spe: 'Speed', accuracy: 'accuracy', evasion: 'evasiveness'
@@ -65,10 +70,27 @@ export class BattleSession {
   private runAttempts = 0;
   private started = false;
   private pendingEffect: 'super' | 'weak' | null = null;
+  private turn = 0;
+  private coil: Record<BattleSide, CoilSide>;
+  private questions: { uid: string; move: string }[] = [];
+  private asking: { uid: string; move: string } | null = null;
+  private ending: BattleResult | null = null;
+  /** Party Pokémon that levelled up, for the evolution check after the battle. */
+  readonly leveled = new Set<string>();
 
   constructor(private host: BattleHost, private opts: BattleOptions) {
     installWaitMove();
-    const rng = host.rng;
+    installCoil(host.rules.coil);
+    const rng = host.rng, cr = host.rules.coil;
+    const plain = opts.coil === false;
+    const start = opts.kind === 'wild' ? cr.startWild : cr.startTrainer;
+    this.coil = {
+      ally: { enabled: !plain && !!(host.coil.copper || host.coil.current), pips: start, used: false, unlocks: host.coil, overcharge: false, seTurn: -1 },
+      foe: {
+        enabled: !plain && !!(opts.foeCoil || opts.overcharge), pips: opts.overcharge ? cr.max : start, used: false,
+        unlocks: opts.overcharge ? { copper: true, current: true } : opts.foeCoil ?? {}, overcharge: !!opts.overcharge, seTurn: -1
+      }
+    };
     this.foes = opts.foes.map(f => makeMon(f.species, f.level, rng, { moves: f.moves }));
     this.sim = new Battle({ formatid: 'gen9customgame' as any, seed: rng.simSeed() as any });
 
@@ -79,6 +101,41 @@ export class BattleSession {
     this.sim.setPlayer('p2', { name: opts.trainer?.name ?? 'Wild', team: this.foes.map(m => this.toSet(m, false)) as any });
     for (const p of this.sim.p1.pokemon) this.restore(p, this.monOf(p)!);
     this.logIndex = this.sim.log.length;
+  }
+
+  private ai() { return this.opts.ai ?? (this.opts.kind === 'wild' ? 0 : this.opts.leader || this.opts.soft ? 2 : 1); }
+
+  private coilView(side: BattleSide): CoilView {
+    const c = this.coil[side], r = this.host.rules.coil;
+    return { pips: c.pips, max: r.max, ready: r.ready, used: c.used, ...(c.overcharge ? { overcharge: true } : {}) };
+  }
+
+  private charge(side: BattleSide, n: number, out: BattleEvent[]) {
+    const c = this.coil[side];
+    if (!c.enabled || c.used || c.pips >= this.host.rules.coil.max) return;
+    c.pips = Math.min(this.host.rules.coil.max, c.pips + n);
+    out.push({ b: 'coil', side, coil: this.coilView(side) });
+  }
+
+  /** Spends a side's Coil on its active Pokémon. Returns the narration. */
+  private activate(side: BattleSide, mode: CoilMode | 'overcharge'): BattleEvent[] {
+    const c = this.coil[side], p = (side === 'ally' ? this.sim.p1 : this.sim.p2).active[0];
+    const who = side === 'ally' ? p.name : this.nameOf(`p2a: ${p.name}`);
+    c.pips = 0;
+    if (!c.overcharge) c.used = true;
+    const out: BattleEvent[] = [];
+    if (mode === 'overcharge') {
+      applyPatina(p); applyCurrent(p); applyOvercharge(p);
+      out.push({ b: 'overcharge', side, text: `${who} is Overcharged!\nCopper and Current at once, but it burns!` });
+    } else if (mode === 'copper') {
+      applyPatina(p);
+      out.push({ b: 'copper', side, text: `${who} is coated in a copper patina!` });
+    } else {
+      applyCurrent(p);
+      out.push({ b: 'current', side, text: `The Coil surges! ${who}'s next move\ncarries the Current!` });
+    }
+    out.push({ b: 'coil', side, coil: this.coilView(side) });
+    return out;
   }
 
   private toSet(m: Mon, player: boolean) {
@@ -113,12 +170,17 @@ export class BattleSession {
       t: 'battleStart',
       battle: {
         kind: o.kind, bg: o.bg ?? 'field', bgm: o.kind === 'wild' ? 'battle_wild' : 'battle_trainer',
-        ...(o.trainer ? { trainer: o.trainer } : {}), foeCount: this.foes.length
+        ...(o.trainer ? { trainer: o.trainer } : {}), foeCount: this.foes.length,
+        ...(this.coil.ally.enabled || this.coil.foe.enabled ? { coil: {
+          ...(this.coil.ally.enabled ? { ally: this.coilView('ally') } : {}),
+          ...(this.coil.foe.enabled ? { foe: this.coilView('foe') } : {})
+        } } : {})
       }
     });
     if (o.trainer) this.ev({ b: 'text', text: `${o.trainer.title} ${o.trainer.name} would like to battle!` });
     this.sim.choose('p1', 'default');
     this.sim.choose('p2', 'default');
+    for (const side of [this.sim.p1, this.sim.p2]) side.addSideCondition('hafniacoil', side.active[0]);
     this.advance();
   }
 
@@ -132,10 +194,16 @@ export class BattleSession {
     if (req.forceSwitch && action.kind !== 'switch') return this.request();
     switch (action.kind) {
       case 'move': {
-        if (!this.sim.choose('p1', `move ${action.index + 1}`)) {
+        const slot = req.active?.[0]?.moves?.filter((m: any) => m.id !== WAIT)[action.index];
+        if (action.mode) {
+          const why = coilBlock(action.mode, this.coil.ally, active, slot && Dex.moves.get(slot.id).category);
+          if (why) { this.ev({ b: 'text', text: why }); return this.request(); }
+        }
+        if (!slot || !this.sim.choose('p1', `move ${action.index + 1}`)) {
           this.ev({ b: 'text', text: 'That move can\'t be used right now!' });
           return this.request();
         }
+        if (action.mode) for (const e of this.activate('ally', action.mode)) this.ev(e);
         break;
       }
       case 'switch': {
@@ -149,14 +217,22 @@ export class BattleSession {
       case 'item': {
         const item = ITEMS[action.item];
         const target = p1.pokemon.find(p => (p.set as any).uid === action.uid);
-        if (!item?.heal || !this.host.bag[action.item] || !target) return this.request();
-        if (target.fainted || target.hp >= target.maxhp) { this.ev({ b: 'text', text: 'It won\'t have any effect.' }); return this.request(); }
+        if (!item || item.pocket !== 'medicine' || !this.host.bag[action.item] || !target) return this.request();
+        const fx = itemEffect(item, target.fainted ? 0 : target.hp, target.maxhp, (target.status || '') as StatusId);
+        if (!fx) { this.ev({ b: 'text', text: 'It won\'t have any effect.' }); return this.request(); }
         this.host.bag[action.item]--;
-        const before = target.hp;
-        target.hp = Math.min(target.maxhp, target.hp + item.heal);
+        const before = target.fainted ? 0 : target.hp;
         this.ev({ b: 'text', text: `${this.host.playerName} used a ${item.name}!` });
-        if (target.isActive) this.ev({ b: 'hp', side: 'ally', hp: target.hp, maxhp: target.maxhp, effect: 'heal' });
-        this.ev({ b: 'text', text: `${target.name} recovered ${target.hp - before} HP.` });
+        if (target.fainted) { target.fainted = false; target.faintQueued = false; (target as any).status = ''; target.hp = fx.hp; }
+        else target.hp = fx.hp;
+        if (fx.cure && target.status) {
+          target.cureStatus(true);
+          if (target.isActive) this.ev({ b: 'status', side: 'ally', status: '' });
+        }
+        if (target.isActive && target.hp !== before) this.ev({ b: 'hp', side: 'ally', hp: target.hp, maxhp: target.maxhp, effect: 'heal' });
+        if (before === 0) this.ev({ b: 'text', text: `${target.name} was revived!` });
+        else if (target.hp > before) this.ev({ b: 'text', text: `${target.name} recovered ${target.hp - before} HP.` });
+        if (fx.cure) this.ev({ b: 'text', text: `${target.name} is healthy again.` });
         this.waitTurn();
         break;
       }
@@ -166,7 +242,7 @@ export class BattleSession {
         if (!ball?.ball || !this.host.bag[action.item]) return this.request();
         this.host.bag[action.item]--;
         this.ev({ b: 'text', text: `${this.host.playerName} threw a ${ball.name}!` });
-        if (this.throwBall(ball.ball)) return;
+        if (this.throwBall(ball.ball)) return this.advance();
         this.waitTurn();
         break;
       }
@@ -200,13 +276,54 @@ export class BattleSession {
     for (let guard = 0; guard < 50; guard++) {
       this.flushLog();
       if (this.result) return;
+      if (this.askNext()) return;
+      if (this.ending) return this.finish(this.ending);
       if (this.sim.ended) return this.finish(this.sim.winner === this.host.playerName ? 'win' : 'lose');
       const p2 = this.sim.p2, p1 = this.sim.p1;
-      if (p2.requestState && !p2.isChoiceDone()) { this.sim.choose('p2', this.aiChoice(p2)); continue; }
+      // The player decides first; the AI never sees that choice, only the field.
       if (p1.requestState && !p1.isChoiceDone()) return this.request();
+      if (p2.requestState && !p2.isChoiceDone()) { this.sim.choose('p2', this.aiChoice(p2)); continue; }
       return;
     }
   }
+
+  // ---------- learning moves mid-battle ----------
+
+  private askNext(): boolean {
+    if (this.asking) return true;
+    const q = this.questions.shift();
+    if (!q) return false;
+    const m = this.host.party.find(x => x.uid === q.uid);
+    if (!m) return this.askNext();
+    this.asking = q;
+    const name = monName(m), mv = Dex.moves.get(q.move).name;
+    this.ev({ b: 'text', text: `${name} wants to learn ${mv}.\nBut ${name} already knows four moves.` });
+    this.host.emit({
+      t: 'prompt', text: `Forget a move to make room for ${mv}?`,
+      options: [...m.moves.map(x => Dex.moves.get(x.id).name), `Don't learn ${mv}`], cancel: m.moves.length
+    });
+    return true;
+  }
+
+  /** The player's answer to a "forget a move?" prompt. */
+  answer(index: number) {
+    const q = this.asking;
+    if (!q) return;
+    this.asking = null;
+    const m = this.host.party.find(x => x.uid === q.uid)!;
+    const name = monName(m), mv = Dex.moves.get(q.move).name;
+    if (index >= 0 && index < m.moves.length) {
+      const old = Dex.moves.get(m.moves[index].id).name;
+      replaceMove(m, index, q.move);
+      const p = this.sim.p1.pokemon.find(x => (x.set as any).uid === m.uid);
+      if (p) this.rebuildMoves(p, m);
+      this.ev({ b: 'text', text: `1, 2 and... Poof!\n${name} forgot ${old}...` });
+      this.ev({ b: 'text', text: `And... ${name} learned ${mv}!` });
+    } else this.ev({ b: 'text', text: `${name} did not learn ${mv}.` });
+    this.advance();
+  }
+
+  get waitingForAnswer() { return !!this.asking; }
 
   private request() {
     const p1 = this.sim.p1, req = p1.activeRequest as any;
@@ -223,6 +340,10 @@ export class BattleSession {
       party: this.host.party.map(monView),
       bag: { ...this.host.bag }
     };
+    const c = this.coil.ally;
+    if (c.enabled && active && !req?.forceSwitch) {
+      out.coil = { ...this.coilView('ally'), copper: coilBlock('copper', c, active), current: coilBlock('current', c, active) };
+    }
     this.host.emit({ t: 'battleRequest', request: out });
   }
 
@@ -233,47 +354,91 @@ export class BattleSession {
       return pos >= 0 ? `switch ${pos + 1}` : 'pass';
     }
     const moves: any[] = req.active[0].moves;
-    const usable = moves.map((m, i) => ({ m, i })).filter(({ m }) => !m.disabled && m.pp !== 0);
+    const usable = moves.map((m, i) => ({ m, i, mv: Dex.moves.get(m.id) })).filter(({ m }) => !m.disabled && m.pp !== 0);
     if (!usable.length) return 'default';
-    if (this.opts.kind === 'wild') return `move ${this.host.rng.pick(usable).i + 1}`;
-    // Trainers favour strong, super-effective moves but stay a little unpredictable.
+    const tier = this.ai();
     const me = side.active[0], foe = this.sim.p1.active[0];
-    const scored = usable.map(({ m, i }) => {
-      const mv = Dex.moves.get(m.id);
-      if (mv.category === 'Status') return { i, w: 30 };
-      if (!Dex.getImmunity(mv.type, foe.getTypes())) return { i, w: 1 };
-      const eff = 2 ** Dex.getEffectiveness(mv.type, foe.getTypes());
-      return { i, w: (mv.basePower || 40) * eff * (me.hasType(mv.type) ? 1.5 : 1) };
-    });
-    let r = this.host.rng.next() * scored.reduce((s, x) => s + x.w, 0);
-    for (const x of scored) { if ((r -= x.w) < 0) return `move ${x.i + 1}`; }
-    return `move ${scored[0].i + 1}`;
+    const foeHpPct = 100 * foe.hp / foe.maxhp;
+    // Useless: a status move on a foe that already has one, or an attack it is immune to or doubly resists.
+    const useless = (mv: ReturnType<typeof Dex.moves.get>) => mv.category === 'Status'
+      ? !!mv.status && !!foe.status
+      : !Dex.getImmunity(mv.type, foe.getTypes()) || Dex.getEffectiveness(mv.type, foe.getTypes()) < -1;
+    let pick: (typeof usable)[number] & { pct?: number };
+    if (tier === 0) pick = this.host.rng.pick(usable);
+    else if (tier === 1) {
+      const ok = usable.filter(x => !useless(x.mv));
+      pick = this.host.rng.pick(ok.length ? ok : usable);
+    } else {
+      // Tier 2+: score by expected damage (% of the foe's HP) or a simple value for status moves.
+      const scored = usable.map(x => {
+        const mv = x.mv;
+        if (mv.category !== 'Status') {
+          const pct = this.estimateDamage(me, foe, mv);
+          return { ...x, pct, score: pct >= foeHpPct ? 200 + (mv.priority > 0 ? 20 : 0) : pct };
+        }
+        let score = 5;
+        if (mv.status && !foe.status && foeHpPct > 50) score = mv.status === 'slp' ? 45 : 35;
+        else if (mv.target === 'self' && mv.boosts && this.turn <= 1) score = 30;
+        else if (mv.boosts && mv.target !== 'self') score = 15;
+        if (useless(mv)) score = 0;
+        return { ...x, pct: 0, score };
+      }).sort((a, b) => b.score - a.score);
+      pick = scored.length > 1 && this.host.rng.chance(0.2) ? scored[1] : scored[0];
+    }
+    const c = this.coil.foe;
+    if (c.enabled && !c.used && c.pips >= this.host.rules.coil.ready) {
+      const pct = pick.pct ?? (pick.mv.category === 'Status' ? 0 : this.estimateDamage(me, foe, pick.mv));
+      let mode: CoilMode | 'overcharge' | '' = '';
+      if (c.overcharge) mode = 'overcharge';
+      else if (c.unlocks.current && pick.mv.category !== 'Status' && (pct * this.host.rules.coil.currentPower >= foeHpPct || pct >= 40)) mode = 'current';
+      else if (c.unlocks.copper && 100 * me.hp / me.maxhp > 50 && foe.getTypes().some(t => Dex.getImmunity(t, me.getTypes()) && Dex.getEffectiveness(t, me.getTypes()) > 0)) mode = 'copper';
+      if (mode) for (const e of this.activate('foe', mode)) this.ev(e);
+    }
+    return `move ${pick.i + 1}`;
   }
 
+  /** Average damage of a move as a percentage of the target's max HP (no crits, mean roll). */
+  private estimateDamage(me: SimPokemon, foe: SimPokemon, mv: ReturnType<typeof Dex.moves.get>): number {
+    if (!Dex.getImmunity(mv.type, foe.getTypes())) return 0;
+    const phys = mv.category === 'Physical';
+    const atk = me.getStat(phys ? 'atk' : 'spa', false, true), def = Math.max(1, foe.getStat(phys ? 'def' : 'spd', false, true));
+    const bp = mv.basePower || 60;
+    let dmg = Math.floor(Math.floor(Math.floor(2 * me.level / 5 + 2) * bp * atk / def) / 50) + 2;
+    if (me.hasType(mv.type)) dmg *= 1.5;
+    dmg *= 2 ** Dex.getEffectiveness(mv.type, foe.getTypes()) * 0.925;
+    if (mv.multihit) dmg *= Array.isArray(mv.multihit) ? 3 : mv.multihit;
+    return 100 * dmg / foe.maxhp;
+  }
+
+  /** Gen 9 capture (systems.md §2.5): three shake checks; low-level and badge modifiers. */
   private throwBall(mult: number): boolean {
     const foe = this.sim.p2.active[0], mon = this.monOf(foe)!;
     const rate = speciesExtra(mon.species).catchRate;
     const statusBonus = foe.status === 'slp' || foe.status === 'frz' ? 2.5 : foe.status ? 1.5 : 1;
-    const a = ((3 * foe.maxhp - 2 * foe.hp) * rate * mult * statusBonus) / (3 * foe.maxhp);
+    let a = ((3 * foe.maxhp - 2 * foe.hp) * rate * mult * statusBonus) / (3 * foe.maxhp);
+    if (mon.level < 13) a *= (36 - mon.level) / 10;
+    const cap = this.host.rules.obedienceBase + this.host.rules.obediencePerBadge * this.host.badges;
+    if (mon.level > cap) a *= 0.1;
     let shakes = 0;
-    if (a >= 255) shakes = 4;
+    if (a >= 255) shakes = 3;
     else {
-      const b = 1048560 / Math.sqrt(Math.sqrt(16711680 / Math.max(1, a)));
-      while (shakes < 4 && this.host.rng.int(65536) < b) shakes++;
+      const b = 65536 / (255 / Math.max(0.01, a)) ** 0.1875;
+      while (shakes < 3 && this.host.rng.int(65536) < b) shakes++;
     }
-    const caught = shakes === 4;
-    this.ev({ b: 'throw', shakes: Math.min(3, shakes), caught });
+    const caught = shakes === 3;
+    this.ev({ b: 'throw', shakes, caught });
     if (!caught) {
-      this.ev({ b: 'text', text: ['Oh no! The Pokémon broke free!', 'Aww! It appeared to be caught!', 'Aargh! Almost had it!', 'Gah! It was so close, too!'][shakes] });
+      this.ev({ b: 'text', text: ['Oh no! The Pokémon broke free!', 'Aww! It appeared to be caught!', 'Aargh! Almost had it!'][shakes] });
       return false;
     }
     mon.hp = foe.hp; mon.status = (foe.status === 'tox' ? 'psn' : foe.status) as StatusId;
     mon.ot = this.host.playerName;
     this.host.emit({ t: 'me', name: 'me_catch' });
     this.ev({ b: 'text', text: `Gotcha! ${mon.nickname ?? speciesName(mon.species)} was caught!` });
+    this.awardExp(foe); // catching gives EXP like a knockout (Gen 6+)
     const where = this.host.addMon(mon);
     this.ev({ b: 'text', text: where === 'party' ? `${speciesName(mon.species)} joined your team!` : `Your team is full, so ${speciesName(mon.species)} was sent to the PC.` });
-    this.finish('caught');
+    this.ending = 'caught';
     return true;
   }
 
@@ -284,7 +449,8 @@ export class BattleSession {
       const t = this.opts.trainer;
       this.host.emit({ t: 'bgm', name: this.opts.leader ? 'victory_leader' : 'victory_trainer' });
       this.ev({ b: 'text', text: `You defeated ${t.title} ${t.name}!` });
-      const prize = Math.max(...this.foes.map(m => m.level)) * (this.opts.prize ?? (this.opts.leader ? 100 : 24));
+      const rules = this.host.rules;
+      const prize = this.foes[this.foes.length - 1].level * (this.opts.prize ?? rules.prizeBase[t.title] ?? rules.prizeDefault);
       this.host.giveMoney(prize);
       this.ev({ b: 'text', text: `You got ${prize} kr. for winning!` });
     } else if (result === 'win') this.host.emit({ t: 'bgm', name: 'victory_wild' });
@@ -292,6 +458,8 @@ export class BattleSession {
       if (this.opts.soft) this.ev({ b: 'text', text: 'You lost the battle...' });
       else {
         this.ev({ b: 'text', text: `${this.host.playerName} has no Pokémon that can fight!` });
+        const lost = this.host.whiteout();
+        if (lost) this.ev({ b: 'text', text: `${this.host.playerName} panicked and dropped ${lost} kr...` });
         this.ev({ b: 'text', text: `${this.host.playerName} hurried back to safety...` });
       }
     }
@@ -315,34 +483,46 @@ export class BattleSession {
 
   // ---------- EXP ----------
 
+  /** Exp Share is always on: every healthy party member gets the full amount (systems.md §2.6). */
   private awardExp(fainted: SimPokemon) {
-    const p = this.sim.p1.active[0];
-    if (!p || p.fainted) return;
-    const m = this.monOf(p)!, foe = this.monOf(fainted)!;
-    const b = speciesExtra(foe.species).baseExp, L = foe.level, Lp = m.level;
+    const foe = this.monOf(fainted)!;
+    const b = speciesExtra(foe.species).baseExp, L = foe.level;
     const trainer = this.opts.kind === 'trainer' ? 1.5 : 1;
-    const amount = Math.max(1, Math.floor((b * L / 5) * trainer * ((2 * L + 10) / (L + Lp + 10)) ** 2.5 + 1));
-    this.ev({ b: 'text', text: `${p.name} gained ${amount} Exp. Points!` });
-    const steps = gainExp(m, amount);
-    for (const step of steps) {
-      const before = p.maxhp;
-      const stats = calcStats(m);
-      (p as any).level = m.level; (p.set as any).level = m.level;
-      p.baseMaxhp = p.maxhp = stats.hp;
-      p.hp = Math.max(0, Math.min(stats.hp, p.hp + stats.hp - before));
-      const { hp, ...rest } = stats;
-      Object.assign(p.baseStoredStats, rest); Object.assign(p.storedStats, rest);
-      p.details = (p as any).getUpdatedDetails?.() ?? p.details;
-      this.expEvent(p, m);
-      this.host.emit({ t: 'me', name: 'me_item' });
-      this.ev({ b: 'text', text: `${p.name} grew to Lv. ${step.level}!` });
-      step.forgot.forEach((old, i) => {
-        this.ev({ b: 'text', text: `${p.name} forgot ${Dex.moves.get(old).name}...\nand learned ${Dex.moves.get(step.learned[i]).name}!` });
-      });
-      for (const id of step.learned.slice(step.forgot.length)) this.ev({ b: 'text', text: `${p.name} learned ${Dex.moves.get(id).name}!` });
-      if (step.learned.length) this.rebuildMoves(p, m);
+    const active = this.sim.p1.active[0];
+    const team = this.sim.p1.pokemon.filter(p => !p.fainted && p.hp > 0 && this.monOf(p)!.level < 100);
+    team.sort((x, y) => Number(y === active) - Number(x === active));
+    let sharedSaid = false;
+    for (const p of team) {
+      const m = this.monOf(p)!, Lp = m.level;
+      const amount = Math.max(1, Math.floor((b * L / 5) * trainer * ((2 * L + 10) / (L + Lp + 10)) ** 2.5 + 1));
+      if (p === active) this.ev({ b: 'text', text: `${p.name} gained ${amount} Exp. Points!` });
+      else if (!sharedSaid) { sharedSaid = true; this.ev({ b: 'text', text: 'The rest of your team gained Exp. Points\nthanks to the Exp. Share!' }); }
+      const steps = gainExp(m, amount);
+      for (const step of steps) {
+        this.leveled.add(m.uid);
+        this.syncLevel(p, m);
+        if (p === active) this.expEvent(p, m);
+        this.host.emit({ t: 'me', name: 'me_item' });
+        this.ev({ b: 'text', text: `${p.name} grew to Lv. ${step.level}!` });
+        for (const id of step.learned) this.ev({ b: 'text', text: `${p.name} learned ${Dex.moves.get(id).name}!` });
+        if (step.learned.length) this.rebuildMoves(p, m);
+        for (const id of step.pending) this.questions.push({ uid: m.uid, move: id });
+      }
+      if (!steps.length && p === active) this.expEvent(p, m);
     }
-    if (!steps.length) this.expEvent(p, m);
+  }
+
+  /** Mirrors a level-up onto the simulator's copy of the Pokémon. */
+  private syncLevel(p: SimPokemon, m: Mon) {
+    const before = p.maxhp;
+    const stats = calcStats(m);
+    (p as any).level = m.level; (p.set as any).level = m.level;
+    p.baseMaxhp = p.maxhp = stats.hp;
+    p.hp = Math.max(0, Math.min(stats.hp, p.hp + stats.hp - before));
+    const { hp, ...rest } = stats;
+    void hp;
+    Object.assign(p.baseStoredStats, rest); Object.assign(p.storedStats, rest);
+    p.details = (p as any).getUpdatedDetails?.() ?? p.details;
   }
 
   private expEvent(p: SimPokemon, m: Mon) {
@@ -411,6 +591,15 @@ export class BattleSession {
       if (cmd !== '-damage' && cmd !== '-supereffective' && cmd !== '-resisted' && cmd !== '-crit') flushAfterHit();
       switch (cmd) {
         case 'start': this.started = true; break;
+        case 'turn': {
+          this.turn = Number(a1);
+          if (this.turn >= 2) for (const side of ['ally', 'foe'] as BattleSide[]) {
+            const s = side === 'ally' ? this.sim.p1 : this.sim.p2;
+            if (s.active[0] && !s.active[0].fainted) this.charge(side, 1, evs);
+          }
+          break;
+        }
+        case '-zbroken': evs.push({ b: 'text', text: `${this.nameOf(a1)} couldn't fully protect itself\nand got hurt!` }); break;
         case 'switch': case 'drag': {
           const p = this.pokemonOf(a1)!, side = this.sideOf(a1);
           let text = side === 'ally' ? `Go! ${p.name}!` : this.opts.kind === 'wild' ? `A wild ${p.name} appeared!`
@@ -435,14 +624,19 @@ export class BattleSession {
           if (!from) flushAfterHit();
           if (from) {
             const src = from.replace(/^(item|ability|move): /, '');
-            const sub = { brn: 'its burn', psn: 'poison', tox: 'poison', confusion: 'confusion' }[src];
+            const sub = { brn: 'its burn', psn: 'poison', tox: 'poison', confusion: 'confusion', 'Hafnia Overcharge': 'its Overcharge' }[src];
             if (cmd === '-damage' && sub) evs.push({ b: 'text', text: sub === 'confusion' ? 'It hurt itself in its confusion!' : `${this.nameOf(a1)} was hurt by ${sub}!` });
             else if (cmd === '-heal' && from.startsWith('item')) evs.push({ b: 'text', text: `${this.nameOf(a1)} restored a little HP using its ${src}!` });
             else if (cmd === '-damage' && from.startsWith('item')) evs.push({ b: 'text', text: `${this.nameOf(a1)} was hurt by its ${src}!` });
           }
           break;
         }
-        case '-supereffective': this.pendingEffect = 'super'; afterHit.push({ b: 'text', text: 'It\'s super effective!' }); break;
+        case '-supereffective': {
+          this.pendingEffect = 'super'; afterHit.push({ b: 'text', text: 'It\'s super effective!' });
+          const side = this.sideOf(a1), c = this.coil[side];
+          if (c.seTurn !== this.turn) { c.seTurn = this.turn; this.charge(side, 1, afterHit); }
+          break;
+        }
         case '-resisted': this.pendingEffect = 'weak'; afterHit.push({ b: 'text', text: 'It\'s not very effective...' }); break;
         case '-crit': afterHit.unshift({ b: 'text', text: 'A critical hit!' }); break;
         case '-miss': evs.push({ b: 'text', text: a2 ? `${this.nameOf(a2)} avoided the attack!` : `${this.nameOf(a1)}'s attack missed!` }); break;
@@ -487,6 +681,8 @@ export class BattleSession {
           if (eff === 'confusion') evs.push({ b: 'text', text: `${this.nameOf(a1)} is confused!` });
           else if (eff === 'Attract') evs.push({ b: 'text', text: `${this.nameOf(a1)} is in love with ${this.nameOf(kw('of') ?? a1, false)}!` });
           else if (eff === 'Protect') evs.push({ b: 'text', text: `${this.nameOf(a1)} protected itself!` });
+          else if (eff === 'Patina') evs.push({ b: 'text', text: `${this.nameOf(a1)}'s patina kept its defenses\nfrom dropping!` });
+          else if (eff === 'Live Wire') evs.push({ b: 'text', text: `Live Wire! The Coil's spark jolts\n${this.nameOf(a1, false)} into action!` });
           break;
         }
         case '-end': {
@@ -505,6 +701,7 @@ export class BattleSession {
         case 'faint': {
           const p = this.pokemonOf(a1)!, side = this.sideOf(a1);
           evs.push({ b: 'faint', side, text: `${this.nameOf(a1)} fainted!` });
+          this.charge(side, 1, evs);
           for (const e of evs.splice(0)) this.ev(e);
           if (side === 'foe') this.awardExp(p);
           break;

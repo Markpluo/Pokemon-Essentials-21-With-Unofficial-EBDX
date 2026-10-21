@@ -4,10 +4,10 @@
 // Pokémon caught in one region is the same Pokémon in every other.
 import { Dex } from '@pkmn/sim';
 import type { Dir } from './protocol';
+import { COIL_DEFAULTS, type CoilRules } from './coil';
 import { registerSpeciesExtra, type SpeciesExtra } from './pokemon';
 import type { Script } from './script';
 
-/** A building drawn from the tileset: parts are [srcX, srcY, w, h, dx, dy] in tiles. */
 /** A building: tileset parts [srcX, srcY, w, h, dx, dy], or `draw` naming a client-drawn building. */
 export interface Stamp { parts?: number[][]; draw?: string; w: number; h: number; door?: [number, number] }
 
@@ -37,6 +37,26 @@ export interface MapDef {
   bgm: string;
 }
 
+/** Balance numbers (systems.md principle 4). The base pack can override any of them. */
+export interface Rules {
+  encounterRate: number;
+  prizeBase: Record<string, number>;   // prize = base for the trainer's title × level of their last Pokémon
+  prizeDefault: number;
+  whiteoutBase: number[];              // money lost = base for the badge count × highest party level
+  obedienceBase: number;               // other trainers' Pokémon obey up to base + perBadge × badges
+  obediencePerBadge: number;
+  coil: CoilRules;
+}
+
+export const DEFAULT_RULES: Rules = {
+  encounterRate: 0.1,
+  prizeBase: { Youngster: 16, Cyclist: 24, Skater: 20, Grunt: 40, Rival: 60, Leader: 120, 'Elite Four': 160, Champion: 200 },
+  prizeDefault: 24,
+  whiteoutBase: [8, 16, 24, 36, 48, 64, 80, 100, 120],
+  obedienceBase: 20, obediencePerBadge: 5,
+  coil: COIL_DEFAULTS
+};
+
 export interface PackManifest {
   id: string; name: string; version: string; requires?: string[];
   species: string[];
@@ -52,6 +72,8 @@ export interface Pack {
   speciesExtra?: Record<string, SpeciesExtra>;
   /** Raw Showdown data merged into the simulator's dex: { Pokedex, Moves, Learnsets, ... }. */
   simData?: Record<string, Record<string, unknown>>;
+  /** Balance overrides; only the base pack's are used. */
+  rules?: Partial<Rules>;
   /** Only the base game sets this: where a new game begins. */
   newGame?: { map: string; x: number; y: number; dir: Dir; intro: Script; respawn: Respawn };
 }
@@ -97,6 +119,11 @@ export class Content {
     const st = this.packs.get(pack)?.stamps[s];
     if (!st) throw new Error(`Unknown stamp "${s}" in pack "${pack}"`);
     return st;
+  }
+
+  get rules(): Rules {
+    const r = this.base.rules ?? {};
+    return { ...DEFAULT_RULES, ...r, prizeBase: { ...DEFAULT_RULES.prizeBase, ...r.prizeBase }, coil: { ...DEFAULT_RULES.coil, ...r.coil } };
   }
 
   get base(): Pack {

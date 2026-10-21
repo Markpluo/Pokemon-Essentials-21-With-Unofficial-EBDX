@@ -44,6 +44,7 @@ export function speciesExtra(id: string): SpeciesExtra {
 export const speciesName = (id: string) => Dex.species.get(id).name;
 export const speciesTypes = (id: string) => Dex.species.get(id).types.map(t => t.toLowerCase());
 export const monName = (m: Mon) => m.nickname || speciesName(m.species);
+export const moveName = (id: string) => Dex.moves.get(id).name;
 
 export function calcStats(m: Mon): Stats {
   const base = Dex.species.get(m.species).baseStats;
@@ -114,31 +115,64 @@ export function healMon(m: Mon) {
   for (const mv of m.moves) mv.pp = maxPp(mv.id);
 }
 
-/** Adds EXP and returns what happened, level by level, so callers can narrate it. */
-export function gainExp(m: Mon, amount: number): { level: number; learned: string[]; forgot: string[] }[] {
+export interface LevelStep { level: number; learned: string[]; pending: string[] }
+
+/** Adds EXP and returns what happened, level by level, so callers can narrate it. Moves that
+ *  don't fit in a full moveset come back as `pending` for the player to decide on. */
+export function gainExp(m: Mon, amount: number): LevelStep[] {
   const ex = speciesExtra(m.species);
   m.exp += amount;
-  const steps = [];
+  const steps: LevelStep[] = [];
   while (m.level < 100 && m.exp >= expForLevel(ex.growth, m.level + 1)) {
     const oldMax = maxHp(m);
     m.level++;
     m.hp = Math.min(maxHp(m), m.hp + maxHp(m) - oldMax);
-    const learned: string[] = [], forgot: string[] = [];
-    for (const [l, id] of ex.moves) {
-      if (l !== m.level || m.moves.some(mv => mv.id === id)) continue;
-      // Like the POC: a full moveset forgets its oldest move. A choice prompt comes later.
-      if (m.moves.length >= 4) forgot.push(m.moves.shift()!.id);
-      m.moves.push({ id, pp: maxPp(id) });
-      learned.push(id);
-    }
-    steps.push({ level: m.level, learned, forgot });
+    steps.push({ level: m.level, ...learnMoves(m, ex.moves.filter(([l]) => l === m.level).map(([, id]) => id)) });
   }
   return steps;
 }
 
+/** Teaches moves while there is room; the rest are returned for a "forget a move?" prompt. */
+export function learnMoves(m: Mon, ids: string[]) {
+  const learned: string[] = [], pending: string[] = [];
+  for (const id of ids) {
+    if (m.moves.some(mv => mv.id === id) || learned.includes(id) || pending.includes(id)) continue;
+    if (m.moves.length < 4) { m.moves.push({ id, pp: maxPp(id) }); learned.push(id); } else pending.push(id);
+  }
+  return { learned, pending };
+}
+
+export function replaceMove(m: Mon, slot: number, id: string) {
+  m.moves[slot] = { id, pp: maxPp(id) };
+}
+
+/** The species this Pokémon evolves into by levelling up right now, if any. */
+export function levelEvolution(m: Mon): string | null {
+  for (const [to, method, param] of speciesExtra(m.species).evolutions ?? []) {
+    const ok = method === 'Level' || (method === 'LevelMale' && m.gender === 'M') || (method === 'LevelFemale' && m.gender === 'F');
+    if (ok && m.level >= Number(param) && Dex.species.get(to).exists) return to;
+  }
+  return null;
+}
+
+/** Turns the Pokémon into another species, keeping its HP damage, and returns the moves it learns on evolving. */
+export function evolveMon(m: Mon, to: string) {
+  const lost = maxHp(m) - m.hp;
+  const sp = Dex.species.get(to);
+  const slot = Object.values(Dex.species.get(m.species).abilities).indexOf(m.ability);
+  m.species = sp.id;
+  m.ability = (Object.values(sp.abilities)[Math.max(0, slot)] ?? sp.abilities[0]) as string;
+  m.hp = Math.max(0, maxHp(m) - lost);
+  const moves = speciesExtra(sp.id).moves.filter(([l]) => l === 0 || l === m.level).map(([, id]) => id);
+  return learnMoves(m, moves);
+}
+
 export function moveView(id: string, pp: number, maxpp?: number, disabled?: boolean): MoveView {
   const mv = Dex.moves.get(id);
-  return { id, name: mv.name, type: mv.type.toLowerCase(), pp, maxpp: maxpp ?? mv.pp, ...(disabled ? { disabled } : {}) };
+  return {
+    id, name: mv.name, type: mv.type.toLowerCase(), category: mv.category, power: mv.basePower,
+    pp, maxpp: maxpp ?? mv.pp, ...(disabled ? { disabled } : {})
+  };
 }
 
 export function monView(m: Mon): MonView {

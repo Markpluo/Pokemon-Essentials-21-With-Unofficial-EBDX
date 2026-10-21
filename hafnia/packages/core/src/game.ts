@@ -1,14 +1,19 @@
 // The authoritative game: world rules, story scripts, battles and the save state.
 // It has no DOM, network or timers. Feed it intents, get back events. A Web Worker runs it
 // for solo play; the online server will run the very same class.
-import { BattleSession, ITEMS } from './battle';
+import { BattleSession } from './battle';
+import type { CoilUnlocks } from './coil';
 import { Content, GRASS_TILE, SOLID_TILES, ns, type MapDef, type NpcDef, type Respawn } from './content';
-import { healMon, makeMon, maxHp, monName, monView, speciesExtra, speciesName, speciesTypes, type Mon } from './pokemon';
-import type { Dir, Intent, ServerEvent, WorldView } from './protocol';
+import { ITEMS, itemEffect } from './items';
+import {
+  evolveMon, expForLevel, gainExp, healMon, levelEvolution, makeMon, maxHp, monName, monView, moveName, replaceMove,
+  speciesExtra, speciesName, speciesTypes, type Mon
+} from './pokemon';
+import type { BattleResult, DebugCommand, Dir, Intent, ServerEvent, WorldView } from './protocol';
 import { Rng } from './rng';
 import type { NpcHandle, Pause, Script, ScriptApi } from './script';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export interface SaveData {
   v: number;
@@ -22,11 +27,13 @@ export interface SaveData {
   npcs: Record<string, { x: number; y: number; dir: Dir; hidden: boolean }>; // "pack:map/npc"
   respawn: Respawn;
   rng: number;
+  badges: string[];                // "pack:badge" ids, in the order earned
+  coil: CoilUnlocks;               // Copper & Current modes the player has unlocked
+  repel: number;                   // steps left
 }
 
 const DIRS: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const PARTY_MAX = 6;
-const ENCOUNTER_RATE = 0.12;
 
 export function faceTo(ax: number, ay: number, bx: number, by: number): Dir {
   const dx = bx - ax, dy = by - ay;
@@ -38,7 +45,10 @@ export class SaveError extends Error {}
 export class Game {
   readonly rng: Rng;
   private out: ServerEvent[] = [];
-  private script: { gen: Generator<Pause, unknown, any>; onDone?: (v: unknown) => void } | null = null;
+  /** The running script. Helpers such as the post-battle evolution check are pushed on top of it. */
+  private script: { stack: Generator<Pause, unknown, any>[]; onDone?: (v: unknown) => void } | null = null;
+  /** Dev and test builds only: enables the debug menu commands. The online server never sets it. */
+  debug = false;
   private pause: Pause | null = null;
   private battle: BattleSession | null = null;
   private battleSoft = false;
@@ -55,7 +65,8 @@ export class Game {
     const game = new Game(content, {
       v: SAVE_VERSION, packs: [...content.packs.keys()], name: 'Player', map, x: start.x, y: start.y, dir: start.dir,
       party: [], box: [], bag: {}, money: 3000, flags: {}, npcs: {},
-      respawn: { ...start.respawn, map: ns(base.manifest.id, start.respawn.map) }, rng: seed >>> 0
+      respawn: { ...start.respawn, map: ns(base.manifest.id, start.respawn.map) }, rng: seed >>> 0,
+      badges: [], coil: {}, repel: 0
     });
     game.emitMap();
     game.run(start.intro, base.manifest.id);
@@ -89,8 +100,10 @@ export class Game {
 
   handle(intent: Intent): ServerEvent[] {
     try {
-      if (this.battle) {
+      if (intent.t === 'debug') { if (this.debug && !this.busy) this.debugCommand(intent.cmd, intent.arg); }
+      else if (this.battle) {
         if (intent.t === 'battle') this.battleAct(intent.action);
+        else if (intent.t === 'answer' && this.battle.waitingForAnswer) { this.battle.answer(intent.index); this.afterBattleAct(); }
       } else if (this.pause) {
         if (intent.t === 'answer') this.answer(intent.index);
       } else {
@@ -100,7 +113,7 @@ export class Game {
           case 'interact': this.interact(); break;
           case 'useItem': this.useItem(intent.item, intent.uid); break;
           case 'lead': this.lead(intent.uid); break;
-          case 'save': this.out.push({ t: 'checkpoint' }, { t: 'say', text: 'Your progress was saved.' }); break;
+
         }
       }
     } catch (e) {
@@ -219,11 +232,23 @@ export class Game {
         if (this.solid(tx, ty)) break;
       }
     }
-    if (this.tile(m, s.x, s.y) === GRASS_TILE && m.encounters?.length && this.partyAlive() && this.rng.chance(ENCOUNTER_RATE)) {
+    if (s.repel > 0 && --s.repel === 0) {
+      const g = this;
+      this.run(function* (api) {
+        if (!api.hasItem('repel')) { api.say('The Repel wore off.'); return; }
+        const c: number = yield api.ask('The Repel wore off.\nUse another?', ['Yes', 'No'], 1);
+        if (c === 0) { g.state.bag.repel--; g.state.repel = ITEMS.repel.repel!; api.sfx('select'); }
+      }, m.pack);
+      return;
+    }
+    if (this.flag('debug', 'noEncounters')) return;
+    if (this.tile(m, s.x, s.y) === GRASS_TILE && m.encounters?.length && this.partyAlive() && this.rng.chance(this.content.rules.encounterRate)) {
       let r = this.rng.next() * 100, sp = m.encounters[0][1];
       for (const [w, id] of m.encounters) { if (r < w) { sp = id; break; } r -= w; }
       const [lo, hi] = m.levels ?? [2, 4];
       const level = lo + this.rng.int(hi - lo + 1);
+      const lead = s.party.find(p => p.hp > 0);
+      if (s.repel > 0 && lead && level < lead.level) return;
       const bg = m.battleBg;
       this.run(function* (api) { return yield api.battle({ kind: 'wild', foes: [{ species: sp, level }], bg }); }, m.pack);
     }
@@ -265,13 +290,59 @@ export class Game {
   private partyAlive() { return this.state.party.some(p => p.hp > 0); }
 
   private useItem(item: string, uid: string) {
-    const it = ITEMS[item], m = this.state.party.find(p => p.uid === uid);
-    if (!it?.heal || !this.state.bag[item] || !m) return;
-    if (m.hp <= 0 || m.hp >= maxHp(m)) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
+    const it = ITEMS[item];
+    if (!it || !this.state.bag[item]) return;
+    if (it.repel) {
+      if (this.state.repel > 0) { this.out.push({ t: 'say', text: 'A Repel is still working.' }); return; }
+      this.state.bag[item]--; this.state.repel = it.repel;
+      this.out.push({ t: 'sfx', name: 'select' }, { t: 'say', text: `${this.state.name} used a ${it.name}.\nWeaker wild Pokémon will stay away.` });
+      return;
+    }
+    const m = this.state.party.find(p => p.uid === uid);
+    if (!m || it.pocket !== 'medicine') return;
+    const fx = itemEffect(it, m.hp, maxHp(m), m.status);
+    if (!fx) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
     const before = m.hp;
-    m.hp = Math.min(maxHp(m), m.hp + it.heal);
+    m.hp = fx.hp; if (fx.cure) m.status = '';
     this.state.bag[item]--;
-    this.out.push({ t: 'sfx', name: 'select' }, { t: 'say', text: `${monName(m)} recovered ${m.hp - before} HP.` });
+    const text = before === 0 ? `${monName(m)} was revived!` : m.hp > before ? `${monName(m)} recovered ${m.hp - before} HP.` : `${monName(m)} is healthy again.`;
+    this.out.push({ t: 'sfx', name: 'select' }, { t: 'say', text });
+  }
+
+  // ---------- debug (dev builds) ----------
+
+  private debugCommand(cmd: DebugCommand, arg?: string | number) {
+    const s = this.state, say = (text: string) => this.out.push({ t: 'say', text });
+    switch (cmd) {
+      case 'heal': for (const m of s.party) healMon(m); say('Debug: team healed.'); break;
+      case 'levelUp': {
+        const m = s.party[0]; if (!m) break;
+        const target = Math.min(100, m.level + (Number(arg) || 5));
+        for (const step of gainExp(m, expForLevel(speciesExtra(m.species).growth, target) - m.exp)) {
+          for (const id of step.pending) replaceMove(m, 0, id);
+        }
+        healMon(m); say(`Debug: ${monName(m)} is now Lv. ${m.level}.`); break;
+      }
+      case 'items':
+        for (const [k, n] of Object.entries({ pokeball: 10, greatball: 5, potion: 10, superpotion: 5, fullheal: 3, revive: 3, repel: 5 })) s.bag[k] = (s.bag[k] ?? 0) + n;
+        say('Debug: items added.'); break;
+      case 'money': s.money += 10000; say('Debug: 10,000 kr. added.'); break;
+      case 'unlockCoil': s.coil = { ...s.coil, copper: true, current: true }; say('Debug: Copper and Current unlocked.'); break;
+      case 'encounters': {
+        const off = !s.flags['debug:noEncounters']; s.flags['debug:noEncounters'] = off;
+        say(off ? 'Debug: wild encounters off.' : 'Debug: wild encounters on.'); break;
+      }
+      case 'badge': s.badges.push(`debug:badge${s.badges.length + 1}`); say(`Debug: you now have ${s.badges.length} badge(s).`); break;
+      case 'warp': {
+        const m = this.content.map(String(arg));
+        let best: [number, number] = [0, 0], bd = Infinity;
+        for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+          const d = Math.abs(x - m.w / 2) + Math.abs(y - m.h / 2);
+          if (d < bd && !this.solid(x, y, m.key) && m.grid[y][x] !== GRASS_TILE) { bd = d; best = [x, y]; }
+        }
+        this.warp(m.key, best[0], best[1], 'down'); break;
+      }
+    }
   }
 
   private lead(uid: string) {
@@ -284,15 +355,22 @@ export class Game {
   private flag(pack: string, name: string) { return this.state.flags[ns(pack, name)]; }
 
   private run(script: Script, pack: string, onDone?: (v: unknown) => void) {
-    this.script = { gen: script(this.api(pack)), onDone };
+    this.script = { stack: [script(this.api(pack))], onDone };
     this.resume(undefined);
   }
 
   private resume(value: unknown) {
     const sc = this.script!;
-    let r = sc.gen.next(value);
-    while (!r.done) {
+    for (;;) {
+      const r = sc.stack[sc.stack.length - 1].next(value);
+      if (r.done) {
+        sc.stack.pop();
+        if (!sc.stack.length) { this.script = null; sc.onDone?.(r.value); return; }
+        value = r.value;
+        continue;
+      }
       const p = r.value;
+      value = undefined;
       if (p.kind === 'ask') { this.pause = p; this.out.push({ t: 'prompt', text: p.text, options: p.options, ...(p.cancel !== undefined ? { cancel: p.cancel } : {}) }); return; }
       if (p.kind === 'pickSpecies') {
         this.pause = p;
@@ -300,16 +378,14 @@ export class Game {
         return;
       }
       if (p.kind === 'battle') {
-        if (!this.partyAlive()) { r = sc.gen.next('lose'); continue; }
+        if (!this.partyAlive()) { value = 'lose'; continue; }
         this.battleSoft = !!p.opts.soft;
         this.battle = new BattleSession(this.battleHost(), p.opts);
         this.battle.start();
-        if (this.battle.result) { r = sc.gen.next(this.endBattle()); continue; }
-        return;
+        if (!this.battle.result) return;
+        this.endBattle();
       }
     }
-    this.script = null;
-    sc.onDone?.(r.value);
   }
 
   private answer(index: number) {
@@ -322,11 +398,18 @@ export class Game {
 
   private battleAct(action: import('./protocol').BattleAction) {
     this.battle!.act(action);
-    if (this.battle?.result) this.resume(this.endBattle());
+    this.afterBattleAct();
   }
 
+  private afterBattleAct() {
+    if (!this.battle?.result) return;
+    this.endBattle();
+    this.resume(undefined);
+  }
+
+  /** Closes the battle and pushes the post-battle steps (evolution) that hand its result back to the script. */
   private endBattle() {
-    const result = this.battle!.result!;
+    const result = this.battle!.result!, leveled = this.battle!.leveled;
     this.battle = null;
     if (result === 'lose') {
       for (const m of this.state.party) healMon(m);
@@ -337,13 +420,51 @@ export class Game {
       }
     }
     this.out.push({ t: 'checkpoint' });
+    this.script!.stack.push(this.afterBattle(result, leveled));
+  }
+
+  private *afterBattle(result: BattleResult, leveled: Set<string>): Generator<Pause, BattleResult, any> {
+    if (result === 'lose') return result;
+    for (const m of this.state.party) {
+      if (!leveled.has(m.uid) || m.hp <= 0) continue;
+      const to = levelEvolution(m);
+      if (!to) continue;
+      const name = monName(m), from = speciesName(m.species);
+      const c: number = yield { kind: 'ask', text: `What? ${name} is evolving!`, options: ['Let it evolve', 'Stop it'], cancel: 1 };
+      if (c !== 0) { this.out.push({ t: 'say', text: `Huh? ${name} stopped evolving!` }); continue; }
+      this.out.push({ t: 'evolve', from: speciesExtra(m.species).key, to: speciesExtra(to).key, fromName: name, toName: speciesName(to) });
+      const learn = evolveMon(m, to);
+      this.out.push({ t: 'me', name: 'me_get' }, { t: 'say', text: `Congratulations! Your ${from}\nevolved into ${speciesName(to)}!` });
+      for (const id of learn.learned) this.out.push({ t: 'say', text: `${monName(m)} learned ${moveName(id)}!` });
+      for (const id of learn.pending) yield* this.learnPrompt(m, id);
+    }
+    this.out.push({ t: 'checkpoint' });
     return result;
+  }
+
+  /** The "forget a move?" prompt outside battle. */
+  private *learnPrompt(m: Mon, id: string): Generator<Pause, void, any> {
+    const name = monName(m), mv = moveName(id);
+    this.out.push({ t: 'say', text: `${name} wants to learn ${mv}.\nBut ${name} already knows four moves.` });
+    const c: number = yield { kind: 'ask', text: `Forget a move to make room for ${mv}?`, options: [...m.moves.map(x => moveName(x.id)), `Don't learn ${mv}`], cancel: m.moves.length };
+    if (c < m.moves.length) {
+      const old = moveName(m.moves[c].id);
+      replaceMove(m, c, id);
+      this.out.push({ t: 'say', text: `1, 2 and... Poof!\n${name} forgot ${old}...` }, { t: 'say', text: `And... ${name} learned ${mv}!` });
+    } else this.out.push({ t: 'say', text: `${name} did not learn ${mv}.` });
   }
 
   private battleHost() {
     const g = this;
     return {
       rng: g.rng, party: g.state.party, bag: g.state.bag, playerName: g.state.name,
+      rules: g.content.rules, badges: g.state.badges.length, coil: g.state.coil,
+      whiteout: () => {
+        const rules = g.content.rules, top = Math.max(1, ...g.state.party.map(m => m.level));
+        const loss = Math.min(g.state.money, rules.whiteoutBase[Math.min(g.state.badges.length, rules.whiteoutBase.length - 1)] * top);
+        g.state.money -= loss;
+        return loss;
+      },
       emit: (e: ServerEvent) => g.out.push(e),
       addMon: (m: Mon) => g.addMon(m),
       giveMoney: (n: number) => { g.state.money += n; }
@@ -405,6 +526,12 @@ export class Game {
       giveItem: (item, qty = 1) => { s.bag[item] = (s.bag[item] ?? 0) + qty; },
       hasItem: item => s.bag[item] ?? 0,
       giveMoney: n => { s.money += n; },
+      get money() { return s.money; },
+      takeMoney: n => { if (s.money < n) return false; s.money -= n; return true; },
+      giveBadge: (id, name) => { const key = ns(pack, id); if (!s.badges.includes(key)) s.badges.push(key); void name; },
+      get badges() { return s.badges.length; },
+      unlockCoil: mode => { s.coil = { ...s.coil, [mode]: true }; },
+      mart: stock => g.mart(stock),
       heal: () => { for (const m of s.party) healMon(m); },
       partyAlive: () => g.partyAlive(),
       sfx: name => emit({ t: 'sfx', name }),
@@ -427,6 +554,42 @@ export class Game {
     };
   }
 
+  // ---------- Mart ----------
+
+  private *mart(stock: string[]): Generator<Pause, void, any> {
+    const s = this.state, say = (text: string) => this.out.push({ t: 'say', text });
+    for (;;) {
+      const c: number = yield { kind: 'ask', text: `Welcome! How may I help you?\n(You have ${s.money} kr.)`, options: ['Buy', 'Sell', 'Done'], cancel: 2 };
+      if (c === 2) { say('Please come again!'); return; }
+      if (c === 0) {
+        const items = stock.filter(id => ITEMS[id] && (ITEMS[id].minBadges ?? Infinity) <= s.badges.length);
+        for (;;) {
+          const i: number = yield { kind: 'ask', text: `What would you like? (${s.money} kr.)`, options: [...items.map(id => `${ITEMS[id].name}  ${ITEMS[id].price} kr.`), 'Back'], cancel: items.length };
+          if (i >= items.length) break;
+          const it = ITEMS[items[i]];
+          const q: number = yield { kind: 'ask', text: `${it.name}: ${it.desc}\nHow many?`, options: ['1', '5', '10', 'Back'], cancel: 3 };
+          if (q === 3) continue;
+          const n = [1, 5, 10][q], cost = n * it.price;
+          if (s.money < cost) { say('You don\'t have enough money.'); continue; }
+          s.money -= cost; s.bag[items[i]] = (s.bag[items[i]] ?? 0) + n;
+          this.out.push({ t: 'sfx', name: 'select' });
+          say(`Here you are! ${n} × ${it.name} for ${cost} kr.\nThank you!`);
+        }
+      } else {
+        for (;;) {
+          const owned = Object.keys(s.bag).filter(id => s.bag[id] > 0 && ITEMS[id]);
+          if (!owned.length) { say('You have nothing I can buy.'); break; }
+          const i: number = yield { kind: 'ask', text: `What would you like to sell? (${s.money} kr.)`, options: [...owned.map(id => `${ITEMS[id].name} x${s.bag[id]}  ${ITEMS[id].price / 2} kr.`), 'Back'], cancel: owned.length };
+          if (i >= owned.length) break;
+          const id = owned[i], price = ITEMS[id].price / 2;
+          s.bag[id]--; s.money += price;
+          this.out.push({ t: 'sfx', name: 'select' });
+          say(`Sold one ${ITEMS[id].name} for ${price} kr.`);
+        }
+      }
+    }
+  }
+
   // ---------- view ----------
 
   view(): WorldView {
@@ -437,7 +600,8 @@ export class Game {
         const st = this.npcState(m, n);
         return { id: n.id, sprite: n.sprite, x: st.x, y: st.y, dir: st.dir, ...(n.object ? { object: true } : {}) };
       }),
-      party: s.party.map(monView), bag: { ...s.bag }, money: s.money
+      party: s.party.map(monView), bag: { ...s.bag }, money: s.money, badges: s.badges.length,
+      ...(this.debug ? { debug: true } : {})
     };
   }
 
@@ -452,6 +616,7 @@ export class Game {
 export function migrate(save: SaveData): SaveData {
   const s = structuredClone(save);
   s.box ??= []; s.npcs ??= {}; s.flags ??= {};
+  s.badges ??= []; s.coil ??= {}; s.repel ??= 0;   // v2: badges, Coil unlocks, Repel
   s.v = SAVE_VERSION;
   return s;
 }

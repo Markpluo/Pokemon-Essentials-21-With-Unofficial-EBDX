@@ -77,12 +77,28 @@ const pickStarter: Script = function* (s) {
   if (r === 'win') s.say('Lukas: Huh. I ran the numbers and everything.\nNext time the maths will work.');
   else s.say('Lukas: The numbers don\'t lie! Don\'t feel bad,\nyou\'ll catch up. Probably.');
   s.heal();
-  s.say('Professor Ørsted: Marvellous! I patched everyone up.\nTariq runs the gym at Superkilen, back in Nørrebro.');
+  s.say('Professor Ørsted: Marvellous! I patched everyone up.');
+  yield* giveCoil(s);
+  s.say('Professor Ørsted: Tariq runs the gym at Superkilen,\nback in Nørrebro.');
   s.say('Lukas: I\'m off to the Vanguard info centre.\nSee you around, champ!');
   s.say('Maja: And I\'ll catch you on the path home.\nDon\'t think you\'re getting off easy!');
   s.setFlag('beatLukas', true);
   s.checkpoint();
 };
+
+// Ørsted's Rotom installs the Resonance Coil: Current is unlocked from the Prologue on (Copper comes in Ch2).
+function* giveCoil(s: ScriptApi) {
+  if (s.flag('coil')) return;
+  s.say('Professor Ørsted: One more thing. My Rotom has\nbeen itching to try this. Hold out your Pokédex!');
+  s.sfx('select');
+  s.say('Rotom: Bzzt! Resonance Coil installed! Bzzt!');
+  s.say('Professor Ørsted: The Coil charges up as you battle.\nWhen three pips light up, you can use Current once.');
+  s.say('Professor Ørsted: Pick a move with Current and it hits\n30% harder, can\'t miss and even breaks through Protect.');
+  s.me('me_item');
+  s.say(`${s.player.name}'s Coil can now use Current!`);
+  s.unlockCoil('current');
+  s.setFlag('coil', true);
+}
 
 const profTalk: Script = function* (s) {
   if (!s.flag('starter')) {
@@ -92,6 +108,7 @@ const profTalk: Script = function* (s) {
     return;
   }
   s.heal(); s.me('me_heal');
+  yield* giveCoil(s);
   if (!s.flag('badge')) s.say('Professor Ørsted: Your team looks rested now.\nTariq\'s gym is at Superkilen, back in Nørrebro.');
   else s.say('Professor Ørsted: A badge already! Splendid.\nThose harbour readings still worry me...');
 };
@@ -121,6 +138,7 @@ const gymTalk: Script = function* (s) {
     foes: [{ species: 'toxel', level: 9 }, { species: 'trubbish', level: 10 }, { species: 'shroodle', level: 11 }], bg: 'city' });
   if (r !== 'win') return;
   s.setFlag('badge', true);
+  s.giveBadge('spray', 'Spray Badge');
   s.say('Tariq: Respect. You fight like you belong here.\nThis is the Spray Badge.');
   s.me('me_badge');
   s.say(`${s.player.name} received the Spray Badge!`);
@@ -140,8 +158,13 @@ const gymTalk: Script = function* (s) {
   s.chapterEnd('Copper & Current', 'Prologue complete');
 };
 
+const MART_STOCK = ['potion', 'superpotion', 'antidote', 'paralyzeheal', 'awakening', 'burnheal', 'fullheal', 'revive', 'pokeball', 'greatball', 'repel'];
+
 const pokemonCenter: Script = function* (s) {
-  s.say('Nurse: Welcome to the Pokémon Center!\nLet me heal your Pokémon.');
+  const c: number = yield s.ask('Welcome to the Pokémon Center!\nThe Mart counter is open too.', ['Heal my team', 'Shop', 'Nothing'], 2);
+  if (c === 2) { s.say('Nurse: We hope to see you again!'); return; }
+  if (c === 1) { yield* s.mart(MART_STOCK); return; }
+  s.say('Nurse: Let me heal your Pokémon.');
   s.heal(); s.me('me_heal');
   s.setRespawn('norrebro', 22, 8, 'down', 'Nurse: Your team is rested. Be careful out there!');
   s.say('Nurse: Your Pokémon are fighting fit!\nI saved your progress, too.');

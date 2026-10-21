@@ -151,11 +151,13 @@ describe('Hafnia prologue', () => {
     expect(d.s.flags['hafnia:badge'], d.battles + ' / ' + d.said.slice(-8).join(' | ') + ' @' + d.s.x + ',' + d.s.y).toBe(true);
     expect(d.log.some(e => e.t === 'chapterEnd')).toBe(true);
     expect(d.said).toContain('Mark received the Spray Badge!');
+    expect(d.s.badges).toEqual(['hafnia:spray']);
+    expect(d.s.coil.current).toBe(true);
   });
 
   it('saves and loads through the LocalServer', async () => {
     let stored: SaveData | null = null;
-    const server = new LocalServer(content, { load: async () => stored, save: async s => { stored = structuredClone(s); } }, () => 5);
+    const server = new LocalServer(content, { load: async slot => (slot === 'auto' ? stored : null), save: async (slot, s) => { if (slot === 'auto') stored = structuredClone(s); } }, () => 5);
     expect((await server.handle({ t: 'title' }))[0]).toMatchObject({ t: 'title', hasSave: false });
     await server.handle({ t: 'newGame' });
     await server.handle({ t: 'answer', index: 1 }); // name: Asta
