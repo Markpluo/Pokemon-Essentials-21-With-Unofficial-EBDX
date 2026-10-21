@@ -44,5 +44,7 @@ for (const dir of readdirSync(join(root, 'packs'))) {
     copy(`Audio/SE/Cries/${cry}.ogg`, join(out, 'pokemon', 'cries', `${key}.ogg`));
   }
 }
+// The homepage's credits page shows the Essentials + EBDX credits list as it is.
+copy('README.md', join(root, 'apps', 'client', 'public', 'credits.txt'));
 console.log(`assets: ${copied} files copied to apps/client/public/game-assets`);
 if (missing.length) { console.error(`missing: ${missing.join(', ')}`); process.exit(1); }

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Credits · Copper &amp; Current</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&display=swap">
+<style>
+/* Same harbour-at-dusk palette as the game page. Deliberately a single dark theme. */
+:root {
+  --night: #0b1830; --harbour: #16305a; --brick: #d9473a; --lantern: #ffd36b; --paper: #fbf7ee; --mist: #9fb3d9; --copper: #c8743a;
+  --pixel: "Pixelify Sans", "Courier New", monospace; --body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--night); color: var(--paper); font-family: var(--body); line-height: 1.6;
+  background-image: radial-gradient(ellipse at 50% -10%, #2b4f86 0%, var(--night) 55%);
+}
+.wrap { max-width: 960px; margin: 0 auto; padding: 32px 16px 48px; }
+h1, h2, .btn, label { font-family: var(--pixel); }
+h1 { font-size: clamp(36px, 8vw, 64px); line-height: 1; margin: 24px 0 8px; color: var(--lantern); letter-spacing: 0.04em; font-weight: 600; }
+h1 .amp { color: var(--copper); }
+.tag { font-family: var(--pixel); color: var(--mist); font-size: 18px; margin: 0 0 24px; }
+h2 { color: var(--lantern); font-size: 22px; font-weight: 600; margin: 40px 0 12px; letter-spacing: 0.03em; }
+p { max-width: 65ch; }
+a { color: var(--mist); }
+.hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 32px; align-items: center; }
+@media (max-width: 760px) { .hero { grid-template-columns: 1fr; } }
+.shot { border: 4px solid var(--brick); border-radius: 10px; overflow: hidden; background: #000; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+.shot img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.gate { background: var(--harbour); border: 2px solid #2d5590; border-radius: 12px; padding: 16px; margin-top: 16px; max-width: 420px; }
+.gate label { display: block; font-size: 16px; margin-bottom: 8px; }
+.row { display: flex; gap: 8px; }
+input {
+  flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 10px 12px; border-radius: 8px;
+  border: 2px solid var(--mist); background: var(--night); color: var(--paper); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.btn {
+  font-size: 18px; font-weight: 600; padding: 10px 20px; border-radius: 8px; border: 2px solid #f07a6e;
+  background: var(--brick); color: var(--paper); cursor: pointer;
+}
+input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid var(--lantern); outline-offset: 2px; }
+.msg { min-height: 1.6em; margin: 8px 0 0; color: var(--lantern); font-size: 14px; }
+.small { color: var(--mist); font-size: 14px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.grid figure { margin: 0; }
+.grid figcaption { color: var(--mist); font-size: 14px; margin-top: 6px; }
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; padding: 0; list-style: none; }
+.features li { background: rgba(22,48,90,.6); border-left: 4px solid var(--copper); border-radius: 6px; padding: 12px 14px; }
+.features b { font-family: var(--pixel); color: var(--lantern); font-weight: 600; display: block; font-size: 17px; }
+footer { margin-top: 48px; border-top: 1px solid #2d5590; padding-top: 16px; color: #7286ad; font-size: 13px; }
+</style>
+<style>pre { white-space: pre-wrap; font-size: 13px; color: var(--mist); background: rgba(22,48,90,.5); border-radius: 8px; padding: 16px; overflow-wrap: anywhere; } li { margin-bottom: 6px; }</style>
+</head>
+<body>
+<main class="wrap">
+<p><a href="./">← Copper &amp; Current</a></p>
+<h1>Credits</h1>
+<p>Copper &amp; Current is a free, non-commercial fan game. Story, design and the game's own original art and music: Mark. Until that art is done, the demo uses community resources, credited here with thanks.</p>
+<h2>Software</h2>
+<ul>
+<li><a href="https://github.com/pkmn/ps">Pokémon Showdown simulator</a> (Guangcong Luo and contributors, via the @pkmn/sim package, MIT licence) runs every battle.</li>
+<li><a href="https://fonts.google.com/specimen/Pixelify+Sans">Pixelify Sans</a> by Stefie Justprince (SIL Open Font Licence).</li>
+<li>Built with TypeScript and Vite.</li>
+</ul>
+<h2>Graphics and sound</h2>
+<p>Sprites, tiles, sound effects and music come from Pokémon Essentials v21.1 with Unofficial EBDX. Its full credits list follows.</p>
+<pre id="credits">Loading the full credits...</pre>
+<h2>Pokémon</h2>
+<p>Pokémon and all related names, characters, sprites and sounds are © Nintendo, Game Freak and The Pokémon Company. This project is not affiliated with or endorsed by them.</p>
+</main>
+<script>
+fetch('./credits.txt').then(r => r.ok ? r.text() : Promise.reject()).then(t => { document.getElementById('credits').textContent = t; })
+  .catch(() => { document.getElementById('credits').textContent = 'The full credits list could not be loaded.'; });
+</script>
+</body>
+</html>

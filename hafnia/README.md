@@ -14,8 +14,32 @@ npm test           # plays the whole prologue through game-core, no browser need
 npm run build      # static site in apps/client/dist
 ```
 
-Pick "Animation viewer" in the Debug menu (dev builds), or open the game with `?anims` (for example `http://localhost:5173/?anims`) for the battle
+Pick "Animation viewer" in the Debug menu (dev builds), or open the game with `?anims` (for example `http://localhost:5173/play.html?anims`) for the battle
 animation preview: left/right picks an animation, A plays it, B swaps which side attacks.
+
+## Homepage and private demo
+
+`apps/client/index.html` is the homepage (what the game is, screenshots, credits, privacy, and the
+invite-code form); the game itself is `play.html`. In `npm run dev` the form just opens the game.
+
+Deployed on Cloudflare Pages, the invite gate is real: `apps/client/functions/` holds two Pages
+Functions. `_middleware.js` sends anyone without a valid invite cookie from `/play` back to the
+homepage and refuses the game's `/assets/` and `/game-assets/` files; `api/invite.js` checks the code
+and sets a signed cookie for 60 days. Every response is marked `noindex`, and `robots.txt` disallows
+everything.
+
+Cloudflare Pages settings:
+
+| Setting | Value |
+|---|---|
+| Root directory | `hafnia` |
+| Build command | `npm install && npm run build` (needs the Essentials `Graphics/` and `Audio/` folders next to `hafnia/`, so build from the whole repo) |
+| Build output | `apps/client/dist` |
+| Functions directory | `apps/client/functions` (or deploy with `npx wrangler pages deploy apps/client/dist` from `apps/client`) |
+| Env var `INVITE_CODES` | comma-separated codes, case-insensitive, for example `HYGGE,KOBENHAVN` |
+| Env var `INVITE_SECRET` | a long random string; changing it logs everyone out |
+
+To hand out or revoke codes, edit `INVITE_CODES` and redeploy. Without both env vars the gate stays shut.
 
 ## Battle animations
 
