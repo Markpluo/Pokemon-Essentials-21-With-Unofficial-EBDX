@@ -23,7 +23,9 @@ for (const w of Object.values(WORLDS)) if (w.anims) registerAnims(w.anims);
 const BASE_PACK = 'hafnia';
 
 const TILE = 32, VW = 512, VH = 384;
-const canvas = document.getElementById('screen') as HTMLCanvasElement;
+// Everything draws into a fixed 512x384 buffer; present() scales it onto the page's #screen.
+const screenEl = document.getElementById('screen') as HTMLCanvasElement;
+const canvas = document.createElement('canvas'); canvas.width = VW; canvas.height = VH;
 const ctx = canvas.getContext('2d')!;
 ctx.imageSmoothingEnabled = false;
 const FONT = '"Pixelify Sans", "Courier New", monospace';
@@ -154,8 +156,8 @@ document.querySelectorAll<HTMLElement>('[data-key]').forEach(btn => {
   btn.addEventListener('click', () => { if (performance.now() - lastPointer > 400) tapKey(k); });
   btn.addEventListener('contextmenu', e => e.preventDefault());
 });
-canvas.addEventListener('pointerdown', e => { e.preventDefault(); lastPointer = performance.now(); canvas.focus({ preventScroll: true }); tapKey('A'); });
-canvas.addEventListener('click', () => { if (performance.now() - lastPointer > 400) { canvas.focus({ preventScroll: true }); tapKey('A'); } });
+screenEl.addEventListener('pointerdown', e => { e.preventDefault(); lastPointer = performance.now(); screenEl.focus({ preventScroll: true }); tapKey('A'); });
+screenEl.addEventListener('click', () => { if (performance.now() - lastPointer > 400) { screenEl.focus({ preventScroll: true }); tapKey('A'); } });
 const just = (k: Key) => input.pressed.has(k);
 
 // ---------- coroutine helpers ----------
@@ -165,7 +167,7 @@ async function wait(frames: number) { for (let i = 0; i < frames; i++) await nex
 async function waitKey(...keys: Key[]): Promise<Key> { for (;;) { await nextFrame(); const k = keys.find(just); if (k) return k; } }
 
 // ---------- client state (presentation only) ----------
-interface Actor { id: string; sprite: string; x: number; y: number; dir: Dir; px: number; py: number; moving: boolean; step: number; anim: number; object?: boolean; floor?: boolean; exclaim?: boolean }
+interface Actor { id: string; sprite: string; x: number; y: number; dir: Dir; px: number; py: number; moving: boolean; step: number; anim: number; arrivedAt?: number; object?: boolean; floor?: boolean; exclaim?: boolean }
 const DIRS: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const DIR_ROW: Record<Dir, number> = { down: 0, left: 1, right: 2, up: 3 };
 
@@ -281,14 +283,20 @@ const WALK_FRAMES = 12;
 /** Hold B to run; ride the Cargo-Bike from the menu (outdoors). */
 const playerFrames = () => (G.biking ? 6 : input.held.B ? 7 : WALK_FRAMES);
 async function stepActor(a: Actor, dir: Dir, frames = WALK_FRAMES) {
+  if (a.arrivedAt === G.t) await nextFrame(); // a scripted walk straight after another: show the tile it reached
   a.dir = dir; a.moving = true;
   const [dx, dy] = DIRS[dir];
-  for (let i = 1; i <= frames; i++) {
-    a.px = dx * TILE * i / frames; a.py = dy * TILE * i / frames;
-    a.anim = Math.floor((a.step * 2 + i * 4 / frames)) % 4;
+  // One leg forward per tile, alternating, then standing for the second half (as on the handhelds).
+  const leg = a.step % 2 ? 3 : 1;
+  for (let i = 1; i < frames; i++) {
+    const d = Math.round(TILE * i / frames); // whole pixels, so the walker and the camera never round apart
+    a.px = dx * d; a.py = dy * d;
+    a.anim = i <= frames / 2 ? leg : 0;
+    if (a === G.player && i === frames - 2) stepEnding?.();
     await nextFrame();
   }
-  a.x += dx; a.y += dy; a.px = 0; a.py = 0; a.step++; a.moving = false;
+  // The last frame is the arrival itself, so a held direction carries straight on into the next step.
+  a.x += dx; a.y += dy; a.px = 0; a.py = 0; a.step++; a.moving = false; a.arrivedAt = G.t;
 }
 
 async function changeMap(e: Extract<ServerEvent, { t: 'map' }>) {
@@ -707,6 +715,11 @@ function drawChar(sprite: string, x: number, y: number, dir: Dir, frame: number,
   const fw = im.width / 4, fh = im.height / 4;
   ctx.drawImage(im, frame * fw, DIR_ROW[dir] * fh, fw, fh, Math.round(x + 16 - fw / 2 - cx), Math.round(y + 32 - fh - cy + 2), fw, fh);
 }
+/** Tall grass covers the feet of whoever stands in it, from halfway through the step into it. */
+function grassOver(a: Actor, cx: number, cy: number) {
+  const x = a.x + Math.round(a.px / TILE), y = a.y + Math.round(a.py / TILE);
+  if (tileAt(x, y) === 'g') ctx.drawImage(packImg('outside'), 6 * 32, 18, 32, 14, x * TILE - cx, y * TILE - cy + 18, 32, 14);
+}
 function drawOverworld() {
   const { map: m, stamps } = mapOf(G.mapKey), [cx, cy] = camera();
   ctx.fillStyle = m.indoor ? '#0d1220' : '#2f6b3a'; ctx.fillRect(0, 0, VW, VH); // rooms smaller than the screen sit on black, not grass
@@ -736,15 +749,14 @@ function drawOverworld() {
   const actors = [...G.npcs.values()].filter(n => !n.floor).map(n => ({ y: n.y * TILE + n.py, draw: () => {
     if (n.sprite.startsWith('obj:')) drawObject(ctx, n.sprite.slice(4), n.x * TILE - cx, n.y * TILE - cy, G.t);
     else if (n.object && n.sprite === 'chars/ball') ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, n.x * TILE - cx, n.y * TILE - cy, 32, 32);
-    else drawChar(n.sprite, n.x * TILE + n.px, n.y * TILE + n.py, n.dir, n.moving ? n.anim : 0, cx, cy);
+    else { drawChar(n.sprite, n.x * TILE + n.px, n.y * TILE + n.py, n.dir, n.moving ? n.anim : 0, cx, cy); grassOver(n, cx, cy); }
     if (n.exclaim) bubble(n.x * TILE + n.px - cx + 16, n.y * TILE + n.py - cy - 26);
   } }));
   actors.push({ y: p.y * TILE + p.py, draw: () => {
     const girl = G.world?.look === 'girl';
     const sprite = G.biking ? (girl ? 'chars/player_girl_bike' : 'chars/player_bike') : girl ? 'chars/player_girl' : 'chars/player';
     drawChar(sprite, p.x * TILE + p.px, p.y * TILE + p.py, p.dir, p.moving ? p.anim : 0, cx, cy);
-    if (tileAt(p.x, p.y) === 'g' && !p.moving) // grass covers the feet
-      ctx.drawImage(packImg('outside'), 6 * 32, 18, 32, 14, p.x * TILE - cx, p.y * TILE - cy + 18, 32, 14);
+    grassOver(p, cx, cy);
   } });
   actors.sort((a, b) => a.y - b.y).forEach(a => a.draw());
   // Day and night outdoors (progression-quests-time.md §3.6); tunnels are lit only around the player.
@@ -770,8 +782,24 @@ function bubble(x: number, y: number) {
 }
 
 // ---------- overworld input ----------
+// While the player walks, the next step is asked for a couple of frames before this one ends, so a held
+// direction walks on without a pause on every tile. Only after a plain step: anything else in the
+// batch (text, a battle, a map change) has to play out before the server hears the next intent.
+let queuedStep: Promise<ServerEvent[]> | null = null;
+let stepEnding: (() => void) | null = null;
+const PLAIN_STEP = new Set<ServerEvent['t']>(['walk', 'view', 'place']);
+async function walk(dir: Dir, reply = conn.send({ t: 'step', dir })) {
+  const evs = await reply;
+  if (evs.every(e => PLAIN_STEP.has(e.t))) stepEnding = () => {
+    stepEnding = null;
+    if (input.held[G.player.dir] && !sticky.has('MENU') && !sticky.has('A')) queuedStep = conn.send({ t: 'step', dir: G.player.dir });
+  };
+  try { await play(evs); } finally { stepEnding = null; }
+}
+
 let turnDelay = 0;
 async function overworldTick() {
+  if (queuedStep) { const q = queuedStep; queuedStep = null; await walk(G.player.dir, q); return; }
   const p = G.player;
   const menu = sticky.has('MENU'), a = sticky.has('A');
   // A quick tap shorter than a frame still turns the player, or steps if already facing that way.
@@ -783,13 +811,13 @@ async function overworldTick() {
   if (!dir) {
     turnDelay = 0;
     if (tapped && tapped !== p.dir) { p.dir = tapped; conn.send({ t: 'turn', dir: tapped }); }
-    else if (tapped) await send({ t: 'step', dir: tapped });
+    else if (tapped) await walk(tapped);
     return;
   }
   if (p.dir !== dir && turnDelay === 0) { p.dir = dir; turnDelay = 5; conn.send({ t: 'turn', dir }); return; }
   if (turnDelay > 1) { turnDelay--; return; }
   p.dir = dir;
-  await send({ t: 'step', dir });
+  await walk(dir);
 }
 
 const slotName = (s: SaveSlot) => (s === 'auto' ? 'Autosave' : `Slot ${s}`);
@@ -1773,6 +1801,29 @@ function render() {
   if (G.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${G.fade})`; ctx.fillRect(0, 0, VW, VH); }
 }
 
+// The page shows the buffer at whatever size fits, rarely a whole multiple of 512x384. Plain pixelated
+// scaling then makes some pixel rows and columns wider than others, and the map shimmers as it scrolls.
+// So: scale up by a whole number with hard edges, then smoothly to the screen's real pixels (sharp bilinear).
+const screenCtx = screenEl.getContext('2d')!;
+const sharp = document.createElement('canvas'), sharpCtx = sharp.getContext('2d')!;
+let screenW = VW, screenH = VH;
+new ResizeObserver(([e]) => {
+  const box = e.devicePixelContentBoxSize?.[0], dpr = window.devicePixelRatio || 1;
+  screenW = Math.max(1, box ? box.inlineSize : Math.round(e.contentRect.width * dpr));
+  screenH = Math.max(1, box ? box.blockSize : Math.round(e.contentRect.height * dpr));
+}).observe(screenEl);
+function present() {
+  if (screenEl.width !== screenW || screenEl.height !== screenH) { screenEl.width = screenW; screenEl.height = screenH; }
+  const k = Math.max(1, Math.ceil(screenW / VW));
+  if (screenW === VW * k && screenH === VH * k) { // an exact multiple: hard edges are already even
+    screenCtx.imageSmoothingEnabled = false; screenCtx.drawImage(canvas, 0, 0, screenW, screenH); return;
+  }
+  if (sharp.width !== VW * k) { sharp.width = VW * k; sharp.height = VH * k; }
+  sharpCtx.imageSmoothingEnabled = false; sharpCtx.drawImage(canvas, 0, 0, sharp.width, sharp.height);
+  screenCtx.imageSmoothingEnabled = true; screenCtx.imageSmoothingQuality = 'low'; // plain bilinear
+  screenCtx.drawImage(sharp, 0, 0, screenW, screenH);
+}
+
 // Gamepad: d-pad or left stick to move, A/B as usual, Start or Y for the menu.
 const padHeld: Partial<Record<Key, boolean>> = {};
 function pollGamepad() {
@@ -1814,6 +1865,7 @@ async function loop(now: number) {
   acc += Math.min(100, now - last) * SPEED; last = now;
   for (let n = 0; acc >= 1000 / 60; n++) { if (n) await yieldTask(); update(); acc -= 1000 / 60; }
   render();
+  present();
   requestAnimationFrame(loop);
 }
 
