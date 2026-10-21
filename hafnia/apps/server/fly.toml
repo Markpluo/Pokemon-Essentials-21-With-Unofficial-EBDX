@@ -1,0 +1,19 @@
+# Fly.io settings for the game server (see README "Online server"). Deploy from hafnia/:
+#   fly deploy --config apps/server/fly.toml --dockerfile apps/server/Dockerfile
+app = "copper-current"
+primary_region = "arn"   # Stockholm, close to Copenhagen
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"   # players stay connected; one small machine runs all the time
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

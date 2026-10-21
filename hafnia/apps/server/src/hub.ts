@@ -21,6 +21,8 @@ export interface HubOptions {
   /** Emails that become admins on first login and need no invite code. */
   admins?: string[];
   maxPlayers?: number;
+  /** Local development only (DEV_AUTH): enables the client's debug menu commands. */
+  debug?: boolean;
   seed?: () => number;
   now?: () => number;
   tradeCountdownMs?: number;
@@ -44,7 +46,7 @@ export class Hub {
 
   constructor(o: HubOptions) {
     this.opts = {
-      maxPlayers: 200, seed: () => (Math.random() * 2 ** 32) >>> 0, now: Date.now, tradeCountdownMs: 10_000,
+      maxPlayers: 200, debug: false, seed: () => (Math.random() * 2 ** 32) >>> 0, now: Date.now, tradeCountdownMs: 10_000,
       turnTimerMs: 90_000, saveEveryMs: 60_000, log: m => console.log(m), ...o,
       admins: new Set((o.admins ?? []).map(e => e.toLowerCase()))
     };
@@ -115,12 +117,18 @@ class Connection {
 
   private async auth(m: Extract<ClientMessage, { s: 'auth' }>): Promise<Session | null> {
     const hub = this.hub, store = hub.store;
-    const fail = (reason: Extract<ServerMessage, { s: 'authError' }>['reason'], message: string) => { this.link.send({ s: 'authError', reason, message }); return null; };
+    let needsInvite: boolean | undefined;
+    const fail = (reason: Extract<ServerMessage, { s: 'authError' }>['reason'], message: string) => {
+      this.link.send({ s: 'authError', reason, message, ...(needsInvite !== undefined ? { needsInvite } : {}) });
+      return null;
+    };
     const who = await hub.opts.verify(m.token);
     if (!who) return fail('bad_token', 'Your login has expired. Please sign in again.');
     let account = await store.account(who.id);
     if (!account) {
       const admin = hub.admins(who.email);
+      needsInvite = !admin;
+      if (!m.trainerName && !m.invite) return fail('signup', 'Welcome, new trainer! Pick your trainer name.');
       const invite = admin ? null : cleanText(m.invite, 40).toUpperCase();
       if (invite === '') return fail('invite_required', 'This server is invite-only. Enter your invite code.');
       const name = cleanText(m.trainerName, 12);
@@ -227,6 +235,7 @@ export class Session {
       case 'newGame': {
         if (this.game || await store.character(this.id)) return [{ t: 'error', message: 'You already have an online character. Choose Continue.' }];
         const { game, events } = Game.newGame(content, this.hub.opts.seed(), { name: this.name });
+        game.debug = this.hub.opts.debug;
         this.game = game;
         this.announce();
         return events;
@@ -235,7 +244,7 @@ export class Session {
         if (!this.game) {
           const save = await store.character(this.id);
           if (!save) return [{ t: 'error', message: 'No online character yet. Choose New game.' }];
-          try { this.game = Game.load(content, save); }
+          try { this.game = Game.load(content, save); this.game.debug = this.hub.opts.debug; }
           catch (e) { return [{ t: 'error', message: e instanceof SaveError ? e.message : 'Your character could not be loaded.' }]; }
         }
         const events = this.game.resumeEvents();
@@ -247,7 +256,7 @@ export class Session {
         const ok = await this.save();
         return intent.t === 'autosave' ? [] : [{ t: 'sfx', name: ok ? 'select' : 'cursor' }, { t: 'say', text: ok ? 'Your progress is saved on the server.' : 'You can\'t save right now.' }];
       }
-      case 'debug': return [];
+      case 'debug': if (!this.hub.opts.debug) return []; break;
     }
     const g = this.game;
     if (!g) return [{ t: 'error', message: 'No game running.' }];

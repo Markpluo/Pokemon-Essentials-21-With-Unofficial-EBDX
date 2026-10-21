@@ -23,6 +23,11 @@ if (config.devAuth && process.env.NODE_ENV === 'production') {
   process.exit(1);
 }
 
+if (!config.databaseUrl && process.env.NODE_ENV === 'production') {
+  console.error('Set DATABASE_URL: production keeps accounts and characters in Postgres.');
+  process.exit(1);
+}
+
 let store: Store;
 if (config.databaseUrl) store = new PgStore(config.databaseUrl);
 else {
@@ -32,7 +37,7 @@ else {
 }
 
 const hub = new Hub({
-  store, content: new Content(PACKS), admins: config.admins, maxPlayers: config.maxPlayers,
+  store, content: new Content(PACKS), admins: config.admins, maxPlayers: config.maxPlayers, debug: config.devAuth,
   verify: makeVerifier({ supabaseUrl: config.supabaseUrl, jwtSecret: config.jwtSecret, devAuth: config.devAuth })
 });
 hub.start();

@@ -14,6 +14,7 @@ import { AnimPlayer } from './anim';
 import { ANIM_TYPES, CRIT, HEAL, RESIDUAL, SEND_OUT, STATUS_ANIM, STAT_DOWN, STAT_UP, WEATHER_ANIM, animatedMoves, moveAnim, registerAnims, userPart } from './anim-data';
 import { Dex } from '@pkmn/sim';
 import hafniaAnims from '@hafnia/pack-hafnia/anims.json';
+import { goOnline, online, onlineAvailable } from './online';
 
 // Render data for each installed content pack. A DLC pack adds an entry here.
 const WORLDS: Record<string, { maps: Record<string, Omit<MapDef, 'npcs' | 'doors'>>; stamps: Record<string, Stamp>; manifest: typeof hafniaManifest; anims?: AnimPack }> = {
@@ -133,8 +134,10 @@ const KEYMAP: Record<string, Key> = {
 const sticky = new Set<Key>();
 function press(k: Key) { if (!input.held[k]) { input.queue.add(k); sticky.add(k); } input.held[k] = true; Sound.unlock(); }
 function release(k: Key) { input.held[k] = false; }
-window.addEventListener('keydown', e => { const k = KEYMAP[e.key]; if (!k) return; e.preventDefault(); press(k); });
-window.addEventListener('keyup', e => { const k = KEYMAP[e.key]; if (k) release(k); });
+// Typing in the online chat or login form never moves the player.
+const typing = (e: Event) => !!(e.target as HTMLElement | null)?.closest?.('input, textarea, select');
+window.addEventListener('keydown', e => { const k = KEYMAP[e.key]; if (!k || typing(e)) return; e.preventDefault(); press(k); });
+window.addEventListener('keyup', e => { const k = KEYMAP[e.key]; if (k && !typing(e)) release(k); });
 window.addEventListener('blur', () => { for (const k in input.held) input.held[k as Key] = false; });
 // On-screen buttons. Some app webviews drop pointer events, so a plain click also counts as a tap.
 let lastPointer = 0;
@@ -236,6 +239,7 @@ async function play(evs: ServerEvent[]) {
       case 'evolve': await evolveScene(e); break;
       case 'hatch': await hatchScene(e); break;
       case 'error': console.error(e.message); await say(`Something went wrong: ${e.message}`); break;
+      case 'notice': G.ui.text = { full: e.text, shown: e.text.length }; break;
       case 'checkpoint': case 'title': break;
     }
   }
@@ -717,6 +721,14 @@ function drawOverworld() {
     else drawChar(n.sprite, n.x * TILE + n.px, n.y * TILE + n.py, n.dir, n.moving ? n.anim : 0, cx, cy);
     if (n.exclaim) bubble(n.x * TILE + n.px - cx + 16, n.y * TILE + n.py - cy - 26);
   } }));
+  for (const o of online.othersOn(G.mapKey)) actors.push({ y: o.y * TILE + o.oy, draw: () => {
+    const x = o.x * TILE + o.ox, y = o.y * TILE + o.oy;
+    drawChar(o.sprite, x, y, o.dir, o.ox || o.oy ? Math.floor(o.moving / 6) % 4 : 0, cx, cy);
+    ctx.font = `12px ${FONT}`;
+    const w = ctx.measureText(o.name).width + 10;
+    ctx.fillStyle = 'rgba(14,33,72,0.75)'; roundRect(x + 16 - w / 2 - cx, y - 30 - cy, w, 16, 6); ctx.fill();
+    text(o.name, x + 16 - cx, y - 18 - cy, 12, '#fbf7ee', 'center');
+  } });
   actors.push({ y: p.y * TILE + p.py, draw: () => {
     const girl = G.world?.look === 'girl';
     const sprite = G.biking ? (girl ? 'chars/player_girl_bike' : 'chars/player_bike') : girl ? 'chars/player_girl' : 'chars/player';
@@ -1338,8 +1350,13 @@ async function titleFlow() {
   const slots = title && title.t === 'title' ? title.slots ?? [] : [];
   await waitKey('A');
   Sound.se('select');
-  const opts = hasSave ? ['Continue', 'New game'] : ['New game'];
-  const c = await choose(opts, -1, { x: VW / 2 - 90, y: 250, w: 180 });
+  const opts = [...(hasSave ? ['Continue', 'New game'] : ['New game']), ...(onlineAvailable() && !online.active ? ['Play online'] : [])];
+  const c = await choose(opts, -1, { x: VW / 2 - 90, y: 250 - (opts.length > 2 ? 26 : 0), w: 180 });
+  if (opts[c] === 'Play online') {
+    const oc = await goOnline();
+    if (oc) conn = oc;
+    return titleFlow();
+  }
   let slot: SaveSlot | undefined;
   if (hasSave && c === 0 && slots.filter(s => s.summary).length > 1) {
     const picked = await pickSlot(slots, false);
@@ -1440,6 +1457,7 @@ function update(first = true) {
   if (first) { input.pressed = input.queue; input.queue = new Set(); }
   if (G.scene !== 'overworld' || G.ui.text || G.ui.choice || G.overlays.length) sticky.clear();
   G.t++;
+  online.tick();
   const ws = frameWaiters; frameWaiters = [];
   ws.forEach(r => r());
   if (G.scene === 'overworld' && !G.busy && !G.lock) {
@@ -1463,6 +1481,15 @@ async function boot() {
   conn = c;
   (window as any).__hafnia = { G, mode: c.mode, send: (i: Intent) => conn.send(i), play, anim }; // for tests and debugging
   if (new URLSearchParams(location.search).has('anims') || location.hash === '#anims') { G.lock = true; return animPreview(); }
+  // Online: game events the server pushes (a PvP battle the other player moved in) play once the overworld is idle.
+  let pushes = Promise.resolve();
+  online.onPush = evs => {
+    pushes = pushes.then(async () => {
+      while (G.busy || G.lock) await nextFrame();
+      G.lock = true;
+      try { while (G.busy) await nextFrame(); await play(evs); } finally { G.lock = false; }
+    }).catch(e => console.error(e));
+  };
   G.lock = true;
   try { await titleFlow(); } finally { G.lock = false; }
   // Browsers close tabs without warning: autosave every 2 minutes and whenever the tab is hidden (systems.md §8).

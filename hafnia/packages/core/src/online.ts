@@ -34,11 +34,12 @@ export type ClientMessage =
   | { s: 'block'; id: string }
   | { s: 'report'; id: string; reason: string };
 
-export type AuthError = 'bad_token' | 'invite_required' | 'invite_invalid' | 'name_invalid' | 'name_taken' | 'too_young' | 'banned' | 'server_full';
+export type AuthError = 'bad_token' | 'signup' | 'invite_required' | 'invite_invalid' | 'name_invalid' | 'name_taken' | 'too_young' | 'banned' | 'server_full';
 
 export type ServerMessage =
   | { s: 'hello'; me: { id: string; name: string; role: string }; rules: string }
-  | { s: 'authError'; reason: AuthError; message: string }
+  /** `needsInvite` is set while signing up a new account that has to give an invite code. */
+  | { s: 'authError'; reason: AuthError; message: string; needsInvite?: boolean }
   | { id: number; events: ServerEvent[] }
   | { push: ServerEvent[] }
   | { s: 'players'; map: string; players: PlayerView[] }

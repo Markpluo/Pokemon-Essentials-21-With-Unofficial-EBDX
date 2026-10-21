@@ -82,7 +82,8 @@ describe('online server', () => {
     expect(await stranger.auth('eve@example.com', { trainerName: 'Eve', birthYear: 1990 })).toMatchObject({ s: 'authError', reason: 'invite_required' });
     expect(await stranger.auth('eve@example.com', { trainerName: 'Eve', birthYear: 1990, invite: 'NOPE-NOPE' })).toMatchObject({ reason: 'invite_invalid' });
     expect(await stranger.auth('kid@example.com', { trainerName: 'Kid', birthYear: new Date().getUTCFullYear() - 10, invite: 'X' })).toMatchObject({ reason: 'too_young' });
-    expect(await new Client(hub).auth('x@example.com')).toMatchObject({ reason: 'invite_required' });
+    expect(await new Client(hub).auth('x@example.com')).toMatchObject({ reason: 'signup', needsInvite: true });
+    expect(await new Client(hub).auth('mark@example.com')).toMatchObject({ reason: 'signup', needsInvite: false });
 
     const mark = await newPlayer(hub, 'mark@example.com', 'Mark');
     await mark.msg({ s: 'chat', channel: 'map', text: '/invite 2' });
