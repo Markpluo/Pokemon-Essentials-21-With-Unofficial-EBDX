@@ -133,7 +133,7 @@ describe('Copper & Current: the Coil', () => {
     const run = () => {
       const t = battle({ seed: 42, party: [['pikachu', 30, ['thundershock', 'quickattack']]], foes: [{ species: 'pidgey', level: 28 }] });
       for (let i = 0; i < 4 && !t.b.result; i++) t.act({ kind: 'move', index: i % 2, ...(i === 3 ? { mode: 'current' as const } : {}) });
-      return t.sim.log.filter(l => !l.startsWith('|t:|')).join('\n'); // wall-clock stamps differ across a second boundary
+      return t.sim.log.filter((l: string) => !l.startsWith('|t:|')).join('\n'); // wall-clock stamps differ across a second boundary
     };
     expect(run()).toBe(run());
   });
