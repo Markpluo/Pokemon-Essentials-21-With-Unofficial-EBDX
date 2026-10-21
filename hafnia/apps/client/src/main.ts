@@ -797,6 +797,7 @@ async function startMenu() {
     try { c = await choose(items, items.length - 1, { x: VW - 168, y: 8, w: 160 }); } finally { G.overlays.pop(); }
     const pick = items[c];
     if (pick === 'Save') {
+      if (!w?.party.length) { await say('There is nothing to save yet.'); continue; } // don't offer slots that can't be used
       const r = await conn.send({ t: 'slots' });
       const slots = r.find(e => e.t === 'slots');
       if (!slots || slots.t !== 'slots') continue;
