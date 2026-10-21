@@ -292,11 +292,11 @@ async function stepActor(a: Actor, dir: Dir, frames = WALK_FRAMES) {
     const d = Math.round(TILE * i / frames); // whole pixels, so the walker and the camera never round apart
     a.px = dx * d; a.py = dy * d;
     a.anim = i <= frames / 2 ? leg : 0;
-    if (a === G.player && i === frames - 2) stepEnding?.();
     await nextFrame();
   }
   // The last frame is the arrival itself, so a held direction carries straight on into the next step.
   a.x += dx; a.y += dy; a.px = 0; a.py = 0; a.step++; a.moving = false; a.arrivedAt = G.t;
+  if (a === G.player) stepEnding?.();
 }
 
 async function changeMap(e: Extract<ServerEvent, { t: 'map' }>) {
@@ -782,15 +782,16 @@ function bubble(x: number, y: number) {
 }
 
 // ---------- overworld input ----------
-// While the player walks, the next step is asked for a couple of frames before this one ends, so a held
-// direction walks on without a pause on every tile. Only after a plain step: anything else in the
-// batch (text, a battle, a map change) has to play out before the server hears the next intent.
+// A held direction asks for the next step the moment the player arrives, not on the next update, so the
+// answer is back in time and the walk goes on without a pause on every tile. Only after a plain step:
+// anything else in the batch (text, a battle, a map change, an ice slide) has to play out first.
 let queuedStep: Promise<ServerEvent[]> | null = null;
 let stepEnding: (() => void) | null = null;
 const PLAIN_STEP = new Set<ServerEvent['t']>(['walk', 'view', 'place']);
 async function walk(dir: Dir, reply = conn.send({ t: 'step', dir })) {
   const evs = await reply;
-  if (evs.every(e => PLAIN_STEP.has(e.t))) stepEnding = () => {
+  const plain = evs.every(e => PLAIN_STEP.has(e.t)) && evs.filter(e => e.t === 'walk' && e.actor === 'player').length === 1;
+  if (plain) stepEnding = () => {
     stepEnding = null;
     if (input.held[G.player.dir] && !sticky.has('MENU') && !sticky.has('A')) queuedStep = conn.send({ t: 'step', dir: G.player.dir });
   };
