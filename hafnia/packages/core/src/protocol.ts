@@ -132,6 +132,8 @@ export type ServerEvent =
   | { t: 'battleEnd'; result: BattleResult }
   | { t: 'chapterEnd'; title: string; subtitle: string }
   | { t: 'checkpoint' }
+  /** A line shown without waiting for a key press, e.g. "Waiting for your opponent..." in online battles. */
+  | { t: 'notice'; text: string }
   | { t: 'error'; message: string };
 
 export type BattleResult = 'win' | 'lose' | 'run' | 'caught';

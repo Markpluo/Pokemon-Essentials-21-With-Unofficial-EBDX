@@ -69,6 +69,48 @@ footer a { color: var(--mist); }
   .dpad { grid-area: dpad; justify-self: center; } .ab { grid-area: ab; justify-self: center; padding-top: 14px; } .mid { grid-area: mid; }
   .keys { grid-area: keys; } footer { grid-area: foot; }
 }
+/* Online: social panel under the screen and the login dialog (src/online.ts). */
+.ol-panel { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.ol-panel h2 { font-size: 14px; margin: 0 0 6px; color: var(--lantern); font-weight: 600; }
+.ol-panel button, .ol-modal button { font: inherit; font-size: 13px; color: var(--paper); background: var(--harbour); border: 2px solid #2d5590; border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+.ol-panel button:hover, .ol-modal button:hover { border-color: var(--mist); }
+.ol-panel button:focus-visible, .ol-modal button:focus-visible, .ol-panel input:focus-visible, .ol-modal input:focus-visible { outline: 3px solid var(--lantern); outline-offset: 1px; }
+.ol-panel button[aria-pressed="true"] { background: var(--brick); border-color: var(--brick); }
+.ol-panel button:disabled { opacity: .5; cursor: default; }
+button.ol-quiet { background: transparent; border-color: #2d5590; }
+.ol-cols { display: grid; grid-template-columns: 1fr 220px; gap: 8px; }
+@media (max-width: 640px) { .ol-cols { grid-template-columns: 1fr; } }
+.ol-chat, .ol-people, .ol-trade, .ol-toast { background: rgba(22,48,90,.6); border: 2px solid #2d5590; border-radius: 8px; padding: 8px; min-width: 0; }
+.ol-log { height: 140px; overflow-y: auto; overflow-wrap: anywhere; }
+.ol-log p { margin: 0 0 3px; line-height: 1.35; }
+.ol-log .ol-sys { color: var(--mist); font-style: italic; }
+.ol-log .ol-me b { color: var(--lantern); }
+.ol-say { display: flex; gap: 6px; margin-top: 6px; }
+.ol-say input, .ol-say select, .ol-modal input { font: inherit; font-size: 14px; color: var(--paper); background: var(--night); border: 2px solid #2d5590; border-radius: 6px; padding: 4px 8px; min-width: 0; }
+.ol-say input { flex: 1; }
+.ol-people ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ol-people li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ol-people li > span { flex: 1; min-width: 60px; overflow-wrap: anywhere; }
+.ol-people .ol-empty { color: var(--mist); }
+.ol-people details { position: relative; }
+.ol-people summary { cursor: pointer; list-style: none; padding: 0 6px; }
+.ol-people details[open] { display: flex; gap: 4px; }
+.ol-panel .ol-forfeit { align-self: flex-start; border-color: var(--brick); }
+.ol-toasts { display: flex; flex-direction: column; gap: 6px; }
+.ol-toast { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-color: var(--lantern); }
+.ol-trade { border-color: var(--lantern); }
+.ol-offers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ol-offers h3 { font-size: 13px; margin: 0; color: var(--mist); font-weight: 400; }
+.ol-offers p { margin: 2px 0 6px; font-size: 16px; }
+.ol-state { color: var(--mist); margin: 4px 0 8px; }
+.ol-party, .ol-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.ol-party { margin-bottom: 8px; }
+.ol-modal { position: fixed; inset: 0; background: rgba(5,12,26,.75); display: grid; place-items: center; padding: 16px; z-index: 10; }
+.ol-box { background: var(--night); border: 3px solid var(--brick); border-radius: 10px; padding: 16px; max-width: 380px; width: 100%; box-sizing: border-box; }
+.ol-text { margin: 0 0 12px; line-height: 1.45; }
+.ol-text strong { color: var(--lantern); font-size: 18px; }
+.ol-modal form { display: flex; flex-direction: column; gap: 10px; }
+.ol-modal label { display: flex; flex-direction: column; gap: 4px; color: var(--mist); font-size: 13px; }
 </style>
 </head>
 <body>

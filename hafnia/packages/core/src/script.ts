@@ -53,6 +53,8 @@ export interface ScriptApi {
   readonly pack: string;
   readonly player: {
     readonly name: string; readonly x: number; readonly y: number; readonly dir: Dir;
+    /** True for online characters: the name comes from the account, so don't ask for one. */
+    readonly named: boolean;
     face(dir: Dir): void; faceTo(x: number, y: number): void;
     /** Cutscene movement: no collision checks, no encounters. */
     walk(dir: Dir, steps?: number): void;

@@ -12,5 +12,5 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["packages/*/src", "packs/*/src", "apps/*/src", "packages/*/test", "packs/*/test"]
+  "include": ["packages/*/src", "packs/*/src", "apps/*/src", "packages/*/test", "packs/*/test", "apps/*/test"]
 }

@@ -11,8 +11,10 @@ export const MART_STOCK = ['potion', 'superpotion', 'antidote', 'paralyzeheal', 
 
 export const intro: Script = function* (s) {
   s.say('intro.1');
-  const name: string = yield s.askName('intro.2', NAMES);
-  s.setName(name);
+  if (!s.player.named) { // online characters already have their account's trainer name
+    const name: string = yield s.askName('intro.2', NAMES);
+    s.setName(name);
+  }
   const look = yield s.pickLook('intro.look');
   s.setLook(look);
   s.say('intro.3');

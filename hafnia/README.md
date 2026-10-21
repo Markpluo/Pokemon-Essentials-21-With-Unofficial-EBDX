@@ -58,6 +58,7 @@ shake and strobing.
 | `packages/core/data/species.json` | Catch rates, base EXP, growth rates and learnsets imported from Essentials PBS (`npm run pbs`). |
 | `packs/hafnia` | The base game as a content pack: maps, NPCs, story scripts, and `pack.json` listing its species, graphics and audio. |
 | `apps/client` | Browser client: rendering, input, audio and menus. It sends intents and plays back events. |
+| `apps/server` | Online game server (Node, WebSockets, Postgres). Runs the same game-core per player, plus presence, chat, trades and PvP. |
 | `tools/` | `pbs-import.mjs` (Essentials PBS to JSON) and `sync-assets.mjs` (copies each pack's assets into the client). |
 
 ## How solo and online share one game
@@ -65,10 +66,39 @@ shake and strobing.
 The client never decides outcomes. It talks to a `GameConnection`:
 
 - **Solo:** `LocalServer` (game-core plus IndexedDB saves) runs in a Web Worker.
-- **Online (later):** the same game-core runs on an authoritative server behind a WebSocket.
+- **Online:** the same game-core runs on the authoritative server in `apps/server`, one `Game` per player,
+  behind a WebSocket (`apps/client/src/online.ts`).
 
 Battles, encounters, catching and items all resolve in game-core, so the online server
 can run the same code unchanged. See `/mnt/project-files/architecture/solo-and-online-architecture.md`.
+
+## Online server
+
+Online characters live only on the server (separate from solo saves). Accounts use Supabase Auth
+(email magic link); the server checks the login token, and new players need an invite code.
+
+Run both locally, no accounts or database needed:
+
+```
+cd hafnia
+DEV_AUTH=1 ADMIN_EMAILS=you@example.com npm -w @hafnia/server run dev      # ws://localhost:8787/ws, data in apps/server/.data/
+VITE_SERVER_URL=ws://localhost:8787/ws VITE_DEV_AUTH=1 npm run dev         # title screen shows "Play online"
+```
+
+Sign in with any email. Admin emails need no invite; in chat, `/invite 3` makes invite codes and `/help`
+lists the moderation commands. `npm -w @hafnia/server run invite -- 5` makes codes from the command line.
+
+| Server setting | What it is |
+|---|---|
+| `DATABASE_URL` | Postgres connection string (Supabase "Session pooler"). Apply `apps/server/db/001_init.sql` once. Required in production. |
+| `SUPABASE_URL` | The Supabase project URL; login tokens are checked against its signing keys. |
+| `SUPABASE_JWT_SECRET` | Only for projects still on the legacy shared JWT secret. |
+| `ADMIN_EMAILS` | Comma-separated admin emails. |
+| `ALLOWED_ORIGINS` | The client's site, e.g. `https://copper-current.pages.dev`. |
+| `DEV_AUTH=1` | Local only: any `dev:<email>` token logs in, and the debug menu works. Refused in production. |
+
+The client needs `VITE_SERVER_URL` (`wss://.../ws`), `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` at build time.
+Deploying: `apps/server/Dockerfile` and `apps/server/fly.toml` (Fly.io, Stockholm).
 
 ## Content packs (DLC)
 
