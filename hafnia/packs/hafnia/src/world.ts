@@ -528,7 +528,7 @@ function vesterbro(): MapData {
     id: 'vesterbro', name: 'Vesterbro', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
     buildings: [
       { s: 'cafe', x: 4, y: 5, id: 'cafe' }, { s: 'orange', x: 8, y: 4 }, { s: 'pc', x: 16, y: 3, id: 'pc' },
-      { s: 'red', x: 4, y: 12, id: 'flat' }, { s: 'green', x: 17, y: 12 }
+      { s: 'orange', x: 4, y: 12 }, { s: 'green', x: 17, y: 12 }
     ],
     exits: { up: { to: 'route2', offset: -9 }, right: { to: 'route3', offset: -5 }, down: { to: 'kodbyen', offset: 0 } }
   };
