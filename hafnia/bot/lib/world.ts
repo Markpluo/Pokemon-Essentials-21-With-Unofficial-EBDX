@@ -56,8 +56,9 @@ export function doorOf(map: string, building: string): [number, number] {
 }
 
 /** Cheapest path from (sx, sy) to (tx, ty). Tall grass costs more (fewer wild battles); doors and
- *  warps are only entered when they are the target. Returns the directions to press, or null. */
-export function findPath(map: string, sx: number, sy: number, tx: number, ty: number, npcs: NpcView[]): Dir[] | null {
+ *  warps are only entered when they are the target, and `avoid` tiles (traps, wrong gaps) never.
+ *  Returns the directions to press, or null. */
+export function findPath(map: string, sx: number, sy: number, tx: number, ty: number, npcs: NpcView[], avoid: [number, number][] = []): Dir[] | null {
   const m = mapDef(map), grass = m.encounterTile ?? sync().core.GRASS_TILE;
   const key = (x: number, y: number) => y * m.w + x;
   const cost = new Map<number, number>([[key(sx, sy), 0]]);
@@ -76,6 +77,7 @@ export function findPath(map: string, sx: number, sy: number, tx: number, ty: nu
       const nx = x + dx, ny = y + dy, target = nx === tx && ny === ty;
       if (nx < 0 || ny < 0 || nx >= m.w || ny >= m.h) continue;
       if (!target && (solid(map, nx, ny, npcs) || doorAt(map, nx, ny) || warpAt(map, nx, ny))) continue;
+      if (avoid.some(([ax, ay]) => ax === nx && ay === ny)) continue;
       const nc = c + (m.grid[ny][nx] === grass ? 6 : 1);
       if (nc >= (cost.get(key(nx, ny)) ?? Infinity)) continue;
       cost.set(key(nx, ny), nc); prev.set(key(nx, ny), [key(x, y), d]); open.push([nc, nx, ny]);

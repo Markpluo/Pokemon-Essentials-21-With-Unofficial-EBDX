@@ -74,7 +74,16 @@
     "bergmite",
     "wooloo",
     "mudbray",
-    "bramblin"
+    "bramblin",
+    "litwick",
+    "gastly",
+    "misdreavus",
+    "sinistea",
+    "phantump",
+    "wooper",
+    "fidough",
+    "chandelure",
+    "mismagius"
   ],
   "spriteKeys": {
     "qwilfishhisui": "QWILFISH_1"
@@ -178,7 +187,12 @@
     "tr/bouncer": "Graphics/Trainers/BLACKBELT.png",
     "chars/lifeguard": "Graphics/Characters/trainer_SWIMMER2_M.png",
     "chars/barista": "Graphics/Characters/NPC 21.png",
-    "chars/ranger": "Graphics/Characters/trainer_POKEMONRANGER_M.png"
+    "chars/ranger": "Graphics/Characters/trainer_POKEMONRANGER_M.png",
+    "chars/soren": "Graphics/Characters/trainer_PSYCHIC_M.png",
+    "tr/soren": "Graphics/Trainers/PSYCHIC_M.png",
+    "chars/baker": "Graphics/Characters/trainer_AROMALADY.png",
+    "chars/litwick": "Graphics/Characters/Followers/LITWICK.png",
+    "chars/lampent": "Graphics/Characters/Followers/LAMPENT.png"
   },
   "audio": {
     "title": "Audio/BGM/Title.ogg",
