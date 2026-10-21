@@ -142,7 +142,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step to the end of Chapter 3', () => {
+  it('plays from the first step to the end of Chapter 4', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -307,6 +307,64 @@ describe('Hafnia demo', () => {
     d.exit('up', 13, 0); d.exit('right', 27, 9); at('route3');
     expect(flag('ch3done')).toBe(true);
     expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 3 complete');
+
+    // Chapter 4: home to Nørrebro, Assistens, the storm drain, the Lantern Walk
+    d.exit('left', 0, 4); at('vesterbro');
+    d.exit('up', 13, 0); at('route2');
+    d.exit('right', 29, 3); at('norrebro');
+    expect(flag('ch4')).toBe(true);
+    expect(d.game.period).toBe('evening');
+    d.exit('up', 15, 0); at('assistens');
+    expect(flag('metSoren')).toBe(true);
+    d.talkTo(24, 20); at('stormdrain');
+    d.walkTo(19, 6);
+    slide('left', 'left', 'down', 'left', 'down');             // the frozen sump
+    expect([d.s.x, d.s.y], d.where()).toEqual([10, 13]);
+    d.talkTo(12, 15);                                          // the frightened Lampent
+    expect(flag('litwickBack'), d.where()).toBe(true);
+    d.talkTo(15, 15); at('assistens');
+    expect(flag('lanternsLit')).toBe(true);
+    expect(d.game.period).toBe('night');
+    d.s.party[0].moves = [{ id: 'crunch', pp: 15 }, { id: 'shadowball', pp: 15 }];   // a player brings answers to Ghosts
+    d.exit('up', 15, 0); at('gym4');
+    d.walkTo(7, 13); d.send({ t: 'step', dir: 'up' });         // the middle gap is false: the wind blows you back
+    expect([d.s.x, d.s.y], d.where()).toEqual([7, 18]);
+    d.walkTo(2, 13); d.walkTo(2, 11);                          // west...
+    d.walkTo(12, 9); d.walkTo(12, 7);                          // ...east...
+    d.walkTo(7, 5); d.walkTo(7, 3);                            // ...straight on
+    d.talkTo(7, 2);
+    expect(d.s.badges, d.where()).toEqual(['hafnia:spray', 'hafnia:lily', 'hafnia:frost', 'hafnia:lantern']);
+    expect([d.s.bag.tmhex, d.s.bag.firstverse]).toEqual([1, 1]);
+    expect(flag('ch4done')).toBe(true);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 4 complete');
+
+    // Assistens Ghost Stories: five graves at night, then Søren
+    d.exit('down', 7, 19); at('assistens');
+    for (const [x, y] of [[6, 7], [10, 17], [21, 7], [4, 17], [12, 5]]) d.talkTo(x, y);
+    expect(['gs1', 'gs2', 'gs3', 'gs4', 'gs5'].every(f => flag(f)), d.where()).toBe(true);
+    d.talkTo(19, 11);
+    expect([d.s.bag.duskstone, d.s.bag.reapercloth, d.s.bag.poembook]).toEqual([1, 1, 1]);
+
+    // Kanelsnegl Morning: six letterboxes before breakfast
+    d.exit('down', 15, 23); at('norrebro');
+    d.exit('left', 0, 8); d.exit('down', 4, 15); at('vesterbro');
+    d.exit('up', 18, 15); at('bakery');
+    d.talkTo(5, 1);                                            // yes, and wait until dawn
+    expect(d.game.period).toBe('morning');
+    expect(d.s.bag.kanelsnegl).toBe(6);
+    d.walkTo(5, 5); at('vesterbro');
+    d.talkTo(10, 8); d.talkTo(21, 8);
+    d.exit('down', 13, 19); at('kodbyen');
+    d.talkTo(11, 5); d.talkTo(24, 8);
+    d.exit('up', 13, 0); d.exit('up', 13, 0); d.exit('right', 29, 3); at('norrebro');
+    d.talkTo(8, 7); d.talkTo(19, 7);
+    expect(d.s.bag.kanelsnegl ?? 0).toBe(0);
+    d.exit('left', 0, 8); d.exit('down', 4, 15); d.exit('up', 18, 15); at('bakery');
+    const eggs = d.s.party.filter(m => m.egg).length + d.s.box.filter(m => m.egg).length;
+    d.talkTo(5, 1);
+    expect(flag('kanelDone')).toBe(true);
+    expect(d.s.party.filter(m => m.egg).length + d.s.box.filter(m => m.egg).length).toBe(eggs + 1);
+    expect(d.s.bag.expcandym).toBe(1);
   });
 
   it('a wrong steam valve closes them all again', () => {

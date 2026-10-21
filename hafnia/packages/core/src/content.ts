@@ -122,7 +122,7 @@ export type FlagReader = (name: string) => any;
 
 // Outdoor: T trees, ~ sea, o still water, H house fronts, x containers, n railings.
 // Indoor and tunnels: w walls, K furniture, R rock, p pipes, P palm planters. Ice (i) is walkable but slippery.
-export const SOLID_TILES = new Set(['T', '~', 'o', 'H', 'x', 'n', 'w', 'K', 'R', 'p', 'P']);
+export const SOLID_TILES = new Set(['T', '~', 'o', 'H', 'x', 'n', 'w', 'K', 'R', 'p', 'P', 'u']);
 export const WATER_TILES = new Set(['~', 'o']);
 export const GRASS_TILE = 'g';
 /** Ice: the player slides until something stops them (Gym 3). */

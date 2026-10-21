@@ -17,6 +17,8 @@ export interface ItemDef {
   repel?: number;            // steps
   breeding?: boolean;        // given to Vuggestuen with a Pokémon (Everstone, Destiny Knot)
   tm?: string;               // move taught (reusable)
+  evolve?: string;           // evolution item: species.json "Item" evolutions with this parameter (DUSKSTONE)
+  exp?: number;              // Exp. Candy: experience points given
 }
 
 export const ITEMS: Record<string, ItemDef> = {
@@ -45,6 +47,13 @@ export const ITEMS: Record<string, ItemDef> = {
   mussels: { name: 'Harbour Mussels', pocket: 'key', price: 0, desc: 'From the harbour bath ladder at Islands Brygge. For Kasper.' },
   buckthorn: { name: 'Sea Buckthorn', pocket: 'key', price: 0, desc: 'Sour orange berries from the Kalvebod edge. For Kasper.' },
   icesalt: { name: 'Smoked-Ice Salt', pocket: 'key', price: 0, desc: 'Kasper\'s secret seasoning, rescued from his locker.' },
+  tmhex: { name: 'TM Hex', pocket: 'tms', price: 0, tm: 'hex', desc: 'Teaches Hex. Can be used again and again.' },
+  duskstone: { name: 'Dusk Stone', pocket: 'other', price: 3000, evolve: 'DUSKSTONE', desc: 'A dark stone. Some Pokémon evolve when it touches them (Lampent, Misdreavus).' },
+  reapercloth: { name: 'Reaper Cloth', pocket: 'other', price: 2000, desc: 'A cloth that hums when ghosts are near. Collectors pay well for it.' },
+  expcandym: { name: 'Exp. Candy M', pocket: 'medicine', price: 0, exp: 3000, desc: 'A candy packed with energy. Gives a Pokémon 3,000 Exp. Points.' },
+  kanelsnegl: { name: 'Kanelsnegl', pocket: 'key', price: 0, desc: 'A warm cinnamon swirl from the Vesterbro bakery. For delivery before 8.' },
+  poembook: { name: 'Søren\'s Poem Book', pocket: 'key', price: 0, desc: 'Ghost stories from Assistens, written out by hand. One page is still blank.' },
+  firstverse: { name: 'The First Verse', pocket: 'key', price: 0, desc: '"Where the king\'s water sleeps beneath the hill, / the mermaid\'s price is written still."' },
   bike: { name: 'Rotom Cargo-Bike', pocket: 'key', price: 0, desc: 'Ørsted\'s prototype. Ride it from the menu outdoors.' },
   oldrod: { name: 'Old Rod', pocket: 'key', price: 0, desc: 'Old Knud\'s rod. Face water and press A to fish.' },
   coppernail: { name: 'Copper Hull Nail', pocket: 'key', price: 0, desc: 'From the old ships. Lets the Coil make Patina armour.' },
