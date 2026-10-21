@@ -1828,6 +1828,8 @@ function probe() {
     choice: c ? { options: c.options, idx: c.idx, id: choiceIds.get(c)! } : null,
     picker: G.ui.picker ? { ...G.ui.picker } : null,
     world: G.world,
+    /** The NPCs actually drawn right now (the world view lags behind during cutscenes). */
+    actors: [...G.npcs.values()].map(n => ({ id: n.id, x: n.x, y: n.y })),
     battle: B ? {
       kind: B.start.kind, trainer: B.start.trainer?.name ?? null, ally: B.spots.ally.mon, foe: B.spots.foe.mon, ally2: B.spots.ally2.mon, foe2: B.spots.foe2.mon, coil: B.coil, request: B.request,
       grid: B.grid ? { key: B.grid.key, items: B.grid.items, idx: B.grid.idx, cols: B.grid.cols } : null
