@@ -6,6 +6,7 @@ import { Dex } from '@pkmn/sim';
 import pbsSpecies from '../data/species.json';
 import type { MonView, MoveView, StatusId } from './protocol';
 import type { Rng } from './rng';
+import { eggView } from './breeding';
 
 export interface Mon {
   uid: string;
@@ -24,6 +25,8 @@ export interface Mon {
   ot?: string;
   nickname?: string;
   item?: string;   // held item (Showdown id)
+  ball?: string;                  // the Poké Ball it was caught or hatched in
+  egg?: { steps: number };        // still an egg: steps left to hatch
 }
 export interface Stats { hp: number; atk: number; def: number; spa: number; spd: number; spe: number }
 const STAT_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as const;
@@ -31,6 +34,7 @@ const STAT_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as const;
 export interface SpeciesExtra {
   key: string; catchRate: number; baseExp: number; growth: string;
   moves: [number, string][]; evolutions?: [string, string, string][]; category?: string; dex?: string;
+  hatchSteps?: number;
 }
 const EXTRA = pbsSpecies as unknown as Record<string, SpeciesExtra>;
 
@@ -123,6 +127,7 @@ export function canLearnTM(species: string, move: string): boolean {
 }
 
 export function healMon(m: Mon) {
+  if (m.egg) return;
   m.hp = maxHp(m); m.status = '';
   for (const mv of m.moves) mv.pp = maxPp(mv.id);
 }
@@ -188,6 +193,7 @@ export function moveView(id: string, pp: number, maxpp?: number, disabled?: bool
 }
 
 export function monView(m: Mon): MonView {
+  if (m.egg) return eggView(m);
   const { lo, hi } = expRange(m);
   return {
     uid: m.uid, species: m.species, key: speciesExtra(m.species).key, name: monName(m), types: speciesTypes(m.species),

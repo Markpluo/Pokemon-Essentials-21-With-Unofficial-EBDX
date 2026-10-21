@@ -46,5 +46,9 @@ for (const dir of readdirSync(join(root, 'packs'))) {
 }
 // The homepage's credits page shows the Essentials + EBDX credits list as it is.
 copy('README.md', join(root, 'apps', 'client', 'public', 'credits.txt'));
+// Eggs share one sprite set (Graphics/Pokemon/Eggs/000*.png) under the key EGG.
+copy('Graphics/Pokemon/Eggs/000.png', join(out, 'pokemon', 'front', 'EGG.png'));
+copy('Graphics/Pokemon/Eggs/000_icon.png', join(out, 'pokemon', 'icons', 'EGG.png'));
+copy('Graphics/Pokemon/Eggs/000_cracks.png', join(out, 'pokemon', 'front', 'EGG_cracks.png'));
 console.log(`assets: ${copied} files copied to apps/client/public/game-assets`);
 if (missing.length) { console.error(`missing: ${missing.join(', ')}`); process.exit(1); }

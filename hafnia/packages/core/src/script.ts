@@ -83,6 +83,19 @@ export interface ScriptApi {
   giveItem(item: string, qty?: number): void;
   hasItem(item: string): number;
   takeItem(item: string, qty?: number): boolean;
+  /** A quest egg: optional perfect IVs, hidden ability, ball and hatch steps. */
+  giveEgg(species: string, opts?: { perfectIvs?: number; hiddenAbility?: boolean; ball?: string; steps?: number }): Mon;
+
+  // Vuggestuen (breeding.ts). Deposits keep at least one Pokémon that can battle in the party.
+  readonly daycare: readonly { name: string; species: string; level: number; gender: '' | 'M' | 'F'; item?: string }[];
+  readonly daycareEggs: number;
+  /** How well the two daycare Pokémon get along, or null with fewer than two. */
+  daycareCompat(): string | null;
+  depositDaycare(uid: string, item?: string): boolean;
+  /** Returns the Pokémon (healed, its toy back in the bag), or null if the party is full. */
+  withdrawDaycare(index: number): Mon | null;
+  /** Moves the oldest pram egg into the party, or null if there is none or the party is full. */
+  takeDaycareEgg(): Mon | null;
   giveMoney(amount: number): void;
   readonly money: number;
   takeMoney(amount: number): boolean;

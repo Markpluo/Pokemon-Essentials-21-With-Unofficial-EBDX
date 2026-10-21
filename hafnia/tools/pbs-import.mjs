@@ -1,7 +1,7 @@
 // Converts the Essentials PBS species files into packages/core/data/species.json.
 // Battle mechanics (types, base stats, abilities, moves) come from the Showdown simulator;
 // this file adds what Showdown does not have: catch rate, base EXP, growth rate,
-// level-up learnsets, evolutions and Pokédex text.
+// level-up learnsets, evolutions, egg hatch steps and Pokédex text.
 // Usage: npm run pbs
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -50,6 +50,7 @@ for (const file of ['pokemon.txt', 'pokemon_base_Gen_9_Pack.txt']) {
       catchRate: Number(e.CatchRate || 45),
       baseExp: Number(e.BaseExp || 64),
       growth: e.GrowthRate || 'Medium',
+      hatchSteps: Number(e.HatchSteps || 5120),
       moves,
       ...(evolutions.length ? { evolutions } : {}),
       ...(e.Category ? { category: e.Category } : {}),

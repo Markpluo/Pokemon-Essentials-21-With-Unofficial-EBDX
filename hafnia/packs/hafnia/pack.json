@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "requires": [],
   "species": [
+    "ditto",
     "sprigatito",
     "charmander",
     "popplio",
@@ -89,6 +90,9 @@
     "chars/sailor": "Graphics/Characters/trainer_SAILOR.png",
     "chars/skater": "Graphics/Characters/trainer_YOUNGSTER.png",
     "chars/tariq": "pack:assets/chars/tariq.png",
+    "chars/bodil": "Graphics/Characters/NPC 23.png",
+    "chars/jens": "Graphics/Characters/NPC 15.png",
+    "chars/toddler": "Graphics/Characters/NPC 02.png",
     "tr/biker": "Graphics/Trainers/BIKER.png",
     "tr/lukas": "Graphics/Trainers/RIVAL1.png",
     "tr/maja": "Graphics/Trainers/POKEMONTRAINER_May.png",

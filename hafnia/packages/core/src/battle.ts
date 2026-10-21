@@ -246,7 +246,7 @@ export class BattleSession {
         this.ev({ b: 'text', text: `${this.host.playerName} threw a ${ball.name}!` });
         const foeTypes = this.sim.p2.active[0]?.getTypes() ?? [];
         const rate = action.item === 'netball' ? (foeTypes.some(t => t === 'Water' || t === 'Bug') ? 3.5 : 1) : ball.ball;
-        if (this.throwBall(rate)) return this.advance();
+        if (this.throwBall(rate, action.item)) return this.advance();
         this.waitTurn();
         break;
       }
@@ -415,7 +415,7 @@ export class BattleSession {
   }
 
   /** Gen 9 capture (systems.md §2.5): three shake checks; low-level and badge modifiers. */
-  private throwBall(mult: number): boolean {
+  private throwBall(mult: number, ballId: string): boolean {
     const foe = this.sim.p2.active[0], mon = this.monOf(foe)!;
     const rate = speciesExtra(mon.species).catchRate;
     const statusBonus = foe.status === 'slp' || foe.status === 'frz' ? 2.5 : foe.status ? 1.5 : 1;
@@ -436,7 +436,7 @@ export class BattleSession {
       return false;
     }
     mon.hp = foe.hp; mon.status = (foe.status === 'tox' ? 'psn' : foe.status) as StatusId;
-    mon.ot = this.host.playerName;
+    mon.ot = this.host.playerName; mon.ball = ballId;
     this.host.emit({ t: 'me', name: 'me_catch' });
     this.ev({ b: 'text', text: `Gotcha! ${mon.nickname ?? speciesName(mon.species)} was caught!` });
     this.awardExp(foe); // catching gives EXP like a knockout (Gen 6+)

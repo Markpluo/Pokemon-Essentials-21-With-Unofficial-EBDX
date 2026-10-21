@@ -2,6 +2,7 @@
 // It has no DOM, network or timers. Feed it intents, get back events. A Web Worker runs it
 // for solo play; the online server will run the very same class.
 import { BattleSession } from './battle';
+import { DAYCARE_SLOTS, breed, compatText, compatibility, daycareStep, eggStepValue, emptyDaycare, giftEgg, hatch, type DaycareState } from './breeding';
 import type { CoilUnlocks } from './coil';
 import { Content, GRASS_TILE, SOLID_TILES, WATER_TILES, ns, type MapDef, type MapEvent, type NpcDef, type Period, type Respawn } from './content';
 import { ITEMS, itemEffect } from './items';
@@ -13,7 +14,7 @@ import type { BattleResult, DayPeriod, DebugCommand, Dir, Intent, Look, ServerEv
 import { Rng } from './rng';
 import type { NpcHandle, Pause, Script, ScriptApi } from './script';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface SaveData {
   v: number;
@@ -32,6 +33,9 @@ export interface SaveData {
   repel: number;                   // steps left
   look: Look;                      // the player's character
   clock: number;                   // in-game minutes since midnight (1 day = 48 real minutes in the overworld)
+  daycare: DaycareState;           // Vuggestuen: two Pokémon and the eggs waiting in the prams
+  steps: number;                   // overworld steps taken
+  hatched: number;                 // eggs hatched (Ørsted's Hatchery Log)
 }
 
 /** Start minute of each period of the day (progression-quests-time.md §3.6). */
@@ -79,7 +83,8 @@ export class Game {
       v: SAVE_VERSION, packs: [...content.packs.keys()], name: 'Player', map, x: start.x, y: start.y, dir: start.dir,
       party: [], box: [], bag: {}, money: 3000, flags: {}, npcs: {},
       respawn: { ...start.respawn, map: ns(base.manifest.id, start.respawn.map) }, rng: seed >>> 0,
-      badges: [], coil: {}, repel: 0, look: 'boy', clock: PERIOD_START.morning + 4 * 60
+      badges: [], coil: {}, repel: 0, look: 'boy', clock: PERIOD_START.morning + 4 * 60,
+      daycare: emptyDaycare(), steps: 0, hatched: 0
     });
     game.emitMap();
     game.run(start.intro, base.manifest.id);
@@ -276,6 +281,34 @@ export class Game {
     if (m.onEnter && m.key === this.state.map) this.run(m.onEnter, m.pack);
   }
 
+  /** Counts a step for the daycare and the eggs in the party. Returns true if an egg starts hatching. */
+  private eggStep(): boolean {
+    const s = this.state;
+    s.steps++;
+    if (daycareStep(s.daycare, this.rng, s.name)) {
+      this.out.push({ t: 'sfx', name: 'exclaim' }, { t: 'say', text: 'Bzzt! Vuggestuen called, bzzt!\nAn Egg is waiting in the pram!' });
+    }
+    const n = eggStepValue(s.party);
+    let ready: Mon | undefined;
+    for (const m of s.party) {
+      if (!m.egg) continue;
+      m.egg.steps = Math.max(0, m.egg.steps - n);
+      if (!m.egg.steps) ready ??= m;
+    }
+    if (!ready) return false;
+    const g = this, egg = ready;
+    this.run(function* (api) {
+      api.say('Oh?');
+      hatch(egg);
+      s.hatched++;
+      g.out.push({ t: 'hatch', key: speciesExtra(egg.species).key, name: speciesName(egg.species), shiny: egg.shiny });
+      api.me('me_get');
+      api.say(`${speciesName(egg.species)} hatched from the Egg!`);
+      api.checkpoint();
+    }, this.map.pack);
+    return true;
+  }
+
   private openDoor(m: MapDef & { key: string; pack: string }, building: string) {
     this.out.push({ t: 'sfx', name: 'door' });
     const script = m.doors?.[building];
@@ -284,6 +317,7 @@ export class Game {
 
   private afterStep() {
     const s = this.state, m = this.map;
+    if (this.eggStep()) return;
     for (const n of m.npcs) {
       if (!n.trainer || this.flag(m.pack, n.trainer.flag) || !this.npcVisible(m, n) || !n.talk) continue;
       const ns_ = this.npcState(m, n), [dx, dy] = DIRS[ns_.dir];
@@ -382,7 +416,7 @@ export class Game {
     this.out.push({ t: 'map', map: m.key, name: m.name, x: s.x, y: s.y, dir: s.dir, bgm: m.bgm });
   }
 
-  private partyAlive() { return this.state.party.some(p => p.hp > 0); }
+  private partyAlive() { return this.state.party.some(p => !p.egg && p.hp > 0); }
 
   private useItem(item: string, uid: string) {
     const it = ITEMS[item];
@@ -394,6 +428,7 @@ export class Game {
       return;
     }
     const m = this.state.party.find(p => p.uid === uid);
+    if (m?.egg) { this.out.push({ t: 'say', text: 'That can\'t be used on an Egg.' }); return; }
     if (m && it.tm) { this.teachTM(m, it.tm, it.name); return; }
     if (!m || it.pocket !== 'medicine') return;
     const fx = itemEffect(it, m.hp, maxHp(m), m.status);
@@ -429,7 +464,7 @@ export class Game {
       }
       case 'heal': for (const m of s.party) healMon(m); say('Debug: team healed.'); break;
       case 'levelUp': {
-        const m = s.party[0]; if (!m) break;
+        const m = s.party.find(p => !p.egg); if (!m) break;
         const target = Math.min(100, m.level + (Number(arg) || 5));
         for (const step of gainExp(m, expForLevel(speciesExtra(m.species).growth, target) - m.exp)) {
           for (const id of step.pending) replaceMove(m, 0, id);
@@ -448,6 +483,17 @@ export class Game {
       case 'time': {
         s.clock = Math.floor(s.clock + 6 * 60) % (24 * 60);
         say(`Debug: it is now ${String(Math.floor(s.clock / 60)).padStart(2, '0')}:${String(s.clock % 60).padStart(2, '0')}.`); break;
+      }
+      case 'hatchEggs': {
+        const eggs = s.party.filter(p => p.egg);
+        for (const p of eggs) p.egg!.steps = 1;
+        say(eggs.length ? 'Debug: your Eggs will hatch on the next step.' : 'Debug: you have no Eggs.'); break;
+      }
+      case 'layEgg': {
+        const [a, b] = s.daycare.slots;
+        if (!a || !b || !compatibility(a.mon, b.mon)) { say('Debug: Vuggestuen needs two Pokémon that can breed.'); break; }
+        s.daycare.eggs.push(breed(a.mon, b.mon, this.rng, { ot: s.name, items: [a.item ?? a.mon.item, b.item ?? b.mon.item] }));
+        say('Debug: an Egg is waiting in the pram.'); break;
       }
       case 'badge': s.badges.push(`debug:badge${s.badges.length + 1}`); say(`Debug: you now have ${s.badges.length} badge(s).`); break;
       case 'warp': {
@@ -597,7 +643,7 @@ export class Game {
   private battleHost() {
     const g = this;
     return {
-      rng: g.rng, party: g.state.party, bag: g.state.bag, playerName: g.state.name,
+      rng: g.rng, party: g.state.party.filter(m => !m.egg), bag: g.state.bag, playerName: g.state.name,
       rules: g.content.rules, badges: g.state.badges.length, coil: g.state.coil,
       whiteout: () => {
         const rules = g.content.rules, top = Math.max(1, ...g.state.party.map(m => m.level));
@@ -675,6 +721,43 @@ export class Game {
       giveItem: (item, qty = 1) => { s.bag[item] = (s.bag[item] ?? 0) + qty; },
       hasItem: item => s.bag[item] ?? 0,
       takeItem: (item, qty = 1) => { if ((s.bag[item] ?? 0) < qty) return false; s.bag[item] -= qty; return true; },
+      giveEgg: (species, opts = {}) => {
+        const m = giftEgg(species, g.rng, { ...opts, ot: s.name });
+        g.addMon(m);
+        return m;
+      },
+      get daycare() {
+        return s.daycare.slots.map(d => ({ name: monName(d.mon), species: d.mon.species, level: d.mon.level, gender: d.mon.gender, ...(d.item ? { item: d.item } : {}) }));
+      },
+      get daycareEggs() { return s.daycare.eggs.length; },
+      daycareCompat: () => (s.daycare.slots.length === 2 ? compatText(s.daycare.slots[0].mon, s.daycare.slots[1].mon) : null),
+      depositDaycare: (uid, item) => {
+        const i = s.party.findIndex(p => p.uid === uid);
+        const m = s.party[i];
+        if (!m || m.egg || s.daycare.slots.length >= DAYCARE_SLOTS) return false;
+        if (!s.party.some(p => p !== m && !p.egg)) return false; // keep one Pokémon that can battle
+        if (item && !s.bag[item]) return false;
+        if (item) s.bag[item]--;
+        s.party.splice(i, 1);
+        s.daycare.slots.push({ mon: m, ...(item ? { item } : {}) });
+        return true;
+      },
+      withdrawDaycare: index => {
+        const d = s.daycare.slots[index];
+        if (!d || s.party.length >= PARTY_MAX) return null;
+        s.daycare.slots.splice(index, 1);
+        if (d.item) s.bag[d.item] = (s.bag[d.item] ?? 0) + 1;
+        healMon(d.mon);
+        s.party.push(d.mon);
+        return d.mon;
+      },
+      takeDaycareEgg: () => {
+        if (!s.daycare.eggs.length || s.party.length >= PARTY_MAX) return null;
+        const egg = s.daycare.eggs.shift()!;
+        egg.ot = s.name;
+        s.party.push(egg);
+        return egg;
+      },
       giveMoney: n => { s.money += n; },
       get money() { return s.money; },
       takeMoney: n => { if (s.money < n) return false; s.money -= n; return true; },
@@ -758,7 +841,7 @@ export class Game {
 
   summary(): string {
     const s = this.state;
-    const lead = s.party[0];
+    const lead = s.party.find(p => !p.egg);
     return `${s.name} · ${this.map.name}${lead ? ` · ${monName(lead)} Lv. ${lead.level}` : ''}`;
   }
 }
@@ -769,6 +852,7 @@ export function migrate(save: SaveData): SaveData {
   s.box ??= []; s.npcs ??= {}; s.flags ??= {};
   s.badges ??= []; s.coil ??= {}; s.repel ??= 0;   // v2: badges, Coil unlocks, Repel
   s.look ??= 'boy'; s.clock ??= 8 * 60;              // character look and world clock (no version bump: defaults are safe)
+  s.daycare ??= emptyDaycare(); s.steps ??= 0; s.hatched ??= 0;   // v3: Vuggestuen and eggs
   s.v = SAVE_VERSION;
   return s;
 }
