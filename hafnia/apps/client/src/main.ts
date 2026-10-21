@@ -58,7 +58,8 @@ function preload(onProgress: (p: number) => void): Promise<void> {
   const list: Img[] = [];
   for (const [id, w] of Object.entries(WORLDS)) {
     for (const k of Object.keys(w.manifest.images)) list.push(packImg(k, id));
-    for (const sp of w.manifest.species) for (const kind of ['front', 'back', 'icons'] as const) list.push(monImg(kind, sp.toUpperCase()));
+    const keys: Record<string, string> = (w.manifest as { spriteKeys?: Record<string, string> }).spriteKeys ?? {};
+    for (const sp of w.manifest.species) for (const kind of ['front', 'back', 'icons'] as const) list.push(monImg(kind, keys[sp] ?? sp.toUpperCase()));
   }
   let done = 0;
   return Promise.all(list.map(im => new Promise<void>(res => {

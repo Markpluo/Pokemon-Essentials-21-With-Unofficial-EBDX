@@ -243,5 +243,14 @@ describe('Multi battles', () => {
     const base = (title: string) => DEFAULT_RULES.prizeBase[title] ?? DEFAULT_RULES.prizeDefault;
     expect(money).toBe(10 * base('Youngster') + 10 * base('Deckhand'));
     expect(t.texts().some(x => /You defeated Youngster Foe\nand Deckhand Bo!/.test(x))).toBe(true);
+describe('Tutorial battle (Lukas at the Palm House)', () => {
+  it('the player\'s Pokémon holds on at 1 HP however long the battle runs', () => {
+    const t = battle({ party: [['sprigatito', 5, ['growl']]], foes: [{ species: 'charmander', level: 9, moves: ['scratch', 'ember'] }],
+      opts: { tutorial: true, soft: true }, seed: 4 });
+    let low = Infinity;
+    for (let i = 0; i < 40 && !(t.b as any).result; i++) { t.act({ kind: 'move', index: 0 }); low = Math.min(low, t.party[0].hp || (t.sim.p1.active[0].hp as number)); }
+    expect(t.sim.p1.active[0].hp).toBeGreaterThanOrEqual(1);
+    expect(t.sim.p1.active[0].fainted).toBe(false);
+    expect(low).toBeGreaterThanOrEqual(1);
   });
 });

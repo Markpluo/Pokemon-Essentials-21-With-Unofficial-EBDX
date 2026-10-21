@@ -117,6 +117,31 @@ describe('Hafnia demo', () => {
     expect(d.said[0]).toContain('Welcome to Hafnia');
   });
 
+  it('sends the NPCs with each map, so people in a scene that starts on arrival are drawn', () => {
+    const d = newGame();
+    const map = d.log.find(e => e.t === 'map' && e.map === 'hafnia:flat') as Extract<ServerEvent, { t: 'map' }>;
+    expect(map.npcs.map(n => n.id)).toContain('mum');
+  });
+
+  it('offers five starters, and Lukas and Maja pick by the table in trainers-and-encounters.md', () => {
+    const table: [string, string, string][] = [
+      ['sprigatito', 'charmander', 'popplio'], ['charmander', 'popplio', 'sprigatito'], ['popplio', 'sprigatito', 'charmander'],
+      ['eevee', 'charmander', 'sprigatito'], ['pikachu', 'sprigatito', 'popplio']
+    ];
+    table.forEach(([mine, lukas, maja], i) => {
+      const d = newGame(20 + i);
+      d.s.flags['debug:noEncounters'] = true;
+      d.walkTo(6, 6); d.exit('down', 12, 21); d.exit('down', 9, 15); d.exit('down', 11, 31);
+      d.answers.push(i, 0, 1);
+      d.exit('up', 14, 11);
+      const offer = d.log.find(e => e.t === 'pickSpecies') as Extract<ServerEvent, { t: 'pickSpecies' }>;
+      expect(offer.species.map(o => o.key ?? o)).toHaveLength(5);
+      expect([d.s.flags['hafnia:starter'], d.s.flags['hafnia:lukasStarter'], d.s.flags['hafnia:majaStarter']]).toEqual([mine, lukas, maja]);
+      expect(d.s.party[0].species).toBe(mine);
+      expect(d.battles[0]).toBe('win'); // the tutorial battle can't be lost
+    });
+  });
+
   it('plays from the first step to the end of Chapter 2', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
