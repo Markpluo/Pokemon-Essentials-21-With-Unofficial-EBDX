@@ -1,9 +1,10 @@
-// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 3). Plain data,
+// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 4). Plain data,
 // so the client can import it for rendering without the scripts.
 // Outdoor tiles: '.' ground, '=' brick path, 'g' tall grass, 'f' flowers, 'T' trees, '~' sea, 'o' still water,
 //   'r' Den Røde Plads, 'k' Den Sorte Plads, 'q' cobbles, 'a' asphalt/concrete, 'l' bike lane, 'd' planks,
 //   'H' house fronts, 'x' shipping containers, 'n' railings.
-// Indoor and tunnels: '_' floor, 'w' wall, 'K' furniture, 'm' doormat, 'c' tunnel floor, 'R' rock, 'p' pipes, 'P' planters.
+// Indoor and tunnels: '_' floor, 'w' wall, 'K' furniture, 'm' doormat, 'c' tunnel floor, 'R' rock, 'p' pipes, 'P' planters,
+//   'u' drain water, 'i' ice.
 import type { MapDef, Stamp, Warp } from '@hafnia/core';
 
 type MapData = Omit<MapDef, 'npcs' | 'doors' | 'events' | 'onEnter'>;
@@ -59,6 +60,7 @@ function norrebro(): MapData {
     [2, 10], [3, 10], [9, 11], [10, 11], [15, 10], [2, 18], [10, 18], [16, 18], [25, 18]]);
   fill(g, 24, 9, 2, 4, 'g');                  // courtyard planters
   fill(g, 0, 8, 2, 1, '=');                   // Nørrebrogade runs on west to Den Grønne Sti (Ch3)
+  fill(g, 15, 0, 2, 2, 'q');                  // the lane north to Assistens Kirkegård (Ch4)
   return {
     id: 'norrebro', name: 'Nørrebro', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
     buildings: [
@@ -68,7 +70,7 @@ function norrebro(): MapData {
     encounters: [[30, 'pidgey'], [30, 'skwovet'], [20, 'rattata'], [15, 'nickit'], [5, 'toxel']],
     encountersNight: [[35, 'rattata'], [30, 'nickit'], [20, 'hoothoot'], [10, 'greavard'], [5, 'toxel']],
     levels: [6, 9],
-    exits: { down: { to: 'bridge', offset: -3 }, left: { to: 'route2', offset: -5 } }
+    exits: { down: { to: 'bridge', offset: -3 }, left: { to: 'route2', offset: -5 }, up: { to: 'assistens', offset: 0 } }
   };
 }
 
@@ -528,7 +530,7 @@ function vesterbro(): MapData {
     id: 'vesterbro', name: 'Vesterbro', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
     buildings: [
       { s: 'cafe', x: 4, y: 5, id: 'cafe' }, { s: 'orange', x: 8, y: 4 }, { s: 'pc', x: 16, y: 3, id: 'pc' },
-      { s: 'orange', x: 4, y: 12 }, { s: 'green', x: 17, y: 12 }
+      { s: 'orange', x: 4, y: 12 }, { s: 'blue', x: 17, y: 12, id: 'bakery' }
     ],
     exits: { up: { to: 'route2', offset: -9 }, right: { to: 'route3', offset: -5 }, down: { to: 'kodbyen', offset: 0 } }
   };
@@ -632,6 +634,67 @@ function islandsbrygge(): MapData {
   };
 }
 
+// ---------- Chapter 4: Lanterns Out ----------
+
+// Assistens Kirkegård: headstones under old trees, Søren's lanterns along the main avenue, a storm drain
+// in the east corner and the Lantern Walk (Gym 4) through the gate at the top.
+function assistens(): MapData {
+  const W = 28, H = 24, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 2, 'T'); fill(g, 0, 22, W, 2, 'T'); fill(g, 0, 0, 2, H, 'T'); fill(g, 26, 0, 2, H, 'T');
+  fill(g, 15, 0, 2, H, 'q');                  // the main avenue, Nørrebro to the Lantern Walk gate
+  fill(g, 2, 12, 24, 1, 'q');                 // the cross path
+  fill(g, 3, 2, 7, 2, 'g'); fill(g, 19, 19, 4, 2, 'g'); fill(g, 2, 13, 3, 2, 'g');
+  fill(g, 3, 20, 3, 2, 'T'); fill(g, 21, 2, 3, 2, 'T'); fill(g, 8, 21, 4, 1, 'T');
+  dots(g, 'f', [[13, 3], [18, 3], [13, 10], [18, 14], [3, 11], [25, 11], [7, 14], [22, 14]]);
+  return {
+    id: 'assistens', name: 'Assistens Kirkegård', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld', buildings: [],
+    encounters: [[30, 'skwovet'], [20, 'phantump'], [20, 'nickit'], [15, 'cutiefly'], [15, 'greavard']],
+    encountersNight: [[30, 'litwick'], [25, 'gastly'], [20, 'misdreavus'], [15, 'greavard'], [10, 'hoothoot']],
+    levels: [22, 26],
+    exits: { down: { to: 'norrebro', offset: 0 }, up: { to: 'gym4', offset: -8 } }
+  };
+}
+
+// Under the cemetery: a storm drain where the groundwater is sinking and freezing. The ice crossing is
+// left, down, left, down from the east corridor (checked by a solver: no position on it is a dead end).
+function stormdrain(): MapData {
+  const W = 22, H = 17, g = makeGrid(W, H, 'R');
+  fill(g, 1, 1, 20, 2, 'c');                  // the upper culvert
+  fill(g, 4, 3, 14, 1, 'u');                  // drain water, running east
+  fill(g, 19, 3, 2, 10, 'c'); fill(g, 18, 6, 1, 1, 'c');
+  fill(g, 4, 5, 14, 8, 'i');                  // the frozen sump
+  dots(g, 'R', [[13, 6], [9, 12], [17, 7], [6, 9], [15, 10]]);
+  fill(g, 10, 13, 1, 1, 'c'); fill(g, 5, 14, 11, 2, 'c');   // down into the intake chamber
+  return {
+    id: 'stormdrain', name: 'Storm Drain', grid: g, w: W, h: H, battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true, dark: true,
+    encounterTile: 'c', encounters: [[35, 'zubat'], [25, 'wooper'], [25, 'grimer'], [15, 'litwick']], levels: [23, 26]
+  };
+}
+
+// Gym 4: Søren's Lantern Walk at night. Three hedges, three gaps each; the rhymes on the monuments say
+// which gap is true. Through a wrong one the wind blows the lantern out and the paths twist you back.
+function gym4(): MapData {
+  const W = 15, H = 20, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 1, 'T'); fill(g, 0, 0, 1, H, 'T'); fill(g, W - 1, 0, 1, H, 'T'); fill(g, 0, H - 1, W, 1, 'T');
+  for (const y of [4, 8, 12]) { fill(g, 1, y, W - 2, 1, 'T'); dots(g, 'q', [[2, y], [7, y], [12, y]]); }
+  fill(g, 7, 13, 1, 6, 'q'); fill(g, 7, H - 1, 2, 1, 'q');
+  dots(g, 'f', [[3, 2], [11, 2], [2, 6], [12, 10], [3, 15], [11, 16]]);
+  return {
+    id: 'gym4', name: 'The Lantern Walk', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld', buildings: [], dark: true,
+    exits: { down: { to: 'assistens', offset: 8 } }
+  };
+}
+
+const bakery = () => room('bakery', 'Bageriet', [
+  'wwwwwwwwwww',
+  'wKKK___KKKw',
+  'w_________w',
+  'w_K_____K_w',
+  'w_________w',
+  'w____m____w',
+  'wwwwwwwwwww'
+], { to: 'vesterbro', x: 18, y: 15 });
+
 export const MAPS = {
   norrebro: norrebro(), flat: flat(), lukasflat: lukasFlat(), pcnorrebro: center('pcnorrebro', 'Pokémon Center', 'norrebro', 22, 8),
   gym1: gym1(), bridge: bridge(), route1: route1(), garden: garden(), palmhouse: palmhouse(), tunnels: tunnels(),
@@ -640,5 +703,6 @@ export const MAPS = {
   pcchristianshavn: center('pcchristianshavn', 'Pokémon Center', 'christianshavn', 22, 11),
   stadsgraven: stadsgraven(), gym2: gym2(), dragor: dragor(),
   route2: route2(), vesterbro: vesterbro(), cafevb: vbCafe(), pcvesterbro: center('pcvesterbro', 'Pokémon Center', 'vesterbro', 18, 8),
-  kodbyen: kodbyen(), kitchen: kitchen(), gym3: gym3(), route3: route3(), islandsbrygge: islandsbrygge()
+  kodbyen: kodbyen(), kitchen: kitchen(), gym3: gym3(), route3: route3(), islandsbrygge: islandsbrygge(),
+  assistens: assistens(), stormdrain: stormdrain(), gym4: gym4(), bakery: bakery()
 };

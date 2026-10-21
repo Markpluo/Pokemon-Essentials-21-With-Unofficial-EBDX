@@ -871,7 +871,7 @@ async function debugMenu() {
     ['Give Lv. 10 Sprigatito', 'givePokemon', 'sprigatito'], ['Heal team', 'heal'], ['Lead +5 levels', 'levelUp', 5], ['Give items', 'items'], ['+10,000 kr.', 'money'],
     ['Unlock Copper & Current', 'unlockCoil'], ['Toggle wild encounters', 'encounters'], ['Add a badge', 'badge'], ['Clock +6 hours', 'time'], ['Try a multi battle', 'multiBattle'],
     ['Give Lv. 10 Ditto', 'givePokemon', 'ditto'], ['Vuggestuen: Egg now', 'layEgg'], ['Hatch Eggs now', 'hatchEggs'],
-    ...(['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven', 'dragor', 'route2', 'vesterbro', 'kodbyen', 'route3', 'islandsbrygge'] as const)
+    ...(['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven', 'dragor', 'route2', 'vesterbro', 'kodbyen', 'route3', 'islandsbrygge', 'assistens'] as const)
       .map(id => [`Warp: ${HAFNIA_MAPS[id].name}`, 'warp', `hafnia:${id}`] as [string, DebugCommand, string])
   ];
   const c = await choose([...cmds.map(x => x[0]), 'Animation viewer', 'Back'], cmds.length + 1, { x: 8, y: 8, w: 300 });
@@ -929,7 +929,7 @@ async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced' | 'deposi
 type BagChoice = { kind: 'item'; item: string; uid: string } | { kind: 'ball'; item: string } | null;
 async function bagMenu(bag: Record<string, number>, party: MonView[], inBattle: boolean): Promise<BagChoice> {
   const order = ['balls', 'medicine', 'tms', 'other', 'key'];
-  const items = Object.keys(ITEMS).filter(k => bag[k] > 0 && (!inBattle || ['balls', 'medicine'].includes(ITEMS[k].pocket)))
+  const items = Object.keys(ITEMS).filter(k => bag[k] > 0 && (!inBattle || (['balls', 'medicine'].includes(ITEMS[k].pocket) && !ITEMS[k].exp)))
     .sort((a, b) => order.indexOf(ITEMS[a].pocket) - order.indexOf(ITEMS[b].pocket));
   if (!items.length) { await say(inBattle ? 'You have nothing to use in battle.' : 'Your bag is empty.'); return null; }
   const c = await choose([...items.map(k => `${ITEMS[k].name}  x${bag[k]}`), 'Back'], items.length, { x: VW - 260, y: 8, w: 252 });
@@ -941,7 +941,7 @@ async function bagMenu(bag: Record<string, number>, party: MonView[], inBattle: 
   }
   if (def.repel) return { kind: 'item', item, uid: '' };
   if (def.breeding) { await say(def.desc); return null; }
-  if (def.pocket === 'key' || (def.pocket === 'other' && !def.heal && !def.cures)) { await say(def.desc); return null; }
+  if (def.pocket === 'key' || (def.pocket === 'other' && !def.heal && !def.cures && !def.evolve)) { await say(def.desc); return null; }
   const i = await partyScreen('item', party);
   return i < 0 ? null : { kind: 'item', item, uid: party[i].uid };
 }

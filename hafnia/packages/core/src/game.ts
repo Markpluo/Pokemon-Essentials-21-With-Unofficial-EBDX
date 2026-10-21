@@ -447,6 +447,8 @@ export class Game {
     const m = this.state.party.find(p => p.uid === uid);
     if (m?.egg) { this.out.push({ t: 'say', text: 'That can\'t be used on an Egg.' }); return; }
     if (m && it.tm) { this.teachTM(m, it.tm, it.name); return; }
+    if (m && it.evolve) { this.evolveWithItem(m, item); return; }
+    if (m && it.exp) { this.giveExpCandy(m, item); return; }
     if (!m || it.pocket !== 'medicine') return;
     const fx = itemEffect(it, m.hp, maxHp(m), m.status);
     if (!fx) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
@@ -468,6 +470,49 @@ export class Game {
       if (m.moves.length < 4) { m.moves.push({ id: move, pp: maxPp(move) }); api.me('me_item'); api.say(`${name} learned ${mv}!`); return; }
       yield* g.learnPrompt(m, move);
     }, this.map.pack);
+  }
+
+  /** Evolution stones: the Pokémon evolves at once if its species.json lists an "Item" evolution for this item. */
+  private evolveWithItem(m: Mon, item: string) {
+    const it = ITEMS[item];
+    const to = (speciesExtra(m.species).evolutions ?? []).find(([, method, param]) => method === 'Item' && param === it.evolve)?.[0];
+    if (!to) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
+    this.state.bag[item]--;
+    const g = this;
+    this.run(function* () { yield* g.evolveScene(m, to); }, this.map.pack);
+  }
+
+  private giveExpCandy(m: Mon, item: string) {
+    if (m.level >= 100) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
+    this.state.bag[item]--;
+    const g = this, it = ITEMS[item];
+    this.run(function* (api) {
+      const before = m.level;
+      api.sfx('select');
+      api.say(`${monName(m)} gained ${it.exp!.toLocaleString('en')} Exp. Points!`);
+      for (const step of gainExp(m, it.exp!)) {
+        api.say(`${monName(m)} grew to Lv. ${step.level}!`);
+        for (const id of step.learned) api.say(`${monName(m)} learned ${moveName(id)}!`);
+        for (const id of step.pending) yield* g.learnPrompt(m, id);
+      }
+      const to = m.level > before ? levelEvolution(m) : null;
+      if (to) yield* g.evolveScene(m, to, true);
+    }, this.map.pack);
+  }
+
+  /** The evolution animation and its moves; `ask` offers to stop it (level-ups), stones never ask. */
+  private *evolveScene(m: Mon, to: string, ask = false): Generator<Pause, void, any> {
+    const name = monName(m), from = speciesName(m.species);
+    if (ask) {
+      const c: number = yield { kind: 'ask', text: `What? ${name} is evolving!`, options: ['Let it evolve', 'Stop it'], cancel: 1 };
+      if (c !== 0) { this.out.push({ t: 'say', text: `Huh? ${name} stopped evolving!` }); return; }
+    }
+    this.out.push({ t: 'evolve', from: speciesExtra(m.species).key, to: speciesExtra(to).key, fromName: name, toName: speciesName(to) });
+    const learn = evolveMon(m, to);
+    this.out.push({ t: 'me', name: 'me_get' }, { t: 'say', text: `Congratulations! Your ${from}\nevolved into ${speciesName(to)}!` });
+    for (const id of learn.learned) this.out.push({ t: 'say', text: `${monName(m)} learned ${moveName(id)}!` });
+    for (const id of learn.pending) yield* this.learnPrompt(m, id);
+    this.out.push({ t: 'checkpoint' });
   }
 
   // ---------- debug (dev builds) ----------
@@ -643,15 +688,7 @@ export class Game {
     for (const m of this.state.party) {
       if (!leveled.has(m.uid) || m.hp <= 0) continue;
       const to = levelEvolution(m);
-      if (!to) continue;
-      const name = monName(m), from = speciesName(m.species);
-      const c: number = yield { kind: 'ask', text: `What? ${name} is evolving!`, options: ['Let it evolve', 'Stop it'], cancel: 1 };
-      if (c !== 0) { this.out.push({ t: 'say', text: `Huh? ${name} stopped evolving!` }); continue; }
-      this.out.push({ t: 'evolve', from: speciesExtra(m.species).key, to: speciesExtra(to).key, fromName: name, toName: speciesName(to) });
-      const learn = evolveMon(m, to);
-      this.out.push({ t: 'me', name: 'me_get' }, { t: 'say', text: `Congratulations! Your ${from}\nevolved into ${speciesName(to)}!` });
-      for (const id of learn.learned) this.out.push({ t: 'say', text: `${monName(m)} learned ${moveName(id)}!` });
-      for (const id of learn.pending) yield* this.learnPrompt(m, id);
+      if (to) yield* this.evolveScene(m, to, true);
     }
     this.out.push({ t: 'checkpoint' });
     return result;

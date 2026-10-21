@@ -57,6 +57,32 @@ describe('game systems', () => {
     }
   });
 
+  it('evolves Lampent with a Dusk Stone, and an Exp. Candy M levels up (and can evolve)', () => {
+    const g = game();
+    const lamp = makeMon('lampent', 30, g.rng, { ot: 'Mark' });
+    g.state.party.push(lamp);
+    g.state.bag.duskstone = 1;
+    g.handle({ t: 'useItem', item: 'duskstone', uid: g.state.party[0].uid });   // Sprigatito: no effect, stone kept
+    expect(g.state.bag.duskstone).toBe(1);
+    const evs = g.handle({ t: 'useItem', item: 'duskstone', uid: lamp.uid });
+    expect(lamp.species).toBe('chandelure');
+    expect(g.state.bag.duskstone).toBe(0);
+    expect(evs.some(e => e.t === 'evolve')).toBe(true);
+
+    const cat = g.state.party[0];
+    cat.level = 15; cat.exp = expForLevel(speciesExtra('sprigatito').growth, 15);
+    g.state.bag.expcandym = 1;
+    let out = g.handle({ t: 'useItem', item: 'expcandym', uid: cat.uid });
+    for (let i = 0; i < 10; i++) {
+      const p = [...out].reverse().find(e => e.t === 'prompt');
+      if (!p) break;
+      out = g.handle({ t: 'answer', index: 0 });                                // let it evolve, learn moves
+    }
+    expect(cat.level).toBeGreaterThan(15);
+    expect(cat.species).toBe('floragato');
+    expect(g.state.bag.expcandym).toBe(0);
+  });
+
   it('sells and buys at the Mart, with stock that grows with badges', () => {
     const g = game();
     const money = g.state.money;

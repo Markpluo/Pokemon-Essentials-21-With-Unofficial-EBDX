@@ -128,6 +128,13 @@ export function drawTile(g: G2, t: string, x: number, y: number, dx: number, dy:
       if (((time >> 2) + x * 3 + y * 5) % 90 < 3) { g.fillStyle = '#fff'; g.fillRect(dx + 14, dy + 14, 4, 4); }
       return true;
     }
+    case 'u': {
+      // Storm drain water: a dark channel with a slow current.
+      g.fillStyle = '#26323a'; g.fillRect(dx, dy, 32, 32);
+      g.fillStyle = '#3a4b55'; const o = ((time >> 2) + x * 9) % 32;
+      g.fillRect(dx + o, dy + 9, 8, 1); g.fillRect(dx + (o + 17) % 32, dy + 21, 6, 1);
+      return true;
+    }
     case 'W':
       // Kødbyen's white-tiled yard.
       g.fillStyle = '#e8e6df'; g.fillRect(dx, dy, 32, 32);
@@ -250,6 +257,20 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
     }
     case 'speaker': box(6, 4, 20, 26, '#26272c'); g.fillStyle = (time >> 3) % 2 ? '#ff50aa' : '#50c8ff';
       g.beginPath(); g.arc(dx + 16, dy + 12, 5, 0, 7); g.arc(dx + 16, dy + 23, 4, 0, 7); g.fill(); break;
+    case 'grave': box(8, 6, 16, 22, '#8e9196'); box(10, 8, 12, 18, '#a3a6ab'); box(6, 26, 20, 4, '#6f7277'); box(12, 12, 8, 1, '#7d8085'); box(12, 15, 6, 1, '#7d8085'); break;
+    case 'ghostgrave': box(8, 6, 16, 22, '#7d8592'); box(10, 8, 12, 18, '#959dab'); box(6, 26, 20, 4, '#5e6570');
+      g.fillStyle = `rgba(160,200,255,${0.25 + 0.2 * Math.sin(time / 15)})`; g.beginPath(); g.arc(dx + 16, dy + 4, 5, 0, 7); g.fill(); break;
+    case 'monument': box(6, 2, 20, 26, '#b9b4a6'); box(8, 4, 16, 22, '#cfcabb'); box(4, 26, 24, 5, '#8f8a7c');
+      for (let i = 0; i < 4; i++) box(10, 8 + i * 4, 12 - (i % 2) * 3, 1, '#8f8a7c'); break;
+    case 'andersen': box(4, 2, 24, 26, '#6f6a60'); box(6, 4, 20, 22, '#8a8478'); box(2, 26, 28, 5, '#545049');
+      g.fillStyle = '#d8c89a'; g.font = '6px monospace'; g.fillText('H.C.A.', dx + 7, dy + 14); break;
+    case 'lantern': case 'lanternout': {
+      box(15, 12, 2, 20, '#2b2b30'); box(9, 4, 14, 12, '#2b2b30'); box(11, 6, 10, 8, kind === 'lantern' ? '#ffd36b' : '#3d3f46');
+      if (kind === 'lantern') { g.fillStyle = `rgba(255,211,107,${0.18 + 0.06 * Math.sin(time / 9)})`; g.beginPath(); g.arc(dx + 16, dy + 10, 14, 0, 7); g.fill(); }
+      break;
+    }
+    case 'grate': box(2, 6, 28, 22, '#3b3f4a'); for (let i = 5; i < 28; i += 5) box(i, 8, 2, 18, '#1d1f24'); box(2, 6, 28, 2, '#565b66'); break;
+    case 'mailbox': box(14, 16, 4, 16, '#565b66'); box(6, 4, 20, 14, '#d9473a'); box(9, 8, 14, 2, '#7a231d'); box(6, 4, 20, 2, '#e9705f'); break;
     default: box(8, 8, 16, 16, '#d0f');
   }
 }
