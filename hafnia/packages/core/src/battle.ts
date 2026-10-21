@@ -17,6 +17,7 @@ import type { BattleOptions } from './script';
 
 type SimPokemon = Battle['p1']['pokemon'][number];
 type SimSide = Battle['p1'];
+type MoveData = ReturnType<typeof Dex.moves.get>;
 
 // A do-nothing move with high priority. The player "uses" it on turns spent throwing a ball,
 // using an item or failing to run, so the opponent still gets its turn. It is never shown.
@@ -78,6 +79,8 @@ export class BattleSession {
   private pendingEffect: 'super' | 'weak' | null = null;
   private pendingCrit = false;
   private turn = 0;
+  /** Tier 3 trainer AI: Potions used, switches made, and whether it has predicted a switch yet. */
+  private expert = { potions: 0, switches: 0, predicted: false };
   private coil: Record<BattleSide, CoilSide>;
   private questions: { uid: string; move: string }[] = [];
   private asking: { uid: string; move: string } | null = null;
@@ -114,7 +117,8 @@ export class BattleSession {
     const lead = party.findIndex(m => m.hp > 0);
     const order = [party[lead], ...party.filter((_, i) => i !== lead)];
     this.sim.setPlayer('p1', { name: host.playerName, team: order.map(m => this.toSet(m, true)) as any });
-    this.sim.setPlayer('p2', { name: opts.trainer?.name ?? 'Wild', team: this.foes.map(m => this.toSet(m, false)) as any });
+    // Expert trainers can spend a turn on a Potion, which needs the wait move too.
+    this.sim.setPlayer('p2', { name: opts.trainer?.name ?? 'Wild', team: this.foes.map(m => this.toSet(m, this.ai() === 3 && !opts.multi)) as any });
     if (opts.multi) {
       this.sim.setPlayer('p3', { name: opts.multi.partner.name, team: this.partnerMons.map(m => this.toSet(m, false)) as any });
       this.sim.setPlayer('p4', { name: opts.multi.second.name, team: this.foes2.map(m => this.toSet(m, false)) as any });
@@ -409,9 +413,13 @@ export class BattleSession {
       return pos >= 0 ? `switch ${pos + 1}` : 'pass';
     }
     const moves: any[] = req.active[0].moves;
-    const usable = moves.map((m, i) => ({ m, i, mv: Dex.moves.get(m.id) })).filter(({ m }) => !m.disabled && m.pp !== 0);
+    const usable = moves.map((m, i) => ({ m, i, mv: Dex.moves.get(m.id) })).filter(({ m }) => m.id !== WAIT && !m.disabled && m.pp !== 0);
     if (!usable.length) return 'default';
     const tier = side === this.sides[2] ? this.opts.multi?.partner.ai ?? 2 : this.ai();
+    if (tier >= 3 && side === this.sim.p2 && !this.opts.multi) {
+      const expert = this.expertChoice(side, usable.map(u => u.mv));
+      if (expert) return expert;
+    }
     const me = side.active[0];
     const targets = this.opponents(side).map((p, t) => ({ p, t })).filter(x => x.p && !x.p.fainted);
     // Tier 2+ aims at whichever opponent its best move hurts most; lower tiers pick a target at random.
@@ -420,7 +428,13 @@ export class BattleSession {
       const best = (x: typeof aim) => Math.max(0, ...usable.filter(u => u.mv.category !== 'Status').map(u => this.estimateDamage(me, x.p, u.mv) / Math.max(1, 100 * x.p.hp / x.p.maxhp)));
       aim = targets.reduce((a, b) => (best(b) > best(a) ? b : a));
     }
-    const foe = aim.p;
+    let foe = aim.p;
+    // Tier 3, once per battle: when the player's Pokémon is in obvious danger and has a teammate that
+    // resists the AI's best hit, expect the switch and pick the move that is best against that teammate.
+    if (tier >= 3 && !this.opts.multi && !this.expert.predicted) {
+      const comingIn = this.likelySwitchIn(me, foe, usable.map(u => u.mv));
+      if (comingIn) { this.expert.predicted = true; foe = comingIn; }
+    }
     const foeHpPct = 100 * foe.hp / foe.maxhp;
     // Useless: a status move on a foe that already has one, or an attack it is immune to or doubly resists.
     const useless = (mv: ReturnType<typeof Dex.moves.get>) => mv.category === 'Status'
@@ -460,8 +474,57 @@ export class BattleSession {
     return this.moveChoice(pick.i, pick.mv.id, aim.t);
   }
 
+  /** Tier 3 between-turn decisions: a Potion when low (twice per battle) or a switch to a teammate that resists. */
+  private expertChoice(side: SimSide, moves: MoveData[]): string | null {
+    const me = side.active[0], foe = this.sim.p1.active[0], req = side.activeRequest as any;
+    if (!me || !foe || foe.fainted) return null;
+    const myPct = 100 * me.hp / me.maxhp, foePct = 100 * foe.hp / foe.maxhp;
+    const canKo = moves.some(mv => mv.category !== 'Status' && this.estimateDamage(me, foe, mv) >= foePct);
+    const waitIdx = (req.active[0].moves as any[]).findIndex(m => m.id === WAIT);
+    if (this.expert.potions < 2 && myPct < 25 && !canKo && waitIdx >= 0) {
+      this.expert.potions++;
+      const hyper = me.level >= 30, before = me.hp;
+      me.hp = Math.min(me.maxhp, me.hp + (hyper ? 120 : 60));
+      this.ev({ b: 'text', text: `${this.opts.trainer?.name ?? 'The trainer'} used a ${hyper ? 'Hyper' : 'Super'} Potion!` });
+      this.ev({ b: 'hp', side: 'foe', hp: me.hp, maxhp: me.maxhp, effect: 'heal' });
+      this.ev({ b: 'text', text: `${this.nameOf(`p2a: ${me.name}`)} recovered ${me.hp - before} HP.` });
+      return `move ${waitIdx + 1}`;
+    }
+    const threat = this.threatTo(foe, me);
+    if (threat && this.expert.switches < 2 && !req.active[0].trapped && threat.pct * 2 >= myPct && !canKo) {
+      const pos = side.pokemon.findIndex(p => !p.fainted && !p.isActive
+        && (!Dex.getImmunity(threat.type, p.getTypes()) || Dex.getEffectiveness(threat.type, p.getTypes()) < 0));
+      if (pos >= 0) { this.expert.switches++; return `switch ${pos + 1}`; }
+    }
+    return null;
+  }
+
+  /** The strongest super-effective hit `att` is known to have on `def`: its own types (STAB) and the moves it has used. */
+  private threatTo(att: SimPokemon, def: SimPokemon): { type: string; pct: number } | null {
+    const types = new Set<string>(att.getTypes());
+    for (const sl of att.moveSlots) if (sl.used && sl.id !== WAIT) { const mv = Dex.moves.get(sl.id); if (mv.category !== 'Status') types.add(mv.type); }
+    const category = att.getStat('atk', false, true) >= att.getStat('spa', false, true) ? 'Physical' : 'Special';
+    let best: { type: string; pct: number } | null = null;
+    for (const type of types) {
+      if (!Dex.getImmunity(type, def.getTypes()) || Dex.getEffectiveness(type, def.getTypes()) <= 0) continue;
+      const pct = this.estimateDamage(att, def, { type, category, basePower: 75 } as MoveData);
+      if (!best || pct > best.pct) best = { type, pct };
+    }
+    return best;
+  }
+
+  /** The player's teammate that resists the AI's best super-effective hit on the current foe, if that hit is a 2HKO. */
+  private likelySwitchIn(me: SimPokemon, foe: SimPokemon, moves: MoveData[]): SimPokemon | null {
+    const hits = moves.filter(mv => mv.category !== 'Status' && Dex.getEffectiveness(mv.type, foe.getTypes()) > 0)
+      .map(mv => ({ mv, pct: this.estimateDamage(me, foe, mv) })).sort((a, b) => b.pct - a.pct);
+    const top = hits[0];
+    if (!top || top.pct * 2 < 100 * foe.hp / foe.maxhp || top.pct >= 100 * foe.hp / foe.maxhp) return null;
+    return this.sim.p1.pokemon.find(p => !p.fainted && !p.isActive
+      && (!Dex.getImmunity(top.mv.type, p.getTypes()) || Dex.getEffectiveness(top.mv.type, p.getTypes()) < 0)) ?? null;
+  }
+
   /** Average damage of a move as a percentage of the target's max HP (no crits, mean roll). */
-  private estimateDamage(me: SimPokemon, foe: SimPokemon, mv: ReturnType<typeof Dex.moves.get>): number {
+  private estimateDamage(me: SimPokemon, foe: SimPokemon, mv: MoveData): number {
     if (!Dex.getImmunity(mv.type, foe.getTypes())) return 0;
     const phys = mv.category === 'Physical';
     const atk = me.getStat(phys ? 'atk' : 'spa', false, true), def = Math.max(1, foe.getStat(phys ? 'def' : 'spd', false, true));

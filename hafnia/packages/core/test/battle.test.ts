@@ -245,3 +245,33 @@ describe('Multi battles', () => {
     expect(t.texts().some(x => /You defeated Youngster Foe\nand Deckhand Bo!/.test(x))).toBe(true);
   });
 });
+
+describe('tier 3 trainer AI', () => {
+  const foeMoves = (t: ReturnType<typeof battle>) => (t.sim.log as string[]).filter(l => l.startsWith('|move|p2a'));
+
+  it('switches to a teammate that resists a known super-effective threat', () => {
+    const t = battle({
+      party: [['pikachu', 30, ['growl', 'thunderbolt']]],
+      foes: [{ species: 'gyarados', level: 25, moves: ['splash'] }, { species: 'sandshrew', level: 25, moves: ['scratch'] }], opts: { ai: 3 }
+    });
+    t.act({ kind: 'move', index: 0 });   // Pikachu's type alone is the threat
+    expect((t.sim.log as string[]).some(l => l.startsWith('|switch|p2a: Sandshrew'))).toBe(true);
+  });
+
+  it('uses at most two Potions when low', () => {
+    const t = battle({ party: [['sprigatito', 20, ['growl']]], foes: [{ species: 'rattata', level: 20, moves: ['splash'] }], opts: { ai: 3 } });
+    for (let i = 0; i < 4; i++) { t.sim.p2.active[0].hp = 3; t.act({ kind: 'move', index: 0 }); }
+    expect(t.texts().filter(x => /used a Super Potion/.test(x))).toHaveLength(2);
+  });
+
+  it('predicts the obvious switch once', () => {
+    const setup = (ai: 2 | 3) => battle({
+      party: [['charmander', 20, ['growl']], ['squirtle', 20, ['tackle']]],
+      foes: [{ species: 'chinchou', level: 25, moves: ['watergun', 'thundershock'] }], opts: { ai }, seed: 3
+    });
+    const smart = setup(2), expert = setup(3);
+    smart.act({ kind: 'move', index: 0 }); expert.act({ kind: 'move', index: 0 });
+    expect(foeMoves(smart)[0]).toContain('Water Gun');
+    expect(foeMoves(expert)[0]).toContain('Thunder Shock');
+  });
+});
