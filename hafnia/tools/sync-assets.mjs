@@ -14,7 +14,9 @@ const species = JSON.parse(readFileSync(join(root, 'packages', 'core', 'data', '
 
 let copied = 0, missing = [];
 function copy(src, dest, packDir) {
-  const from = src.startsWith('pack:') ? join(packDir, src.slice(5)) : join(repo, src);
+  let from = src.startsWith('pack:') ? join(packDir, src.slice(5)) : join(repo, src);
+  // Some Essentials files have upper-case extensions (QWILFISH_1.PNG).
+  if (!existsSync(from)) from = from.replace(/\.(\w+)$/, (_, ext) => `.${ext.toUpperCase()}`);
   if (!existsSync(from)) { missing.push(src); return; }
   mkdirSync(dirname(dest), { recursive: true });
   copyFileSync(from, dest);
@@ -32,11 +34,14 @@ for (const dir of readdirSync(join(root, 'packs'))) {
   const all = new Set(pack.species);
   for (const id of all) for (const [to, method] of species[id]?.evolutions ?? []) if (method.startsWith('Level') && species[to]) all.add(to);
   for (const id of all) {
-    const key = species[id]?.key ?? id.toUpperCase();
+    // Regional forms the pack adds itself (speciesExtra) list their sprite key in pack.json "spriteKeys".
+    const key = pack.spriteKeys?.[id] ?? species[id]?.key ?? id.toUpperCase();
+    const base = key.replace(/_\d+$/, '');
     copy(`Graphics/Pokemon/Front/${key}.png`, join(out, 'pokemon', 'front', `${key}.png`));
     copy(`Graphics/Pokemon/Back/${key}.png`, join(out, 'pokemon', 'back', `${key}.png`));
     copy(`Graphics/Pokemon/Icons/${key}.png`, join(out, 'pokemon', 'icons', `${key}.png`));
-    copy(`Audio/SE/Cries/${key}.ogg`, join(out, 'pokemon', 'cries', `${key}.ogg`));
+    const cry = existsSync(join(repo, `Audio/SE/Cries/${key}.ogg`)) ? key : base; // forms share the base cry
+    copy(`Audio/SE/Cries/${cry}.ogg`, join(out, 'pokemon', 'cries', `${key}.ogg`));
   }
 }
 console.log(`assets: ${copied} files copied to apps/client/public/game-assets`);

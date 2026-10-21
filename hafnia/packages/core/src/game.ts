@@ -445,6 +445,10 @@ export class Game {
         const off = !s.flags['debug:noEncounters']; s.flags['debug:noEncounters'] = off;
         say(off ? 'Debug: wild encounters off.' : 'Debug: wild encounters on.'); break;
       }
+      case 'time': {
+        s.clock = Math.floor(s.clock + 6 * 60) % (24 * 60);
+        say(`Debug: it is now ${String(Math.floor(s.clock / 60)).padStart(2, '0')}:${String(s.clock % 60).padStart(2, '0')}.`); break;
+      }
       case 'badge': s.badges.push(`debug:badge${s.badges.length + 1}`); say(`Debug: you now have ${s.badges.length} badge(s).`); break;
       case 'warp': {
         const m = this.content.map(String(arg));
@@ -489,7 +493,7 @@ export class Game {
       if (p.kind === 'look') {
         this.pause = p;
         this.out.push({ t: 'pickLook', text: this.text(this.map.pack, p.text), options: [
-          { look: 'boy', sprite: 'tr/player_boy', label: 'This one' }, { look: 'girl', sprite: 'tr/player_girl', label: 'This one' }] });
+          { look: 'boy', sprite: 'tr/player_boy', label: '' }, { look: 'girl', sprite: 'tr/player_girl', label: '' }] });
         return;
       }
       if (p.kind === 'pickSpecies') {

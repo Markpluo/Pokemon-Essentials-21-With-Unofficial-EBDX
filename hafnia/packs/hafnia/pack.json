@@ -65,6 +65,9 @@
     "porygon",
     "qwilfishhisui"
   ],
+  "spriteKeys": {
+    "qwilfishhisui": "QWILFISH_1"
+  },
   "images": {
     "outside": "Graphics/Tilesets/Outside.png",
     "brick": "Graphics/Autotiles/Brick path.png",

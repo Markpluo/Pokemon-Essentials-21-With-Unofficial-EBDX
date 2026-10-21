@@ -8,6 +8,7 @@ import type {
 import { ITEMS } from '@hafnia/core/src/items';
 import hafniaManifest from '@hafnia/pack-hafnia/pack.json';
 import { MAPS as HAFNIA_MAPS, STAMPS as HAFNIA_STAMPS } from '@hafnia/pack-hafnia/world';
+import { drawBuildingArt, drawObject, drawTile } from './art';
 import { connectSolo } from './connection';
 import { AnimPlayer } from './anim';
 import { ANIM_TYPES, CRIT, HEAL, RESIDUAL, SEND_OUT, STATUS_ANIM, STAT_DOWN, STAT_UP, WEATHER_ANIM, animatedMoves, moveAnim, registerAnims, userPart } from './anim-data';
@@ -161,12 +162,12 @@ async function wait(frames: number) { for (let i = 0; i < frames; i++) await nex
 async function waitKey(...keys: Key[]): Promise<Key> { for (;;) { await nextFrame(); const k = keys.find(just); if (k) return k; } }
 
 // ---------- client state (presentation only) ----------
-interface Actor { id: string; sprite: string; x: number; y: number; dir: Dir; px: number; py: number; moving: boolean; step: number; anim: number; object?: boolean; exclaim?: boolean }
+interface Actor { id: string; sprite: string; x: number; y: number; dir: Dir; px: number; py: number; moving: boolean; step: number; anim: number; object?: boolean; floor?: boolean; exclaim?: boolean }
 const DIRS: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const DIR_ROW: Record<Dir, number> = { down: 0, left: 1, right: 2, up: 3 };
 
 const G = {
-  scene: 'loading' as 'loading' | 'title' | 'intro' | 'overworld' | 'battle',
+  scene: 'loading' as 'loading' | 'title' | 'intro' | 'overworld' | 'battle', biking: false,
   t: 0, fade: 0, overlays: [] as (() => void)[], busy: false, lock: false, mapBanner: 0,
   mapKey: '', world: null as WorldView | null,
   player: { id: 'player', sprite: 'chars/player', x: 0, y: 0, dir: 'down', px: 0, py: 0, moving: false, step: 0, anim: 0 } as Actor,
@@ -210,7 +211,18 @@ async function play(evs: ServerEvent[]) {
       case 'bgm': Sound.bgm(e.name); break;
       case 'cry': Sound.cry(e.key); break;
       case 'face': actor(e.actor) && (actor(e.actor)!.dir = e.dir); break;
-      case 'walk': { const a = actor(e.actor); if (a) await stepActor(a, e.dir, e.frames); break; }
+      case 'walk': {
+        const a = actor(e.actor);
+        if (a) { const frames = e.frames ?? (a === G.player ? playerFrames() : WALK_FRAMES); if (e.async) void stepActor(a, e.dir, frames); else await stepActor(a, e.dir, frames); }
+        break;
+      }
+      case 'askName': {
+        G.ui.text = { full: e.text, shown: e.text.length };
+        const name = await askName(e.suggestions);
+        G.ui.text = null;
+        return send({ t: 'answer', index: 0, text: name });
+      }
+      case 'pickLook': return send({ t: 'answer', index: await pickLook(e.text, e.options) });
       case 'place': placeNpc(e); break;
       case 'exclaim': { const a = actor(e.actor); if (a) { a.exclaim = true; await wait(40); a.exclaim = false; } break; }
       case 'map': await changeMap(e); break;
@@ -251,6 +263,8 @@ function placeNpc(e: Extract<ServerEvent, { t: 'place' }>) {
 }
 
 const WALK_FRAMES = 12;
+/** Hold B to run; ride the Cargo-Bike from the menu (outdoors). */
+const playerFrames = () => (G.biking ? 6 : input.held.B ? 7 : WALK_FRAMES);
 async function stepActor(a: Actor, dir: Dir, frames = WALK_FRAMES) {
   a.dir = dir; a.moving = true;
   const [dx, dy] = DIRS[dir];
@@ -270,6 +284,7 @@ async function changeMap(e: Extract<ServerEvent, { t: 'map' }>) {
   if (G.world) applyView({ ...G.world, map: e.map, npcs: G.world.map === e.map ? G.world.npcs : [] });
   Object.assign(G.player, { x: e.x, y: e.y, dir: e.dir, px: 0, py: 0, moving: false });
   G.scene = 'overworld'; G.mapBanner = 120;
+  if (mapOf(e.map).map.indoor) G.biking = false;
   Sound.bgm(e.bgm);
   await fadeTo(0, first ? 16 : 10);
 }
@@ -341,6 +356,47 @@ async function pickSpecies(opts: Extract<ServerEvent, { t: 'pickSpecies' }>['spe
       const k = await waitKey('left', 'right', 'A');
       if (k === 'left') { idx = (idx + opts.length - 1) % opts.length; Sound.se('cursor'); continue; }
       if (k === 'right') { idx = (idx + 1) % opts.length; Sound.se('cursor'); continue; }
+      Sound.se('select');
+      return idx;
+    }
+  } finally { G.overlays.pop(); G.ui.text = null; }
+}
+
+/** Name entry: pick a suggestion or type one (window.prompt keeps phones' own keyboards working). */
+async function askName(suggestions: string[]): Promise<string> {
+  const opts = [...suggestions, 'Type a name...'];
+  for (;;) {
+    const i = await choose(opts, -1);
+    if (i >= 0 && i < suggestions.length) return suggestions[i];
+    const typed = window.prompt('Name (up to 10 letters)', suggestions[0] ?? '')?.trim().slice(0, 10);
+    if (typed) return typed;
+  }
+}
+
+async function pickLook(str: string, options: Extract<ServerEvent, { t: 'pickLook' }>['options']) {
+  let idx = 0;
+  const ov = () => {
+    ctx.fillStyle = 'rgba(10,20,40,0.72)'; ctx.fillRect(0, 0, VW, VH);
+    panel(96, 24, 320, 230);
+    options.forEach((o, i) => {
+      const cx = 176 + i * 160, sel = i === idx;
+      if (sel) { ctx.fillStyle = '#ffe9a8'; roundRect(cx - 66, 40, 132, 168, 10); ctx.fill(); }
+      const im = packImg(o.sprite);
+      if (im.complete && im.naturalWidth) {
+        const sc = Math.min(1, 150 / im.height);
+        ctx.globalAlpha = sel ? 1 : 0.6;
+        ctx.drawImage(im, Math.round(cx - im.width * sc / 2), Math.round(196 - im.height * sc), im.width * sc, im.height * sc);
+        ctx.globalAlpha = 1;
+      }
+      if (o.label) text(o.label, cx, 228, 18, '#1d2b45', 'center');
+    });
+  };
+  G.overlays.push(ov);
+  try {
+    G.ui.text = { full: str, shown: 999 };
+    for (;;) {
+      const k = await waitKey('left', 'right', 'A');
+      if (k === 'left' || k === 'right') { idx = (idx + (k === 'left' ? options.length - 1 : 1)) % options.length; Sound.se('cursor'); continue; }
       Sound.se('select');
       return idx;
     }
@@ -528,9 +584,11 @@ function drawSquareTile(t: string, x: number, y: number, dx: number, dy: number)
 const BUILDING_CACHE: Record<string, HTMLCanvasElement> = {};
 function customBuilding(kind: string) {
   if (BUILDING_CACHE[kind]) return BUILDING_CACHE[kind];
-  const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+  const st = Object.values(WORLDS).map(w => Object.values(w.stamps).find(s => s.draw === kind)).find(Boolean);
+  const c = document.createElement('canvas'); c.width = (st?.w ?? 8) * 32; c.height = (st?.h ?? 4) * 32;
   const g = c.getContext('2d')!;
   if (kind === 'palmHouse') drawPalmHouse(g);
+  else drawBuildingArt(g, kind, st?.w ?? 1, st?.h ?? 1);
   return (BUILDING_CACHE[kind] = c);
 }
 // The Palm House (1874): white iron-and-glass greenhouse, tall domed centre and two curved wings, palms inside.
@@ -602,6 +660,7 @@ function drawOverworld() {
   for (let y = y0; y < y0 + 14; y++) for (let x = x0; x < x0 + 18; x++) {
     const t = tileAt(x, y); if (t === null) continue;
     const dx = x * TILE - cx, dy = y * TILE - cy;
+    if (drawTile(ctx, t, x, y, dx, dy, tileAt, G.t)) continue;
     drawGrass(dx, dy, x, y);
     if (AUTO[t]) drawAuto(t, x, y, dx, dy);
     else if (t === 'g') drawOutsideTile(6, 0, dx, dy);
@@ -619,17 +678,31 @@ function drawOverworld() {
       ctx.drawImage(packImg('outside'), sx * 32, sy * 32, w * 32, h * 32, (b.x + ox) * TILE - cx, (b.y + oy) * TILE - cy, w * 32, h * 32);
   }
   const p = G.player;
-  const actors = [...G.npcs.values()].map(n => ({ y: n.y * TILE + n.py, draw: () => {
-    if (n.object) ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, n.x * TILE - cx, n.y * TILE - cy, 32, 32);
+  for (const n of G.npcs.values()) if (n.floor) drawObject(ctx, n.sprite.slice(4), n.x * TILE - cx, n.y * TILE - cy, G.t);
+  const actors = [...G.npcs.values()].filter(n => !n.floor).map(n => ({ y: n.y * TILE + n.py, draw: () => {
+    if (n.sprite.startsWith('obj:')) drawObject(ctx, n.sprite.slice(4), n.x * TILE - cx, n.y * TILE - cy, G.t);
+    else if (n.object && n.sprite === 'chars/ball') ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, n.x * TILE - cx, n.y * TILE - cy, 32, 32);
     else drawChar(n.sprite, n.x * TILE + n.px, n.y * TILE + n.py, n.dir, n.moving ? n.anim : 0, cx, cy);
     if (n.exclaim) bubble(n.x * TILE + n.px - cx + 16, n.y * TILE + n.py - cy - 26);
   } }));
   actors.push({ y: p.y * TILE + p.py, draw: () => {
-    drawChar('chars/player', p.x * TILE + p.px, p.y * TILE + p.py, p.dir, p.moving ? p.anim : 0, cx, cy);
+    const girl = G.world?.look === 'girl';
+    const sprite = G.biking ? (girl ? 'chars/player_girl_bike' : 'chars/player_bike') : girl ? 'chars/player_girl' : 'chars/player';
+    drawChar(sprite, p.x * TILE + p.px, p.y * TILE + p.py, p.dir, p.moving ? p.anim : 0, cx, cy);
     if (tileAt(p.x, p.y) === 'g' && !p.moving) // grass covers the feet
       ctx.drawImage(packImg('outside'), 6 * 32, 18, 32, 14, p.x * TILE - cx, p.y * TILE - cy + 18, 32, 14);
   } });
   actors.sort((a, b) => a.y - b.y).forEach(a => a.draw());
+  // Day and night outdoors (progression-quests-time.md §3.6); tunnels are lit only around the player.
+  if (m.dark) {
+    const px = p.x * TILE + p.px - cx + 16, py = p.y * TILE + p.py - cy + 16;
+    const gr = ctx.createRadialGradient(px, py, 40, px, py, 170);
+    gr.addColorStop(0, 'rgba(5,5,12,0)'); gr.addColorStop(1, 'rgba(5,5,12,0.88)');
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, VW, VH);
+  } else if (!m.indoor && G.world) {
+    const tint = { morning: 'rgba(255,200,150,0.08)', day: '', evening: 'rgba(240,120,60,0.2)', night: 'rgba(16,24,72,0.45)' }[G.world.period];
+    if (tint) { ctx.fillStyle = tint; ctx.fillRect(0, 0, VW, VH); }
+  }
   if (G.mapBanner > 0) {
     const a = Math.min(1, G.mapBanner / 20);
     ctx.globalAlpha = a; panel(8, 8, Math.max(180, m.name.length * 11 + 40), 46); text(m.name, 28, 39, 18, '#26324a'); ctx.globalAlpha = 1;
@@ -676,7 +749,8 @@ async function startMenu() {
   Sound.se('menu');
   for (;;) {
     const w = G.world;
-    const items = ['Pokémon', 'Bag', 'Save', ...(w?.debug ? ['Debug'] : []), 'Close'];
+    const canBike = !!w?.bag.bike && !mapOf(G.mapKey).map.indoor;
+    const items = ['Pokémon', 'Bag', ...(canBike ? [G.biking ? 'Get off bike' : 'Ride bike'] : []), 'Save', ...(w?.debug ? ['Debug'] : []), 'Close'];
     const ov = () => { if (w) { panel(8, 8, 200, 58); text(`${w.money} kr.`, 28, 34, 16, '#26324a'); text(`Badges: ${w.badges}`, 28, 54, 14, '#55617a'); } };
     G.overlays.push(ov);
     let c: number;
@@ -691,6 +765,7 @@ async function startMenu() {
       continue;
     }
     if (pick === 'Debug') { await debugMenu(); continue; }
+    if (pick === 'Ride bike' || pick === 'Get off bike') { G.biking = !G.biking; Sound.se('select'); return; }
     if (pick === 'Close') return;
     if (pick === 'Pokémon') c = 0; else if (pick === 'Bag') c = 1;
     if (c === 0) {
@@ -710,8 +785,9 @@ async function startMenu() {
 async function debugMenu() {
   const cmds: [string, DebugCommand, (string | number)?][] = [
     ['Give Lv. 10 Sprigatito', 'givePokemon', 'sprigatito'], ['Heal team', 'heal'], ['Lead +5 levels', 'levelUp', 5], ['Give items', 'items'], ['+10,000 kr.', 'money'],
-    ['Unlock Copper & Current', 'unlockCoil'], ['Toggle wild encounters', 'encounters'], ['Add a badge', 'badge'],
-    ['Warp: Nørrebro', 'warp', 'hafnia:norrebro'], ['Warp: Route 1', 'warp', 'hafnia:route1'], ['Warp: Botanical Garden', 'warp', 'hafnia:garden']
+    ['Unlock Copper & Current', 'unlockCoil'], ['Toggle wild encounters', 'encounters'], ['Add a badge', 'badge'], ['Clock +6 hours', 'time'],
+    ...(['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven'] as const)
+      .map(id => [`Warp: ${HAFNIA_MAPS[id].name}`, 'warp', `hafnia:${id}`] as [string, DebugCommand, string])
   ];
   const c = await choose([...cmds.map(x => x[0]), 'Animation viewer', 'Back'], cmds.length + 1, { x: 8, y: 8, w: 300 });
   if (c === cmds.length) await animPreview(true);
@@ -756,8 +832,8 @@ async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced', party: M
 
 type BagChoice = { kind: 'item'; item: string; uid: string } | { kind: 'ball'; item: string } | null;
 async function bagMenu(bag: Record<string, number>, party: MonView[], inBattle: boolean): Promise<BagChoice> {
-  const order = ['balls', 'medicine', 'other'];
-  const items = Object.keys(ITEMS).filter(k => bag[k] > 0 && (!inBattle || ITEMS[k].pocket !== 'other'))
+  const order = ['balls', 'medicine', 'tms', 'other', 'key'];
+  const items = Object.keys(ITEMS).filter(k => bag[k] > 0 && (!inBattle || ['balls', 'medicine'].includes(ITEMS[k].pocket)))
     .sort((a, b) => order.indexOf(ITEMS[a].pocket) - order.indexOf(ITEMS[b].pocket));
   if (!items.length) { await say(inBattle ? 'You have nothing to use in battle.' : 'Your bag is empty.'); return null; }
   const c = await choose([...items.map(k => `${ITEMS[k].name}  x${bag[k]}`), 'Back'], items.length, { x: VW - 260, y: 8, w: 252 });
@@ -768,6 +844,7 @@ async function bagMenu(bag: Record<string, number>, party: MonView[], inBattle: 
     return { kind: 'ball', item };
   }
   if (def.repel) return { kind: 'item', item, uid: '' };
+  if (def.pocket === 'key' || (def.pocket === 'other' && !def.heal && !def.cures)) { await say(def.desc); return null; }
   const i = await partyScreen('item', party);
   return i < 0 ? null : { kind: 'item', item, uid: party[i].uid };
 }
@@ -897,7 +974,7 @@ function drawBattle() {
   if (b.foe && b.foeShown) drawMonSprite(b.foe.key, 'front', 384 + slide, 180, 1, true, sideFx('foe'));
   if (b.ballFx) ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, b.ballFx.x - 16, b.ballFx.y - 16 + (b.ballFx.dy || 0), 32, 32);
   if (b.playerBackShown) {
-    const im = packImg('tr/player_back'), fw = im.width / 5;
+    const im = packImg(G.world?.look === 'girl' ? 'tr/player_back_girl' : 'tr/player_back'), fw = im.width / 5;
     if (im.naturalWidth) ctx.drawImage(im, 0, 0, fw, im.height, 70 - slide + b.playerOffset, 292 - im.height * 0.62, fw * 0.62, im.height * 0.62);
   }
   if (b.ally && b.allyShown) drawMonSprite(b.ally.key, 'back', 128 - slide, 286, 1, true, sideFx('ally'));
@@ -1301,7 +1378,25 @@ function render() {
   if (G.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${G.fade})`; ctx.fillRect(0, 0, VW, VH); }
 }
 
+// Gamepad: d-pad or left stick to move, A/B as usual, Start or Y for the menu.
+const padHeld: Partial<Record<Key, boolean>> = {};
+function pollGamepad() {
+  const pad = navigator.getGamepads?.().find(p => p && p.connected);
+  if (!pad) return;
+  const b = (i: number) => !!pad.buttons[i]?.pressed, ax = pad.axes[0] ?? 0, ay = pad.axes[1] ?? 0;
+  const now: Record<Key, boolean> = {
+    up: b(12) || ay < -0.5, down: b(13) || ay > 0.5, left: b(14) || ax < -0.5, right: b(15) || ax > 0.5,
+    A: b(0), B: b(1), MENU: b(9) || b(3)
+  };
+  for (const k of Object.keys(now) as Key[]) {
+    if (now[k] && !padHeld[k]) press(k);
+    else if (!now[k] && padHeld[k]) release(k);
+    padHeld[k] = now[k];
+  }
+}
+
 function update() {
+  pollGamepad();
   input.pressed = input.queue; input.queue = new Set();
   if (G.scene !== 'overworld' || G.ui.text || G.ui.choice || G.overlays.length) sticky.clear();
   G.t++;
@@ -1333,6 +1428,8 @@ async function boot() {
   // Browsers close tabs without warning: autosave every 2 minutes and whenever the tab is hidden (systems.md §8).
   const autosave = () => { if (G.scene === 'overworld') conn.send({ t: 'autosave' }); };
   setInterval(autosave, 120_000);
+  // The world clock only runs while exploring (1 game day = 48 real minutes).
+  setInterval(() => { if (G.scene === 'overworld' && !G.ui.text && !G.ui.choice) conn.send({ t: 'tick', seconds: 5 }); }, 5000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') autosave(); });
 }
 
