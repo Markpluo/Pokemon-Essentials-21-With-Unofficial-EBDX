@@ -1485,7 +1485,8 @@ async function boot() {
   let pushes = Promise.resolve();
   online.onPush = evs => {
     pushes = pushes.then(async () => {
-      while (G.busy || G.lock) await nextFrame();
+      // Take the lock first so no new overworld step starts, then let the current one finish.
+      while (G.lock) await nextFrame();
       G.lock = true;
       try { while (G.busy) await nextFrame(); await play(evs); } finally { G.lock = false; }
     }).catch(e => console.error(e));

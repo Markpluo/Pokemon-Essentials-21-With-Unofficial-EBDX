@@ -106,8 +106,18 @@ function connect(tok: string, ui: ReturnType<typeof dialog>): Promise<(GameConne
     };
     ws.onmessage = async e => {
       const m = JSON.parse(String(e.data)) as ServerMessage;
-      if ('events' in m) { waiting.get(m.id)?.(m.events); waiting.delete(m.id); return; }
-      if ('push' in m) { online.onPush(m.push); return; }
+      if ('events' in m) {
+        if (m.events.some(e => e.t === 'battleEnd')) panel.battle(false);
+        waiting.get(m.id)?.(m.events); waiting.delete(m.id);
+        return;
+      }
+      if ('push' in m) {
+        // Battles against people can't be run from, so the panel offers a forfeit button meanwhile.
+        if (m.push.some(e => e.t === 'battleStart')) panel.battle(true);
+        if (m.push.some(e => e.t === 'battleEnd')) panel.battle(false);
+        online.onPush(m.push);
+        return;
+      }
       switch (m.s) {
         case 'authError': {
           const r = await signUp(m.reason, m.message, !!m.needsInvite, ui);
@@ -298,6 +308,13 @@ const panel = (() => {
     setTimeout(() => t.remove(), 60_000);
   }
 
+  function battle(on: boolean) {
+    root.querySelector('.ol-forfeit')?.remove();
+    if (!on) return;
+    const b = button('Forfeit battle', () => { if (confirm('Give up this battle?')) send({ s: 'forfeit' }); }, 'ol-forfeit ol-quiet');
+    toasts.before(b);
+  }
+
   function trade(v: TradeView) {
     tradeBox.hidden = false;
     const mon = (m: TradeView['mine']) => (m ? `${m.name} Lv. ${m.level}` : 'nothing yet');
@@ -350,5 +367,5 @@ const panel = (() => {
     }
   }
 
-  return { open, receive, system };
+  return { open, receive, system, battle };
 })();
