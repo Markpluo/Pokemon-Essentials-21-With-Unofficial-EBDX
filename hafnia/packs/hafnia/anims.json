@@ -1,0 +1,256 @@
+{
+  "moves": {
+    "tackle": [
+      { "do": "lunge", "who": "user", "ms": 220, "dist": 40 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#ffffff", "ms": 240 }, { "do": "shake", "ms": 260 }, { "do": "sfx", "name": "hit", "vol": 0.3 }] }
+    ],
+    "pound": [
+      { "do": "lunge", "who": "user", "ms": 200, "dist": 22 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#ffe9a8", "size": 26, "ms": 220 }, { "do": "squash", "who": "target", "ms": 240, "amount": 0.12 }] }
+    ],
+    "scratch": [
+      { "do": "lunge", "who": "user", "ms": 180, "dist": 18 },
+      { "do": "par", "steps": [{ "do": "slash", "count": 3, "ms": 320 }, { "do": "shake", "ms": 280, "amp": 4 }] }
+    ],
+    "furyswipes": [
+      { "do": "slash", "count": 2, "ms": 240 },
+      { "do": "par", "steps": [{ "do": "slash", "count": 3, "color": "#ffe9a8", "ms": 300 }, { "do": "shake", "ms": 280, "amp": 4 }] }
+    ],
+    "slash": [
+      { "do": "lunge", "who": "user", "ms": 200, "dist": 28 },
+      { "do": "par", "steps": [{ "do": "slash", "count": 1, "color": "#d6e6ff", "ms": 300 }, { "do": "screen", "color": "#ffffff", "ms": 120, "alpha": 0.4 }, { "do": "shake", "ms": 300 }] }
+    ],
+    "quickattack": [
+      { "do": "par", "steps": [{ "do": "lunge", "who": "user", "ms": 160, "dist": 70 }, { "do": "particles", "preset": "dust", "at": "user", "ms": 300, "count": 6 }] },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#ffffff", "ms": 220 }, { "do": "shake", "ms": 240 }] }
+    ],
+    "takedown": [
+      { "do": "hop", "who": "user", "ms": 200, "height": 10 },
+      { "do": "lunge", "who": "user", "ms": 260, "dist": 54 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#ffd36b", "size": 46, "ms": 300 }, { "do": "quake", "ms": 280, "amp": 6 }, { "do": "shake", "ms": 320, "amp": 8 }] }
+    ],
+    "doublekick": [
+      { "do": "lunge", "who": "user", "ms": 160, "dist": 26 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#e0553f", "size": 24, "ms": 180 }, { "do": "shake", "ms": 160, "amp": 4 }] },
+      { "do": "lunge", "who": "user", "ms": 160, "dist": 26 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#e0553f", "size": 30, "ms": 220 }, { "do": "shake", "ms": 200, "amp": 6 }] }
+    ],
+    "retaliate": [
+      { "do": "tint", "who": "user", "color": "#ffffff", "ms": 200, "alpha": 0.6 },
+      { "do": "lunge", "who": "user", "ms": 220, "dist": 40 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#e8e4cc", "size": 40, "ms": 260 }, { "do": "particles", "preset": "stars", "ms": 400, "count": 8 }, { "do": "shake", "ms": 300 }] }
+    ],
+    "flail": [
+      { "do": "par", "steps": [{ "do": "shake", "who": "user", "ms": 300, "amp": 8 }, { "do": "hop", "who": "user", "ms": 300, "height": 8, "times": 2 }] },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#ffffff", "ms": 240 }, { "do": "particles", "preset": "stars", "ms": 400, "count": 6 }, { "do": "shake", "ms": 260 }] }
+    ],
+    "bite": [
+      { "do": "lunge", "who": "user", "ms": 180, "dist": 20 },
+      { "do": "par", "steps": [{ "do": "bite", "ms": 360 }, { "do": "shake", "ms": 300 }] }
+    ],
+    "crunch": [
+      { "do": "par", "steps": [{ "do": "screen", "color": "#2a1f36", "ms": 400, "alpha": 0.45 }, { "do": "bite", "color": "#e8e4f0", "ms": 400 }] },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "shadows", "ms": 350, "count": 8 }, { "do": "shake", "ms": 300, "amp": 7 }] }
+    ],
+    "poisonfang": [
+      { "do": "bite", "color": "#e8c8f0", "ms": 340 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "bubbles", "color": "#b45ad0", "ms": 450, "count": 8 }, { "do": "tint", "color": "#a33ea1", "ms": 400 }, { "do": "shake", "ms": 260 }] }
+    ],
+    "ember": [
+      { "do": "projectile", "color": "#ff7a1f", "shape": "orb", "size": 12, "ms": 360, "count": 3, "gap": 60, "arc": 10 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "embers", "ms": 450, "count": 12 }, { "do": "tint", "color": "#ff7a1f", "ms": 400 }, { "do": "shake", "ms": 260 }] }
+    ],
+    "flamewheel": [
+      { "do": "par", "steps": [{ "do": "orbit", "at": "user", "color": "#ff7a1f", "shape": "orb", "count": 6, "radius": 36, "ms": 400 }, { "do": "particles", "preset": "embers", "at": "user", "ms": 400, "count": 8 }] },
+      { "do": "lunge", "who": "user", "ms": 220, "dist": 50 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#ff7a1f", "size": 40, "ms": 280 }, { "do": "particles", "preset": "embers", "ms": 400, "count": 10 }, { "do": "shake", "ms": 300 }] }
+    ],
+    "flamecharge": [
+      { "do": "par", "steps": [{ "do": "tint", "who": "user", "color": "#ff7a1f", "ms": 300, "alpha": 0.6 }, { "do": "particles", "preset": "embers", "at": "user", "ms": 400, "count": 10 }] },
+      { "do": "lunge", "who": "user", "ms": 220, "dist": 50 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#ff7a1f", "size": 36, "ms": 260 }, { "do": "shake", "ms": 280 }] }
+    ],
+    "watergun": [
+      { "do": "beam", "color": "#4f9dff", "width": 8, "ms": 420, "wobble": 0.4 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "drops", "ms": 450, "count": 10 }, { "do": "shake", "ms": 260 }] }
+    ],
+    "bubblebeam": [
+      { "do": "projectile", "color": "#8fd3ff", "shape": "ring", "size": 12, "ms": 360, "count": 6, "gap": 45, "spread": 16 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "bubbles", "ms": 450, "count": 10 }, { "do": "shake", "ms": 280 }] }
+    ],
+    "waterpulse": [
+      { "do": "wave", "color": "#4f9dff", "ms": 420, "rings": 4 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#4f9dff", "size": 40, "ms": 280 }, { "do": "particles", "preset": "drops", "ms": 400 }, { "do": "squash", "who": "target", "ms": 300 }] }
+    ],
+    "aquajet": [
+      { "do": "par", "steps": [{ "do": "particles", "preset": "drops", "at": "user", "ms": 300, "count": 8 }, { "do": "lunge", "who": "user", "ms": 180, "dist": 70 }] },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#4f9dff", "ms": 240 }, { "do": "particles", "preset": "drops", "ms": 380 }, { "do": "shake", "ms": 260 }] }
+    ],
+    "aquatail": [
+      { "do": "hop", "who": "user", "ms": 220, "height": 12 },
+      { "do": "lunge", "who": "user", "ms": 200, "dist": 34 },
+      { "do": "par", "steps": [{ "do": "slash", "count": 1, "color": "#4f9dff", "ms": 300 }, { "do": "particles", "preset": "drops", "ms": 420, "count": 12 }, { "do": "shake", "ms": 300 }] }
+    ],
+    "mudshot": [
+      { "do": "projectile", "color": "#8a6a3a", "shape": "orb", "size": 13, "ms": 360, "count": 3, "gap": 70, "arc": 14 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "dust", "color": "#8a6a3a", "ms": 420 }, { "do": "shake", "ms": 260 }] }
+    ],
+    "mudslap": [
+      { "do": "projectile", "color": "#8a6a3a", "shape": "orb", "size": 10, "ms": 320, "count": 4, "gap": 40, "spread": 14, "arc": 24 },
+      { "do": "par", "steps": [{ "do": "tint", "color": "#6a4a2a", "ms": 380, "alpha": 0.5 }, { "do": "shake", "ms": 240 }] }
+    ],
+    "sandattack": [
+      { "do": "particles", "preset": "dust", "at": "user", "ms": 260, "count": 6 },
+      { "do": "projectile", "color": "#d9b878", "shape": "orb", "size": 6, "ms": 320, "count": 8, "gap": 25, "spread": 20, "arc": 20 },
+      { "do": "tint", "color": "#c9a052", "ms": 360, "alpha": 0.45 }
+    ],
+    "vinewhip": [
+      { "do": "lunge", "who": "user", "ms": 160, "dist": 12 },
+      { "do": "par", "steps": [{ "do": "slash", "count": 1, "color": "#3f9a2a", "ms": 260 }, { "do": "sfx", "name": "hit_weak", "vol": 0.3 }] },
+      { "do": "par", "steps": [{ "do": "slash", "count": 1, "color": "#5cc243", "ms": 260 }, { "do": "shake", "ms": 260 }] }
+    ],
+    "leafage": [
+      { "do": "projectile", "color": "#5cc243", "shape": "leaf", "size": 14, "ms": 380, "count": 3, "gap": 60, "spread": 10 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "leaves", "ms": 420, "count": 8 }, { "do": "shake", "ms": 260 }] }
+    ],
+    "razorleaf": [
+      { "do": "projectile", "color": "#7ad25a", "shape": "leaf", "size": 15, "ms": 340, "count": 6, "gap": 40, "spread": 20, "arc": 18 },
+      { "do": "par", "steps": [{ "do": "slash", "count": 2, "color": "#7ad25a", "ms": 280 }, { "do": "shake", "ms": 280 }] }
+    ],
+    "magicalleaf": [
+      { "do": "orbit", "at": "user", "color": "#7ad25a", "shape": "leaf", "count": 5, "radius": 34, "ms": 360 },
+      { "do": "projectile", "color": "#c8ff9a", "shape": "leaf", "size": 14, "ms": 360, "count": 5, "gap": 40, "spread": 14, "arc": 30 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "stars", "color": "#c8ff9a", "ms": 380, "count": 8 }, { "do": "shake", "ms": 260 }] }
+    ],
+    "seedbomb": [
+      { "do": "projectile", "color": "#8a6a3a", "shape": "orb", "size": 12, "ms": 380, "count": 3, "gap": 80, "arc": 50 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#5cc243", "size": 40, "ms": 300 }, { "do": "particles", "preset": "leaves", "ms": 420 }, { "do": "quake", "ms": 240, "amp": 4 }, { "do": "shake", "ms": 300 }] }
+    ],
+    "absorb": [
+      { "do": "par", "steps": [{ "do": "tint", "color": "#5cc243", "ms": 300 }, { "do": "shake", "ms": 240, "amp": 3 }] },
+      { "do": "par", "steps": [{ "do": "drain", "color": "#9fffb0", "ms": 560, "count": 5 }, { "do": "tint", "who": "user", "color": "#9fffb0", "ms": 560, "alpha": 0.4 }] }
+    ],
+    "megadrain": [
+      { "do": "par", "steps": [{ "do": "tint", "color": "#5cc243", "ms": 300, "alpha": 0.6 }, { "do": "shake", "ms": 280, "amp": 5 }] },
+      { "do": "par", "steps": [{ "do": "drain", "color": "#9fffb0", "ms": 640, "count": 9 }, { "do": "particles", "preset": "glow", "at": "user", "ms": 600, "count": 8 }] }
+    ],
+    "leechseed": [
+      { "do": "projectile", "color": "#8a6a3a", "shape": "orb", "size": 8, "ms": 380, "count": 3, "gap": 50, "spread": 18, "arc": 40 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "leaves", "ms": 400, "count": 6 }, { "do": "tint", "color": "#5cc243", "ms": 400 }] }
+    ],
+    "sleeppowder": [{ "do": "particles", "preset": "spores", "color": "#b7e3a0", "ms": 800, "count": 18 }],
+    "poisonpowder": [{ "do": "particles", "preset": "spores", "color": "#c47ad8", "ms": 800, "count": 18 }],
+    "worryseed": [
+      { "do": "projectile", "color": "#c8a050", "shape": "orb", "size": 10, "ms": 360, "arc": 40 },
+      { "do": "orbit", "color": "#fff6a0", "shape": "star", "ms": 500 }
+    ],
+    "gust": [
+      { "do": "par", "steps": [{ "do": "hop", "who": "user", "ms": 300, "height": 8, "times": 2 }, { "do": "wave", "color": "#d6e6ff", "ms": 400, "rings": 4 }] },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "feathers", "ms": 450, "count": 8 }, { "do": "shake", "ms": 300 }] }
+    ],
+    "wingattack": [
+      { "do": "lunge", "who": "user", "ms": 220, "dist": 36 },
+      { "do": "par", "steps": [{ "do": "slash", "count": 2, "color": "#d6e6ff", "ms": 280 }, { "do": "particles", "preset": "feathers", "ms": 420, "count": 6 }, { "do": "shake", "ms": 280 }] }
+    ],
+    "peck": [
+      { "do": "lunge", "who": "user", "ms": 140, "dist": 18 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#ffffff", "size": 20, "ms": 180 }, { "do": "shake", "ms": 200, "amp": 4 }] }
+    ],
+    "twister": [
+      { "do": "par", "steps": [{ "do": "orbit", "color": "#b9a0ff", "shape": "ring", "count": 6, "radius": 30, "ms": 600 }, { "do": "orbit", "color": "#7a4cff", "shape": "streak", "count": 4, "radius": 22, "ms": 600 }, { "do": "shake", "ms": 600, "amp": 4 }] }
+    ],
+    "featherdance": [{ "do": "par", "steps": [{ "do": "particles", "preset": "feathers", "ms": 800, "count": 14 }, { "do": "tint", "color": "#ffffff", "ms": 600, "alpha": 0.35 }] }],
+    "whirlwind": [{ "do": "par", "steps": [{ "do": "wave", "color": "#d6e6ff", "ms": 500, "rings": 5 }, { "do": "shake", "ms": 500, "amp": 8 }] }],
+    "uturn": [
+      { "do": "lunge", "who": "user", "ms": 220, "dist": 50 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#a8c21a", "ms": 240 }, { "do": "shake", "ms": 260 }] },
+      { "do": "hop", "who": "user", "ms": 220, "height": 16 }
+    ],
+    "thundershock": [
+      { "do": "beam", "color": "#ffd83a", "width": 6, "ms": 300, "wobble": 0.8 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "sparks", "ms": 400, "count": 10 }, { "do": "tint", "color": "#ffd83a", "ms": 360, "alpha": 0.6 }, { "do": "shake", "ms": 300 }] }
+    ],
+    "nuzzle": [
+      { "do": "lunge", "who": "user", "ms": 260, "dist": 22 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "sparks", "ms": 400, "count": 8 }, { "do": "particles", "preset": "hearts", "ms": 400, "count": 3 }, { "do": "shake", "ms": 300, "amp": 3 }] }
+    ],
+    "spark": [
+      { "do": "par", "steps": [{ "do": "particles", "preset": "sparks", "at": "user", "ms": 260, "count": 6 }, { "do": "lunge", "who": "user", "ms": 220, "dist": 40 }] },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "sparks", "ms": 400, "count": 10 }, { "do": "tint", "color": "#ffd83a", "ms": 300 }, { "do": "shake", "ms": 280 }] }
+    ],
+    "icywind": [
+      { "do": "par", "steps": [{ "do": "wave", "color": "#9fe8ff", "ms": 420, "rings": 4 }, { "do": "projectile", "color": "#ffffff", "shape": "orb", "size": 5, "ms": 380, "count": 8, "gap": 25, "spread": 26 }] },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "ice", "ms": 400 }, { "do": "tint", "color": "#9fe8ff", "ms": 400, "alpha": 0.55 }] }
+    ],
+    "mist": [{ "do": "particles", "preset": "smoke", "at": "user", "color": "#dff4ff", "ms": 800, "count": 12 }],
+    "acid": [
+      { "do": "projectile", "color": "#b45ad0", "shape": "drop", "size": 11, "ms": 360, "count": 3, "gap": 70, "arc": 30 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "bubbles", "color": "#c47ad8", "ms": 420, "count": 8 }, { "do": "shake", "ms": 260 }] }
+    ],
+    "acidspray": [
+      { "do": "projectile", "color": "#b45ad0", "shape": "drop", "size": 9, "ms": 340, "count": 7, "gap": 30, "spread": 24, "arc": 36 },
+      { "do": "par", "steps": [{ "do": "tint", "color": "#a33ea1", "ms": 400, "alpha": 0.55 }, { "do": "particles", "preset": "bubbles", "color": "#c47ad8", "ms": 420 }, { "do": "shake", "ms": 260 }] }
+    ],
+    "sludge": [
+      { "do": "projectile", "color": "#7d2a7b", "shape": "orb", "size": 18, "ms": 420, "arc": 40 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#b45ad0", "size": 40, "ms": 280 }, { "do": "particles", "preset": "bubbles", "color": "#b45ad0", "ms": 420, "count": 10 }, { "do": "shake", "ms": 300 }] }
+    ],
+    "poisongas": [{ "do": "par", "steps": [{ "do": "particles", "preset": "smoke", "color": "#b45ad0", "ms": 800, "count": 12 }, { "do": "tint", "color": "#a33ea1", "ms": 700, "alpha": 0.4 }] }],
+    "clearsmog": [
+      { "do": "projectile", "color": "#e8e4f0", "shape": "orb", "size": 16, "ms": 380, "arc": 20 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "smoke", "color": "#e8e4f0", "ms": 500, "count": 10 }, { "do": "shake", "ms": 260 }] }
+    ],
+    "belch": [
+      { "do": "squash", "who": "user", "ms": 260, "amount": 0.2 },
+      { "do": "par", "steps": [{ "do": "wave", "color": "#a0e050", "ms": 380, "rings": 3 }, { "do": "quake", "ms": 300, "amp": 5 }] },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "smoke", "color": "#a0e050", "ms": 450 }, { "do": "shake", "ms": 300 }] }
+    ],
+    "toxicspikes": [{ "do": "projectile", "color": "#b45ad0", "shape": "shard", "size": 10, "ms": 420, "count": 4, "gap": 50, "spread": 30, "arc": 40 }],
+    "stockpile": [{ "do": "par", "steps": [{ "do": "squash", "who": "user", "ms": 400, "amount": 0.2 }, { "do": "particles", "preset": "glow", "at": "user", "color": "#ffd36b", "ms": 600, "count": 8 }] }],
+    "swallow": [{ "do": "par", "steps": [{ "do": "squash", "who": "user", "ms": 300, "amount": 0.2 }, { "do": "particles", "preset": "glow", "at": "user", "ms": 600 }] }],
+    "confusion": [
+      { "do": "par", "steps": [{ "do": "tint", "who": "user", "color": "#ff5fa8", "ms": 300 }, { "do": "wave", "color": "#ff5fa8", "ms": 400, "rings": 3 }] },
+      { "do": "par", "steps": [{ "do": "shake", "ms": 400, "amp": 8 }, { "do": "tint", "color": "#ff5fa8", "ms": 400 }] }
+    ],
+    "zenheadbutt": [
+      { "do": "par", "steps": [{ "do": "tint", "who": "user", "color": "#ff5fa8", "ms": 300, "alpha": 0.6 }, { "do": "orbit", "at": "user", "color": "#ff5fa8", "shape": "ring", "ms": 300 }] },
+      { "do": "lunge", "who": "user", "ms": 220, "dist": 46 },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#ff5fa8", "size": 40, "ms": 280 }, { "do": "shake", "ms": 300 }] }
+    ],
+    "disable": [{ "do": "par", "steps": [{ "do": "wave", "color": "#ff5fa8", "ms": 380 }, { "do": "tint", "color": "#8c8c8c", "ms": 500, "alpha": 0.6 }] }],
+    "amnesia": [{ "do": "par", "steps": [{ "do": "orbit", "at": "user", "color": "#ff5fa8", "shape": "ring", "count": 3, "ms": 600 }, { "do": "tint", "who": "user", "color": "#ff5fa8", "ms": 500 }] }],
+    "agility": [{ "do": "par", "steps": [{ "do": "shake", "who": "user", "ms": 500, "amp": 10 }, { "do": "tint", "who": "user", "color": "#ffffff", "ms": 400 }] }],
+    "astonish": [
+      { "do": "hop", "who": "user", "ms": 200, "height": 14 },
+      { "do": "par", "steps": [{ "do": "screen", "color": "#3a2b4a", "ms": 240, "alpha": 0.5 }, { "do": "hop", "who": "target", "ms": 240, "height": 12 }, { "do": "particles", "preset": "shadows", "ms": 360, "count": 6 }] }
+    ],
+    "growl": [{ "do": "par", "steps": [{ "do": "squash", "who": "user", "ms": 400, "amount": 0.08 }, { "do": "wave", "color": "#ffffff", "ms": 450, "rings": 3 }, { "do": "shake", "ms": 400, "amp": 3 }] }],
+    "screech": [{ "do": "par", "steps": [{ "do": "wave", "color": "#ffd36b", "ms": 500, "rings": 5 }, { "do": "quake", "ms": 400, "amp": 3 }, { "do": "shake", "ms": 450, "amp": 6 }] }],
+    "supersonic": [{ "do": "par", "steps": [{ "do": "wave", "color": "#9fe8ff", "ms": 450, "rings": 5 }, { "do": "shake", "ms": 400, "amp": 4 }] }],
+    "sing": [{ "do": "par", "steps": [{ "do": "particles", "preset": "notes", "at": "user", "ms": 800, "count": 6 }, { "do": "hop", "who": "user", "ms": 600, "height": 6, "times": 2 }] }],
+    "disarmingvoice": [
+      { "do": "par", "steps": [{ "do": "wave", "color": "#ff9fd0", "ms": 400, "rings": 3 }, { "do": "particles", "preset": "notes", "at": "user", "color": "#ffd6ea", "ms": 400, "count": 4 }] },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "hearts", "ms": 400, "count": 6 }, { "do": "shake", "ms": 280 }] }
+    ],
+    "tailwhip": [{ "do": "par", "steps": [{ "do": "shake", "who": "user", "ms": 450, "amp": 6 }, { "do": "hop", "who": "user", "ms": 450, "height": 4, "times": 2 }] }],
+    "leer": [{ "do": "par", "steps": [{ "do": "screen", "color": "#1d2b45", "ms": 360, "alpha": 0.35 }, { "do": "tint", "who": "user", "color": "#ff6b5a", "ms": 360, "alpha": 0.5 }, { "do": "shake", "ms": 300, "amp": 3 }] }],
+    "charm": [{ "do": "par", "steps": [{ "do": "hop", "who": "user", "ms": 400, "height": 6, "times": 2 }, { "do": "particles", "preset": "hearts", "ms": 600, "count": 8 }] }],
+    "babydolleyes": [{ "do": "par", "steps": [{ "do": "particles", "preset": "stars", "at": "user", "color": "#ffd6ea", "ms": 400, "count": 4 }, { "do": "particles", "preset": "hearts", "ms": 600, "count": 4 }] }],
+    "tearfullook": [{ "do": "par", "steps": [{ "do": "particles", "preset": "drops", "at": "user", "color": "#9fd8ff", "ms": 500, "count": 4 }, { "do": "tint", "color": "#9fb3d9", "ms": 500 }] }],
+    "playrough": [
+      { "do": "lunge", "who": "user", "ms": 200, "dist": 40 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "smoke", "color": "#ffd6ea", "ms": 500, "count": 8 }, { "do": "particles", "preset": "stars", "color": "#ff9fd0", "ms": 500, "count": 8 }, { "do": "shake", "ms": 450, "amp": 7 }] }
+    ],
+    "defensecurl": [{ "do": "par", "steps": [{ "do": "squash", "who": "user", "ms": 500, "amount": 0.18 }, { "do": "tint", "who": "user", "color": "#ffffff", "ms": 500 }] }],
+    "harden": [{ "do": "par", "steps": [{ "do": "tint", "who": "user", "color": "#c8d0e0", "ms": 500, "alpha": 0.7 }, { "do": "particles", "preset": "stars", "at": "user", "color": "#ffffff", "ms": 450, "count": 4 }] }],
+    "minimize": [{ "do": "squash", "who": "user", "ms": 600, "amount": 0.3 }],
+    "workup": [{ "do": "par", "steps": [{ "do": "shake", "who": "user", "ms": 400, "amp": 4 }, { "do": "tint", "who": "user", "color": "#e0553f", "ms": 400 }] }],
+    "honeclaws": [{ "do": "par", "steps": [{ "do": "slash", "at": "user", "count": 2, "ms": 400 }, { "do": "tint", "who": "user", "color": "#ffffff", "ms": 400 }] }],
+    "splash": [{ "do": "par", "steps": [{ "do": "hop", "who": "user", "ms": 700, "height": 18, "times": 3 }, { "do": "particles", "preset": "drops", "at": "user", "ms": 700, "count": 8 }] }],
+    "encore": [{ "do": "par", "steps": [{ "do": "particles", "preset": "stars", "ms": 500, "count": 6 }, { "do": "hop", "who": "target", "ms": 500, "height": 8, "times": 2 }] }],
+    "flatter": [{ "do": "par", "steps": [{ "do": "particles", "preset": "stars", "ms": 500, "count": 6 }, { "do": "tint", "color": "#ff6b5a", "ms": 500 }] }],
+    "afteryou": [{ "do": "hop", "who": "user", "ms": 300, "height": 8 }],
+    "recycle": [{ "do": "orbit", "at": "user", "color": "#5cc243", "shape": "arrow", "count": 3, "ms": 600 }],
+    "switcheroo": [{ "do": "par", "steps": [{ "do": "projectile", "from": "user", "to": "target", "color": "#ffffff", "shape": "star", "ms": 400, "arc": 30 }, { "do": "projectile", "from": "target", "to": "user", "color": "#ffd36b", "shape": "star", "ms": 400, "arc": 30 }] }]
+  }
+}

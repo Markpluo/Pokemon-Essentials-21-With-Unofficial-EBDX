@@ -70,6 +70,7 @@ export class BattleSession {
   private runAttempts = 0;
   private started = false;
   private pendingEffect: 'super' | 'weak' | null = null;
+  private pendingCrit = false;
   private turn = 0;
   private coil: Record<BattleSide, CoilSide>;
   private questions: { uid: string; move: string }[] = [];
@@ -614,7 +615,11 @@ export class BattleSession {
         case 'move': {
           if (a2 === 'Hafnia Wait') break;
           const mv = Dex.moves.get(a2);
-          evs.push({ b: 'move', side: this.sideOf(a1), text: `${this.nameOf(a1)} used ${mv.name}!`, type: mv.type.toLowerCase(), category: mv.category });
+          const flag = (k: string) => parts.includes(`[${k}]`);
+          evs.push({
+            b: 'move', side: this.sideOf(a1), text: `${this.nameOf(a1)} used ${mv.name}!`, id: mv.id, type: mv.type.toLowerCase(), category: mv.category,
+            ...(a3 && !flag('notarget') ? { target: this.sideOf(a3) } : {}), ...(flag('miss') ? { miss: true } : {}), ...(flag('still') ? { still: true } : {})
+          });
           break;
         }
         case '-damage': case '-heal': case '-sethp': {
@@ -623,7 +628,9 @@ export class BattleSession {
           const side = this.sideOf(a1);
           const effect = cmd === '-heal' ? 'heal' : from ? 'residual' : (this.pendingEffect ?? 'normal');
           this.pendingEffect = null;
-          evs.push({ b: 'hp', side, hp: cur || 0, maxhp: max || this.pokemonOf(a1)?.maxhp || 1, effect });
+          const crit = !from && this.pendingCrit; this.pendingCrit = false;
+          const cause = from?.replace(/^(item|ability|move): /, '').toLowerCase().replace(/[^a-z]/g, '');
+          evs.push({ b: 'hp', side, hp: cur || 0, maxhp: max || this.pokemonOf(a1)?.maxhp || 1, effect, ...(crit ? { crit } : {}), ...(cause ? { cause } : {}) });
           if (!from) flushAfterHit();
           if (from) {
             const src = from.replace(/^(item|ability|move): /, '');
@@ -641,7 +648,7 @@ export class BattleSession {
           break;
         }
         case '-resisted': this.pendingEffect = 'weak'; afterHit.push({ b: 'text', text: 'It\'s not very effective...' }); break;
-        case '-crit': afterHit.unshift({ b: 'text', text: 'A critical hit!' }); break;
+        case '-crit': this.pendingCrit = true; afterHit.unshift({ b: 'text', text: 'A critical hit!' }); break;
         case '-miss': evs.push({ b: 'text', text: a2 ? `${this.nameOf(a2)} avoided the attack!` : `${this.nameOf(a1)}'s attack missed!` }); break;
         case '-immune': evs.push({ b: 'text', text: `It doesn't affect ${this.nameOf(a1, false)}...` }); break;
         case '-fail': evs.push({ b: 'text', text: 'But it failed!' }); break;
@@ -668,6 +675,7 @@ export class BattleSession {
           const up = cmd === '-boost';
           const amount = n === 0 ? (up ? 'won\'t go any higher!' : 'won\'t go any lower!')
             : n === 1 ? (up ? 'rose!' : 'fell!') : n === 2 ? (up ? 'rose sharply!' : 'harshly fell!') : (up ? 'rose drastically!' : 'severely fell!');
+          if (n !== 0) evs.push({ b: 'boost', side: this.sideOf(a1), up });
           evs.push({ b: 'text', text: `${this.nameOf(a1)}'s ${stat} ${amount}` });
           break;
         }
@@ -696,7 +704,10 @@ export class BattleSession {
         case '-ability': evs.push({ b: 'text', text: `[${this.nameOf(a1)}'s ${a2}]` }); break;
         case '-weather': {
           const w: Record<string, string> = { RainDance: 'It started to rain!', SunnyDay: 'The sunlight turned harsh!', Sandstorm: 'A sandstorm kicked up!', Snow: 'It started to snow!', none: 'The weather returned to normal.' };
-          if (!parts.some(x => x === '[upkeep]') && w[a1]) evs.push({ b: 'text', text: w[a1] });
+          const upkeep = parts.includes('[upkeep]');
+          const weather = ({ RainDance: 'rain', SunnyDay: 'sun', Sandstorm: 'sand', Snow: 'snow', none: 'none' } as const)[a1 as 'none'];
+          if (weather) evs.push({ b: 'weather', weather, ...(upkeep ? { upkeep } : {}) });
+          if (!upkeep && w[a1]) evs.push({ b: 'text', text: w[a1] });
           break;
         }
         case '-prepare': evs.push({ b: 'text', text: `${this.nameOf(a1)} is preparing ${a2}!` }); break;

@@ -4,6 +4,7 @@
 
 export type Dir = 'up' | 'down' | 'left' | 'right';
 export type StatusId = '' | 'brn' | 'par' | 'psn' | 'tox' | 'slp' | 'frz';
+export type Weather = 'rain' | 'sun' | 'sand' | 'snow' | 'none';
 
 // ---------- client -> server ----------
 export type CoilMode = 'copper' | 'current';
@@ -62,8 +63,11 @@ export type BattleEvent =
   | { b: 'trainerOut'; text: string; count: number }
   | { b: 'switch'; side: BattleSide; mon: BattleMonView; text: string }
   | { b: 'recall'; side: BattleSide; text: string }
-  | { b: 'move'; side: BattleSide; text: string; type: string; category: 'Physical' | 'Special' | 'Status' }
-  | { b: 'hp'; side: BattleSide; hp: number; maxhp: number; effect: 'super' | 'weak' | 'normal' | 'heal' | 'residual' }
+  /** `id` picks the animation; `target` is the side the move aimed at (absent for field moves); `miss` and `still` trim it. */
+  | { b: 'move'; side: BattleSide; text: string; id: string; type: string; category: 'Physical' | 'Special' | 'Status'; target?: BattleSide; miss?: boolean; still?: boolean }
+  | { b: 'hp'; side: BattleSide; hp: number; maxhp: number; effect: 'super' | 'weak' | 'normal' | 'heal' | 'residual'; crit?: boolean; cause?: string }
+  | { b: 'boost'; side: BattleSide; up: boolean }
+  | { b: 'weather'; weather: Weather; upkeep?: boolean }
   | { b: 'status'; side: BattleSide; status: StatusId }
   | { b: 'faint'; side: BattleSide; text: string }
   | { b: 'exp'; side: BattleSide; exp: number; expLo: number; expHi: number; level: number; hp: number; maxhp: number }
