@@ -10,7 +10,7 @@ import {
   canLearnTM, evolveMon, expForLevel, gainExp, healMon, levelEvolution, makeMon, maxHp, maxPp, monName, monView, moveName, replaceMove,
   speciesExtra, speciesName, speciesTypes, type Mon
 } from './pokemon';
-import type { BattleResult, DayPeriod, DebugCommand, Dir, Intent, Look, ServerEvent, WorldView } from './protocol';
+import type { BattleResult, DayPeriod, DebugCommand, Dir, Intent, Look, NpcView, ServerEvent, WorldView } from './protocol';
 import { Rng } from './rng';
 import type { NpcHandle, Pause, Script, ScriptApi } from './script';
 
@@ -413,7 +413,8 @@ export class Game {
 
   private emitMap() {
     const m = this.map, s = this.state;
-    this.out.push({ t: 'map', map: m.key, name: m.name, x: s.x, y: s.y, dir: s.dir, bgm: m.bgm });
+    // NPCs ride along so a cutscene that starts on arrival (Mum in the intro) can show them before the next view
+    this.out.push({ t: 'map', map: m.key, name: m.name, x: s.x, y: s.y, dir: s.dir, bgm: m.bgm, npcs: this.npcViews() });
   }
 
   private partyAlive() { return this.state.party.some(p => !p.egg && p.hp > 0); }
@@ -825,14 +826,19 @@ export class Game {
 
   // ---------- view ----------
 
+  private npcViews(): NpcView[] {
+    const m = this.map;
+    return m.npcs.filter(n => this.npcVisible(m, n)).map(n => {
+      const st = this.npcState(m, n);
+      return { id: n.id, sprite: n.sprite, x: st.x, y: st.y, dir: st.dir, ...(n.object ? { object: true } : {}), ...(n.floor ? { floor: true } : {}) };
+    });
+  }
+
   view(): WorldView {
     const s = this.state, m = this.map;
     return {
       name: s.name, map: m.key, x: s.x, y: s.y, dir: s.dir,
-      npcs: m.npcs.filter(n => this.npcVisible(m, n)).map(n => {
-        const st = this.npcState(m, n);
-        return { id: n.id, sprite: n.sprite, x: st.x, y: st.y, dir: st.dir, ...(n.object ? { object: true } : {}), ...(n.floor ? { floor: true } : {}) };
-      }),
+      npcs: this.npcViews(),
       party: s.party.map(monView), bag: { ...s.bag }, money: s.money, badges: s.badges.length,
       look: s.look, period: this.period, clock: Math.floor(s.clock),
       ...(this.debug ? { debug: true } : {})

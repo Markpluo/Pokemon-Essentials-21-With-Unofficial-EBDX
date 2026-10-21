@@ -284,7 +284,8 @@ async function changeMap(e: Extract<ServerEvent, { t: 'map' }>) {
   if (G.mapKey) Sound.se('door', 0.3);
   await fadeTo(1, first ? 12 : 10);
   G.mapKey = e.map; G.npcs = new Map();
-  if (G.world) applyView({ ...G.world, map: e.map, npcs: G.world.map === e.map ? G.world.npcs : [] });
+  if (G.world) applyView({ ...G.world, map: e.map, x: e.x, y: e.y, dir: e.dir, npcs: e.npcs });
+  else for (const n of e.npcs) G.npcs.set(n.id, { ...n, px: 0, py: 0, moving: false, step: 0, anim: 0 });
   Object.assign(G.player, { x: e.x, y: e.y, dir: e.dir, px: 0, py: 0, moving: false });
   G.scene = 'overworld'; G.mapBanner = 120;
   if (mapOf(e.map).map.indoor) G.biking = false;
@@ -1482,6 +1483,8 @@ function probe() {
     choice: c ? { options: c.options, idx: c.idx, id: choiceIds.get(c)! } : null,
     picker: G.ui.picker ? { ...G.ui.picker } : null,
     world: G.world,
+    /** The NPCs actually drawn right now (the world view lags behind during cutscenes). */
+    actors: [...G.npcs.values()].map(n => ({ id: n.id, x: n.x, y: n.y })),
     battle: B ? {
       kind: B.start.kind, trainer: B.start.trainer?.name ?? null, ally: B.ally, foe: B.foe, coil: B.coil, request: B.request,
       grid: B.grid ? { key: B.grid.key, items: B.grid.items, idx: B.grid.idx, cols: B.grid.cols } : null
