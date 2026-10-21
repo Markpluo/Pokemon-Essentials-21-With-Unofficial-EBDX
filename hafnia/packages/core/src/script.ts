@@ -110,6 +110,8 @@ export interface ScriptApi {
   /** Opens the Mart: the player buys from the stock that the badge count allows. */
   mart(stock: string[]): Generator<Pause, void, any>;
   heal(): void;
+  /** Opens PC storage; the player moves Pokémon in and out once the script has ended. */
+  openPc(): void;
   partyAlive(): boolean;
 
   sfx(name: string): void;

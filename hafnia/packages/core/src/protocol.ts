@@ -30,7 +30,10 @@ export type Intent =
   | { t: 'save'; slot?: SaveSlot }
   | { t: 'slots' }
   | { t: 'autosave' }
-  | { t: 'debug'; cmd: DebugCommand; arg?: string | number };
+  | { t: 'debug'; cmd: DebugCommand; arg?: string | number }
+  | { t: 'dex' }
+  /** PC storage, only while a PC is open: deposit/withdraw/release a Pokémon by uid, or close it. */
+  | { t: 'pc'; op: 'deposit' | 'withdraw' | 'release' | 'close'; uid?: string };
 
 export type SaveSlot = 'auto' | 1 | 2 | 3;
 export interface SlotInfo { slot: SaveSlot; summary: string | null }
@@ -48,6 +51,14 @@ export interface MonView {
   exp: number; expLo: number; expHi: number; gender: '' | 'M' | 'F'; shiny: boolean;
   /** Present for eggs, which show no species, level or moves. */
   egg?: { hint: string };
+  /** The summary screen's details (not for eggs). */
+  info?: { nature: string; ability: string; abilityText: string; item?: string; ot?: string; ball?: string; stats: { atk: number; def: number; spa: number; spd: number; spe: number } };
+}
+/** One Pokédex line. Unseen species show only their number; caught ones show their entry. */
+export interface DexEntry {
+  n: number; species: string; seen: boolean; caught: boolean;
+  key?: string; name?: string; types?: string[];
+  category?: string; text?: string; height?: number; weight?: number;
 }
 export interface NpcView { id: string; sprite: string; x: number; y: number; dir: Dir; object?: boolean; floor?: boolean }
 export type Look = 'boy' | 'girl';
@@ -57,6 +68,7 @@ export interface WorldView {
   npcs: NpcView[]; party: MonView[]; bag: Record<string, number>; money: number;
   badges: number; debug?: boolean;
   look: Look; period: DayPeriod; clock: number;   // clock: minutes since midnight, in game time
+  dex: { seen: number; caught: number };
 }
 
 export type BattleSide = 'ally' | 'foe';
@@ -142,6 +154,9 @@ export type ServerEvent =
   | { t: 'battleEnd'; result: BattleResult }
   | { t: 'chapterEnd'; title: string; subtitle: string }
   | { t: 'checkpoint' }
+  | { t: 'dex'; entries: DexEntry[] }
+  /** The PC is open (or changed): every boxed Pokémon, oldest first. */
+  | { t: 'pc'; box: MonView[] }
   | { t: 'error'; message: string };
 
 export type BattleResult = 'win' | 'lose' | 'run' | 'caught';

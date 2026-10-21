@@ -286,7 +286,11 @@ export function centerNpcs(map: string, outX: number, outY: number): NpcDef[] {
       s.checkpoint();
     } },
     { id: 'clerk', sprite: 'chars/clerk', x: 10, y: 2, dir: 'down', talk: function* (s) { yield* s.mart(MART_STOCK); } },
-    sign('pc', 6, 1, 'obj:pc', 'The PC hums. (Storage boxes come in a later update.)')
+    { id: 'pc', sprite: 'obj:pc', x: 6, y: 1, dir: 'down', object: true, talk: function* (s) {
+      s.sfx('pc');
+      s.say(`${s.player.name} booted up the PC.\nØrsted's storage system is online.`);
+      s.openPc();
+    } }
   ];
 }
 

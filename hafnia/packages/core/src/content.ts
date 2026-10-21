@@ -94,6 +94,8 @@ export const DEFAULT_RULES: Rules = {
 export interface PackManifest {
   id: string; name: string; version: string; requires?: string[];
   species: string[];
+  /** Regional Pokédex order (defaults to `species`); level evolutions are slotted in after each. */
+  dex?: string[];
   images: Record<string, string>;   // asset key -> path inside the Essentials repo
   audio: Record<string, string>;
 }

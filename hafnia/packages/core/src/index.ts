@@ -4,6 +4,7 @@ export * from './script';
 export * from './pokemon';
 export * from './items';
 export * from './breeding';
+export * from './dex';
 export * from './anim';
 export { COIL_DEFAULTS, type CoilRules, type CoilUnlocks } from './coil';
 export { Rng } from './rng';

@@ -235,6 +235,7 @@ export class Bot {
         if (s.picker.kind === 'look') await this.pick(opts.pickLook ?? 0);
         else if (s.picker.kind === 'species') await this.pick(opts.pickStarter ?? 0);
         else if (s.picker.kind === 'party') await this.pick(this.healthyIndex(s));
+        else await this.tap('B');   // summary, Pokédex, PC box, options: back out
         continue;
       }
       if (s.battle?.grid) { await this.battleTurn(s, opts.battle ?? this.battlePlan); continue; }
@@ -253,7 +254,7 @@ export class Bot {
     if (c.options.at(-1) === 'Type a name...') return Math.max(0, c.options.indexOf(this.name));
     const hay = [s.text ?? '', ...c.options].join('\n');
     const i = this.answers.findIndex(a => !a.when || a.when.test(hay));
-    if (i < 0) return 0;
+    if (i < 0) return c.options.includes('Log off') ? 'Log off' : 0;   // the PC menu: leave it
     const a = this.answers[i];
     if (a.once) this.answers.splice(i, 1);
     return a.pick;

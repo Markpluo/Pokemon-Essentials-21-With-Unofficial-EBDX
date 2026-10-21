@@ -184,6 +184,9 @@
     "hit_weak": "Audio/SE/Battle damage weak.ogg",
     "recall": "Audio/SE/Battle recall.ogg",
     "shake": "Audio/SE/Battle ball shake.ogg",
-    "throw": "Audio/SE/Battle throw.ogg"
+    "throw": "Audio/SE/Battle throw.ogg",
+    "pc": "Audio/SE/PC open.ogg",
+    "pc_close": "Audio/SE/PC close.ogg",
+    "pc_access": "Audio/SE/PC access.ogg"
   }
 }

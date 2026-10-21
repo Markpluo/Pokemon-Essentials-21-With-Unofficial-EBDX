@@ -3,7 +3,7 @@
 // and plays back the events that come back.
 import type {
   AnimPack, AnimTimeline, Slot, BattleAction, BattleEvent, BattleMonView, BattleRequest, BattleSide, BattleStart, CoilMode, CoilView, DebugCommand, Dir,
-  GameConnection, MapDef, MonView, MoveView, SaveSlot, ServerEvent, SlotInfo, Stamp, WorldView, Intent
+  DexEntry, GameConnection, MapDef, MonView, MoveView, SaveSlot, ServerEvent, SlotInfo, Stamp, WorldView, Intent
 } from '@hafnia/core';
 import { ITEMS } from '@hafnia/core/src/items';
 import hafniaManifest from '@hafnia/pack-hafnia/pack.json';
@@ -99,7 +99,7 @@ const Sound = {
     if (this.muted || !this.unlocked) return;
     const el = new Audio(audioUrl(name)); el.volume = vol ?? this.vol.se; el.play().catch(() => {});
   },
-  cry(key: string) { this.se('cries/' + key, 0.6); },
+  cry(key: string) { this.se('cries/' + key, 0.6 * this.vol.se / 0.7); },
   me(name: string): Promise<void> { // jingle: pause bgm, resolve when done (max 6s)
     return new Promise(res => {
       if (this.muted || !this.unlocked) { setTimeout(res, 600); return; }
@@ -174,7 +174,7 @@ const G = {
   npcs: new Map<string, Actor>(),
   ui: { text: null as null | { full: string; shown: number; w?: number }, choice: null as null | { options: string[]; idx: number; rect?: { x: number; y: number; w: number } },
     /** Which left/right or party picker is open, for the test bot (hafnia/bot). */
-    picker: null as null | { kind: 'species' | 'look' | 'party'; options: string[]; idx: number } }
+    picker: null as null | { kind: 'species' | 'look' | 'party' | 'summary' | 'dex' | 'box' | 'options'; options: string[]; idx: number } }
 };
 let conn: GameConnection;
 
@@ -196,7 +196,13 @@ async function send(intent: Intent) {
 
 /** Plays server events in order. Prompts and battle requests ask the player, send the answer and stop:
  *  the answer's own events (with a fresh view) supersede the rest of this batch. */
+let pcPending: MonView[] | null = null;
 async function play(evs: ServerEvent[]) {
+  await playEvents(evs);
+  // A PC was switched on: its screen runs once the script that opened it has finished.
+  if (pcPending) { const box = pcPending; pcPending = null; await pcScreen(box); }
+}
+async function playEvents(evs: ServerEvent[]) {
   for (const e of evs) {
     switch (e.t) {
       case 'view': applyView(e.view); break;
@@ -238,7 +244,8 @@ async function play(evs: ServerEvent[]) {
       case 'evolve': await evolveScene(e); break;
       case 'hatch': await hatchScene(e); break;
       case 'error': console.error(e.message); await say(`Something went wrong: ${e.message}`); break;
-      case 'checkpoint': case 'title': break;
+      case 'pc': pcPending = e.box; break;
+      case 'dex': case 'checkpoint': case 'title': break;
     }
   }
 }
@@ -312,7 +319,7 @@ async function say(str: string) {
     await nextFrame();
     const t = G.ui.text!;
     if (t.shown < t.full.length) {
-      t.shown += 1.5;
+      t.shown += textSpeed();
       if (just('A') || just('B')) t.shown = t.full.length;
     } else if (just('A') || just('B')) { Sound.se('cursor', 0.4); break; }
   }
@@ -788,7 +795,7 @@ async function startMenu() {
   for (;;) {
     const w = G.world;
     const canBike = !!w?.bag.bike && !mapOf(G.mapKey).map.indoor;
-    const items = ['Pokémon', 'Bag', ...(canBike ? [G.biking ? 'Get off bike' : 'Ride bike'] : []), 'Save', ...(w?.debug ? ['Debug'] : []), 'Close'];
+    const items = [...(w?.dex.seen ? ['Pokédex'] : []), 'Pokémon', 'Bag', ...(canBike ? [G.biking ? 'Get off bike' : 'Ride bike'] : []), 'Save', 'Options', ...(w?.debug ? ['Debug'] : []), 'Close'];
     const ov = () => { if (w) { panel(8, 8, 200, 58); text(`${w.money} kr.`, 28, 34, 16, '#26324a'); text(`Badges: ${w.badges}`, 28, 54, 14, '#55617a'); } };
     G.overlays.push(ov);
     let c: number;
@@ -803,15 +810,14 @@ async function startMenu() {
       continue;
     }
     if (pick === 'Debug') { await debugMenu(); continue; }
+    if (pick === 'Options') { await optionsScreen(); continue; }
+    if (pick === 'Pokédex') { await dexScreen(); continue; }
     if (pick === 'Ride bike' || pick === 'Get off bike') { G.biking = !G.biking; Sound.se('select'); return; }
     if (pick === 'Close') return;
     if (pick === 'Pokémon') c = 0; else if (pick === 'Bag') c = 1;
     if (c === 0) {
       const i = await partyScreen('view', G.world?.party ?? []);
-      if (i > 0) {
-        const m = G.world!.party[i];
-        if (await ask(`Move ${m.name} to the front?`, ['Yes', 'No']) === 0) await send({ t: 'lead', uid: m.uid });
-      }
+      if (i > 0) await send({ t: 'lead', uid: G.world!.party[i].uid });
     } else if (c === 1) {
       const r = await bagMenu(G.world?.bag ?? {}, G.world?.party ?? [], false);
       if (r?.kind === 'item') await send({ t: 'useItem', item: r.item, uid: r.uid });
@@ -833,9 +839,10 @@ async function debugMenu() {
   else if (c < cmds.length) await send({ t: 'debug', cmd: cmds[c][1], ...(cmds[c][2] !== undefined ? { arg: cmds[c][2] } : {}) });
 }
 
-async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced', party: MonView[]): Promise<number> {
+/** The team list. In 'view' mode A opens a small menu (summary, move to front); it returns the index to move to the front. */
+async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced' | 'deposit', party: MonView[]): Promise<number> {
   let idx = 0;
-  const title = mode === 'item' ? 'Use on which Pokémon?' : mode === 'view' ? 'Your team' : 'Choose a Pokémon';
+  const title = mode === 'item' ? 'Use on which Pokémon?' : mode === 'view' ? 'Your team' : mode === 'deposit' ? 'Deposit which Pokémon?' : 'Choose a Pokémon';
   const ov = () => {
     ctx.fillStyle = '#20406e'; ctx.fillRect(0, 0, VW, VH);
     text(title, 20, 32, 20, '#fbf7ee');
@@ -864,8 +871,13 @@ async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced', party: M
       if (k === 'down') { idx = (idx + 1) % party.length; Sound.se('cursor'); }
       if (k === 'A') {
         Sound.se('select');
-        if (mode === 'view' && party[idx].egg) { await say(party[idx].egg!.hint); if (idx === 0) continue; }
-        else if (mode === 'view' && idx === 0) { await say(`${party[0].name} leads your team.`); continue; }
+        if (mode === 'view') {
+          const opts = ['Summary', ...(idx > 0 ? ['Move to front'] : []), 'Back'];
+          const c = opts[await choose(opts, opts.length - 1, { x: VW - 200, y: VH - 140, w: 190 })];
+          if (c === 'Summary') await summaryScreen(party, idx);
+          if (c === 'Move to front') return idx;
+          continue;
+        }
         if (mode === 'item' && party[idx].egg) { await say('That can\'t be used on an Egg.'); continue; }
         if (mode === 'forced' && party[idx].hp <= 0) { await say(`${party[idx].name} has no energy left to battle!`); continue; }
         return idx;
@@ -892,6 +904,283 @@ async function bagMenu(bag: Record<string, number>, party: MonView[], inBattle: 
   if (def.pocket === 'key' || (def.pocket === 'other' && !def.heal && !def.cures)) { await say(def.desc); return null; }
   const i = await partyScreen('item', party);
   return i < 0 ? null : { kind: 'item', item, uid: party[i].uid };
+}
+
+// ---------- options (per browser) ----------
+const TEXT_SPEEDS: [string, number][] = [['Slow', 0.75], ['Normal', 1.5], ['Fast', 3], ['Instant', 999]];
+const OPTIONS = { text: 1, music: 7, sound: 7 };
+try { Object.assign(OPTIONS, JSON.parse(localStorage.getItem('hafnia.options') ?? '{}')); } catch { /* storage blocked */ }
+const textSpeed = () => TEXT_SPEEDS[OPTIONS.text]?.[1] ?? 1.5;
+function applyOptions() {
+  Sound.vol = { bgm: 0.45 * OPTIONS.music / 7, me: 0.6 * OPTIONS.music / 7, se: 0.7 * OPTIONS.sound / 7 };
+  if (Sound.bgmEl) Sound.bgmEl.volume = Math.min(1, Sound.vol.bgm);
+  try { localStorage.setItem('hafnia.options', JSON.stringify(OPTIONS)); } catch { /* storage blocked */ }
+}
+applyOptions();
+
+async function optionsScreen() {
+  const ANIMS: AnimMode[] = ['on', 'fast', 'off'];
+  const rows: { label: string; value: () => string; change: (d: number) => void }[] = [
+    { label: 'Text speed', value: () => TEXT_SPEEDS[OPTIONS.text][0], change: d => { OPTIONS.text = (OPTIONS.text + d + TEXT_SPEEDS.length) % TEXT_SPEEDS.length; } },
+    { label: 'Battle animations', value: () => ({ on: 'On', fast: 'Fast', off: 'Off' })[animMode], change: d => {
+      animMode = ANIMS[(ANIMS.indexOf(animMode) + d + ANIMS.length) % ANIMS.length];
+      try { localStorage.setItem('hafnia.anim', animMode); } catch { /* storage blocked */ }
+      applyAnimMode();
+    } },
+    { label: 'Music', value: () => '▮'.repeat(OPTIONS.music) + '▯'.repeat(10 - OPTIONS.music), change: d => { OPTIONS.music = Math.max(0, Math.min(10, OPTIONS.music + d)); } },
+    { label: 'Sound effects', value: () => '▮'.repeat(OPTIONS.sound) + '▯'.repeat(10 - OPTIONS.sound), change: d => { OPTIONS.sound = Math.max(0, Math.min(10, OPTIONS.sound + d)); } }
+  ];
+  let idx = 0;
+  const ov = () => {
+    ctx.fillStyle = '#20406e'; ctx.fillRect(0, 0, VW, VH);
+    text('Options', 20, 34, 22, '#fbf7ee');
+    rows.forEach((r, i) => {
+      const y = 56 + i * 52, sel = i === idx;
+      ctx.fillStyle = sel ? '#ffe9a8' : '#fbf7ee'; roundRect(16, y, VW - 32, 44, 8); ctx.fill();
+      text(r.label, 34, y + 28, 17, '#26324a');
+      text(`◀  ${r.value()}  ▶`, VW - 34, y + 28, 16, sel ? '#d9473a' : '#55617a', 'right');
+    });
+    text('Saved in this browser. The Sound button above the game mutes everything.', 20, VH - 40, 13, '#c6d3ef');
+    text('◀▶ change   B: back', VW - 20, VH - 12, 13, '#c6d3ef', 'right');
+  };
+  G.overlays.push(ov);
+  try {
+    for (;;) {
+      G.ui.picker = { kind: 'options', options: rows.map(r => r.label), idx };
+      const k = await waitKey('up', 'down', 'left', 'right', 'A', 'B');
+      if (k === 'B') { Sound.se('select'); return; }
+      if (k === 'up' || k === 'down') { idx = (idx + (k === 'up' ? rows.length - 1 : 1)) % rows.length; Sound.se('cursor'); continue; }
+      rows[idx].change(k === 'left' ? -1 : 1);
+      applyOptions(); Sound.se('cursor');
+    }
+  } finally { G.overlays.pop(); G.ui.picker = null; }
+}
+
+// ---------- summary ----------
+const STAT_LABELS: [keyof NonNullable<MonView['info']>['stats'], string][] = [['atk', 'Attack'], ['def', 'Defense'], ['spa', 'Sp. Atk'], ['spd', 'Sp. Def'], ['spe', 'Speed']];
+function drawWrapped(str: string, x: number, y: number, w: number, size: number, color: string, lineH = size + 5, maxLines = 6) {
+  wrapText(str, w, size).slice(0, maxLines).forEach((ln, i) => text(ln, x, y + i * lineH, size, color));
+}
+/** The left card shared by the summary and Pokédex: sprite, name, types. */
+function monCard(key: string | undefined, name: string, sub: string, types: string[], egg = false) {
+  ctx.fillStyle = '#fbf7ee'; roundRect(16, 46, 190, 300, 10); ctx.fill();
+  ctx.fillStyle = '#dfe7f5'; roundRect(26, 56, 170, 170, 8); ctx.fill();
+  if (egg) { const ic = monImg('icons', 'EGG'); if (ic.complete && ic.naturalWidth) ctx.drawImage(ic, 0, 0, 64, 64, 47, 77, 128, 128); }
+  else if (key) drawMonSprite(key, 'front', 111, 216, 1, true);
+  else text('?', 111, 162, 72, '#9fb3d9', 'center');
+  text(name, 111, 254, 19, '#26324a', 'center');
+  text(sub, 111, 276, 14, '#55617a', 'center');
+  types.forEach((t, i, a) => typeChip(t, 111 - a.length * 32 + i * 64 + 2, 290));
+}
+
+async function summaryScreen(list: MonView[], start: number) {
+  let idx = start, page = 0;
+  const PAGES = ['Info', 'Stats', 'Moves'];
+  const row = (label: string, value: string, y: number) => { text(label, 232, y, 14, '#55617a'); text(value, VW - 34, y, 15, '#26324a', 'right'); };
+  const ov = () => {
+    const m = list[idx], info = m.info;
+    ctx.fillStyle = '#20406e'; ctx.fillRect(0, 0, VW, VH);
+    PAGES.forEach((p, i) => {
+      if (m.egg && i > 0) return;
+      ctx.fillStyle = i === page ? '#ffd36b' : '#16305a'; roundRect(216 + i * 94, 10, 88, 28, 8); ctx.fill();
+      text(p, 260 + i * 94, 30, 15, i === page ? '#26324a' : '#c6d3ef', 'center');
+    });
+    text(`${idx + 1}/${list.length}`, 24, 31, 15, '#c6d3ef');
+    const g = m.gender === 'M' ? ' ♂' : m.gender === 'F' ? ' ♀' : '';
+    monCard(m.egg ? undefined : m.key, m.egg ? 'Egg' : m.name + g, m.egg ? '' : `Lv ${m.level}${m.shiny ? '  ★' : ''}`, m.egg ? [] : m.types, !!m.egg);
+    ctx.fillStyle = '#fbf7ee'; roundRect(216, 46, VW - 232, 300, 10); ctx.fill();
+    if (m.egg) { drawWrapped(m.egg.hint, 232, 80, VW - 270, 15, '#26324a'); }
+    else if (page === 0) {
+      row('Nature', info?.nature ?? '-', 76);
+      row('Ability', info?.ability ?? '-', 104);
+      drawWrapped(info?.abilityText ?? '', 232, 126, VW - 270, 12, '#55617a', 16, 3);
+      row('Held item', info?.item ?? 'None', 190);
+      row('Trainer', info?.ot ?? '-', 218);
+      row('Ball', info?.ball ?? 'Poké Ball', 246);
+      row('EXP. points', String(m.exp), 274);
+      row('To next level', m.level >= 100 ? '-' : String(Math.max(0, m.expHi - m.exp)), 302);
+      ctx.fillStyle = '#c9d2e3'; ctx.fillRect(232, 318, VW - 266, 6);
+      ctx.fillStyle = '#4aa3df'; ctx.fillRect(232, 318, (VW - 266) * Math.max(0, Math.min(1, (m.exp - m.expLo) / Math.max(1, m.expHi - m.expLo))), 6);
+    } else if (page === 1) {
+      text('HP', 232, 80, 15, '#26324a'); text(`${m.hp}/${m.maxhp}`, VW - 34, 80, 15, '#26324a', 'right');
+      hpBar(232, 88, VW - 266, m.hp, m.maxhp);
+      if (m.status) statusChip(m.status, 300, 68);
+      STAT_LABELS.forEach(([k, label], i) => {
+        const y = 134 + i * 40, v = info?.stats[k] ?? 0;
+        text(label, 232, y, 15, '#26324a'); text(String(v), VW - 34, y, 15, '#26324a', 'right');
+        ctx.fillStyle = '#dfe7f5'; roundRect(232, y + 8, VW - 266, 8, 4); ctx.fill();
+        ctx.fillStyle = '#c8743a'; roundRect(232, y + 8, Math.max(4, (VW - 266) * Math.min(1, v / Math.max(60, m.level * 3))), 8, 4); ctx.fill();
+      });
+    } else {
+      m.moves.forEach((mv, i) => {
+        const y = 58 + i * 70;
+        ctx.fillStyle = '#eef2fa'; roundRect(226, y, VW - 252, 62, 8); ctx.fill();
+        typeChip(mv.type, 236, y + 8);
+        text(mv.name, 306, y + 23, 17, '#26324a');
+        text(mv.category, 236, y + 48, 13, '#55617a');
+        text(mv.power ? `Power ${mv.power}` : 'No damage', 320, y + 48, 13, '#55617a');
+        text(`PP ${mv.pp}/${mv.maxpp}`, VW - 36, y + 48, 13, mv.pp ? '#26324a' : '#d9473a', 'right');
+      });
+    }
+    text(m.egg ? '▲▼ Pokémon   B: back' : '◀▶ page   ▲▼ Pokémon   B: back', VW - 20, VH - 12, 13, '#c6d3ef', 'right');
+  };
+  G.overlays.push(ov);
+  try {
+    for (;;) {
+      G.ui.picker = { kind: 'summary', options: list.map(m => m.name), idx };
+      const k = await waitKey('up', 'down', 'left', 'right', 'A', 'B');
+      if (k === 'B') return;
+      const pages = list[idx].egg ? 1 : PAGES.length;
+      if (k === 'left' || k === 'right' || k === 'A') { page = (page + (k === 'left' ? pages - 1 : 1)) % pages; Sound.se('cursor'); continue; }
+      idx = (idx + (k === 'up' ? list.length - 1 : 1)) % list.length;
+      if (list[idx].egg) page = 0; else Sound.cry(list[idx].key);
+    }
+  } finally { G.overlays.pop(); G.ui.picker = null; }
+}
+
+// ---------- Pokédex ----------
+async function dexScreen() {
+  const r = await conn.send({ t: 'dex' });
+  const d = r.find(e => e.t === 'dex');
+  if (!d || d.t !== 'dex') return;
+  const entries = d.entries, ROWS = 9;
+  const seen = entries.filter(e => e.seen).length, caught = entries.filter(e => e.caught).length;
+  let idx = 0;
+  const num = (n: number) => String(n).padStart(3, '0');
+  const ov = () => {
+    ctx.fillStyle = '#9a2f2a'; ctx.fillRect(0, 0, VW, VH);
+    text('Hafnia Pokédex', 20, 31, 20, '#fbf7ee');
+    text(`Seen ${seen}   Caught ${caught}   of ${entries.length}`, VW - 20, 31, 14, '#ffd9cf', 'right');
+    const e = entries[idx];
+    monCard(e.seen ? e.key : undefined, e.seen ? e.name! : '?????', `No. ${num(e.n)}`, e.types ?? []);
+    const first = Math.max(0, Math.min(idx - Math.floor(ROWS / 2), entries.length - ROWS));
+    ctx.fillStyle = '#fbf7ee'; roundRect(216, 46, VW - 232, 300, 10); ctx.fill();
+    for (let rI = 0; rI < Math.min(ROWS, entries.length); rI++) {
+      const i = first + rI, x = entries[i], y = 54 + rI * 32;
+      if (i === idx) { ctx.fillStyle = '#ffe9a8'; roundRect(222, y, VW - 244, 30, 6); ctx.fill(); }
+      if (x.caught) { ctx.fillStyle = '#d9473a'; ctx.beginPath(); ctx.arc(238, y + 15, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fbf7ee'; ctx.fillRect(232, y + 14, 12, 2); }
+      text(num(x.n), 252, y + 21, 15, '#55617a');
+      text(x.seen ? x.name! : '----------', 296, y + 21, 16, x.seen ? '#26324a' : '#9aa5bb');
+    }
+    text('▲▼ move   ◀▶ page   A: entry   B: back', VW - 20, VH - 12, 13, '#ffd9cf', 'right');
+  };
+  G.overlays.push(ov);
+  try {
+    for (;;) {
+      G.ui.picker = { kind: 'dex', options: entries.map(e => e.name ?? '?'), idx };
+      const k = await waitKey('up', 'down', 'left', 'right', 'A', 'B');
+      if (k === 'B') return;
+      const step = k === 'up' ? -1 : k === 'down' ? 1 : k === 'left' ? -ROWS : k === 'right' ? ROWS : 0;
+      if (step) { idx = Math.max(0, Math.min(entries.length - 1, idx + step)); Sound.se('cursor'); continue; }
+      const e = entries[idx];
+      if (!e.seen) { Sound.se('cursor'); continue; }
+      Sound.se('select'); Sound.cry(e.key!);
+      await dexEntryScreen(e);
+    }
+  } finally { G.overlays.pop(); G.ui.picker = null; }
+}
+
+async function dexEntryScreen(e: DexEntry) {
+  const ov = () => {
+    ctx.fillStyle = '#9a2f2a'; ctx.fillRect(0, 0, VW, VH);
+    text(`No. ${String(e.n).padStart(3, '0')}  ${e.name}`, 20, 31, 20, '#fbf7ee');
+    monCard(e.key, e.name!, e.caught ? e.category ?? '' : 'Seen', e.types ?? []);
+    ctx.fillStyle = '#fbf7ee'; roundRect(216, 46, VW - 232, 300, 10); ctx.fill();
+    if (!e.caught) { drawWrapped(`Catch ${e.name} to fill in its entry.`, 232, 80, VW - 270, 15, '#55617a'); return; }
+    text('Height', 232, 78, 14, '#55617a'); text(`${e.height} m`, 330, 78, 15, '#26324a');
+    text('Weight', 232, 102, 14, '#55617a'); text(`${e.weight} kg`, 330, 102, 15, '#26324a');
+    drawWrapped(e.text || 'No entry yet.', 232, 140, VW - 270, 15, '#26324a', 22, 8);
+    text('B: back', VW - 20, VH - 12, 13, '#ffd9cf', 'right');
+  };
+  G.overlays.push(ov);
+  try { await waitKey('A', 'B'); } finally { G.overlays.pop(); }
+}
+
+// ---------- PC storage ----------
+const BOX_COLS = 6, BOX_SIZE = 30;
+async function pcScreen(initial: MonView[]) {
+  let box = initial;
+  const pcSend = async (intent: Intent) => {
+    for (const e of await conn.send(intent)) {
+      if (e.t === 'pc') box = e.box;
+      else if (e.t === 'view') applyView(e.view);
+      else if (e.t === 'say') await say(e.text);
+    }
+  };
+  try {
+    for (;;) {
+      G.ui.text = { full: `${box.length} Pokémon in storage. What would you like to do?`, shown: 999 };
+      const c = await choose(['Open boxes', 'Deposit', 'Log off'], 2);
+      G.ui.text = null;
+      if (c === 2) break;
+      if (c === 1) {
+        for (;;) {
+          const party = G.world?.party ?? [];
+          const i = await partyScreen('deposit', party);
+          if (i < 0) break;
+          await pcSend({ t: 'pc', op: 'deposit', uid: party[i].uid });
+        }
+        continue;
+      }
+      let idx = 0;
+      for (;;) {
+        if (!box.length) { await say('The boxes are empty.'); break; }
+        idx = Math.min(idx, box.length - 1);
+        idx = await boxScreen(box, idx);
+        if (idx < 0) break;
+        const m = box[idx];
+        G.ui.text = { full: `${m.egg ? 'The Egg' : m.name} is selected.`, shown: 999 };
+        const opts = ['Withdraw', 'Summary', 'Release', 'Back'];
+        const o = await choose(opts, 3);
+        G.ui.text = null;
+        if (o === 0) await pcSend({ t: 'pc', op: 'withdraw', uid: m.uid });
+        else if (o === 1) await summaryScreen(box, idx);
+        else if (o === 2 && await ask(`Release ${m.name}? You won't see it again.`, ['Release', 'Keep']) === 0) await pcSend({ t: 'pc', op: 'release', uid: m.uid });
+      }
+    }
+  } finally {
+    G.ui.text = null;
+    Sound.se('pc_close');
+    await pcSend({ t: 'pc', op: 'close' });
+  }
+}
+
+/** The box grid: 30 Pokémon to a box, the cursor runs over all of them. Returns the index, or -1. */
+async function boxScreen(box: MonView[], start: number): Promise<number> {
+  let idx = start;
+  const ov = () => {
+    const page = Math.floor(idx / BOX_SIZE), pages = Math.max(1, Math.ceil(box.length / BOX_SIZE));
+    ctx.fillStyle = '#2d5a4a'; ctx.fillRect(0, 0, VW, VH);
+    text(`${pages > 1 ? '◀  ' : ''}Box ${page + 1}${pages > 1 ? '  ▶' : ''}`, VW / 2, 32, 20, '#fbf7ee', 'center');
+    text(`${box.length} stored`, VW - 20, 32, 13, '#cfe8dc', 'right');
+    ctx.fillStyle = '#e8f1ea'; roundRect(16, 46, VW - 32, 272, 10); ctx.fill();
+    for (let i = 0; i < BOX_SIZE; i++) {
+      const m = box[page * BOX_SIZE + i], cx = 24 + (i % BOX_COLS) * 78, cy = 52 + Math.floor(i / BOX_COLS) * 53;
+      if (page * BOX_SIZE + i === idx) { ctx.fillStyle = '#ffe9a8'; roundRect(cx, cy, 74, 50, 8); ctx.fill(); }
+      if (!m) continue;
+      const ic = monImg('icons', m.egg ? 'EGG' : m.key);
+      if (ic.complete && ic.naturalWidth) ctx.drawImage(ic, page * BOX_SIZE + i === idx ? (Math.floor(G.t / 15) % 2) * 64 : 0, 0, 64, 64, cx + 13, cy - 4, 52, 52);
+    }
+    const m = box[idx];
+    if (m) {
+      ctx.fillStyle = '#fbf7ee'; roundRect(16, 326, VW - 32, 34, 8); ctx.fill();
+      text(m.egg ? 'Egg' : `${m.name}  Lv ${m.level}`, 32, 349, 16, '#26324a');
+      if (!m.egg) m.types.forEach((t, i) => typeChip(t, VW - 160 + i * 66, 334));
+    }
+    text('A: select   B: back', VW - 20, VH - 8, 13, '#cfe8dc', 'right');
+  };
+  G.overlays.push(ov);
+  try {
+    for (;;) {
+      G.ui.picker = { kind: 'box', options: box.map(m => m.name), idx };
+      const k = await waitKey('up', 'down', 'left', 'right', 'A', 'B');
+      if (k === 'B') return -1;
+      if (k === 'A') { Sound.se('select'); return idx; }
+      const step = { up: -BOX_COLS, down: BOX_COLS, left: -1, right: 1 }[k as Dir];
+      const next = idx + step;
+      if (next >= 0 && next < box.length) { idx = next; Sound.se('cursor'); }
+    }
+  } finally { G.overlays.pop(); G.ui.picker = null; }
 }
 
 // ---------- battle ----------
@@ -958,7 +1247,7 @@ async function showText(str: string) {
   while (G.ui.text && G.ui.text.shown < str.length) {
     await nextFrame();
     if (!G.ui.text) break;
-    G.ui.text.shown += 1.5;
+    G.ui.text.shown += textSpeed();
     if (just('A') || just('B')) G.ui.text.shown = str.length;
   }
 }

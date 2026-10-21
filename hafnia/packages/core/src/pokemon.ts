@@ -198,6 +198,15 @@ export function monView(m: Mon): MonView {
   return {
     uid: m.uid, species: m.species, key: speciesExtra(m.species).key, name: monName(m), types: speciesTypes(m.species),
     level: m.level, hp: m.hp, maxhp: maxHp(m), status: m.status, moves: m.moves.map(mv => moveView(mv.id, mv.pp)),
-    exp: m.exp, expLo: lo, expHi: hi, gender: m.gender, shiny: m.shiny
+    exp: m.exp, expLo: lo, expHi: hi, gender: m.gender, shiny: m.shiny, info: monInfo(m)
+  };
+}
+
+function monInfo(m: Mon): NonNullable<MonView['info']> {
+  const { hp: _hp, ...stats } = calcStats(m), ab = Dex.abilities.get(m.ability);
+  const itemName = (id?: string) => (id ? Dex.items.get(id).name || id : undefined);
+  return {
+    nature: Dex.natures.get(m.nature).name || m.nature, ability: ab.name || m.ability, abilityText: ab.shortDesc || ab.desc || '', stats,
+    ...(m.item ? { item: itemName(m.item) } : {}), ...(m.ot ? { ot: m.ot } : {}), ...(m.ball ? { ball: itemName(m.ball) } : {})
   };
 }

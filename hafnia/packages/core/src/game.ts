@@ -5,6 +5,7 @@ import { BattleSession } from './battle';
 import { DAYCARE_SLOTS, breed, compatText, compatibility, daycareStep, eggStepValue, emptyDaycare, giftEgg, hatch, type DaycareState } from './breeding';
 import type { CoilUnlocks } from './coil';
 import { Content, GRASS_TILE, SOLID_TILES, WATER_TILES, ns, type MapDef, type MapEvent, type NpcDef, type Period, type Respawn } from './content';
+import { dexEntries, emptyDex, markCaught, markSeen, type DexState } from './dex';
 import { ITEMS, itemEffect } from './items';
 import {
   canLearnTM, evolveMon, expForLevel, gainExp, healMon, levelEvolution, makeMon, maxHp, maxPp, monName, monView, moveName, replaceMove,
@@ -14,7 +15,7 @@ import type { BattleResult, DayPeriod, DebugCommand, Dir, Intent, Look, ServerEv
 import { Rng } from './rng';
 import type { NpcHandle, Pause, Script, ScriptApi } from './script';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export interface SaveData {
   v: number;
@@ -36,6 +37,7 @@ export interface SaveData {
   daycare: DaycareState;           // Vuggestuen: two Pokémon and the eggs waiting in the prams
   steps: number;                   // overworld steps taken
   hatched: number;                 // eggs hatched (Ørsted's Hatchery Log)
+  dex: DexState;                   // species seen and caught
 }
 
 /** Start minute of each period of the day (progression-quests-time.md §3.6). */
@@ -68,6 +70,8 @@ export class Game {
   private battle: BattleSession | null = null;
   private battleSoft = false;
   private doorCache = new Map<string, Map<string, string>>();
+  /** A PC is open: the client may move Pokémon between the party and the box. */
+  private pcOpen = false;
   /** A map the player just arrived on whose onEnter hook still has to run. */
   private pendingEnter: string | null = null;
 
@@ -84,7 +88,7 @@ export class Game {
       party: [], box: [], bag: {}, money: 3000, flags: {}, npcs: {},
       respawn: { ...start.respawn, map: ns(base.manifest.id, start.respawn.map) }, rng: seed >>> 0,
       badges: [], coil: {}, repel: 0, look: 'boy', clock: PERIOD_START.morning + 4 * 60,
-      daycare: emptyDaycare(), steps: 0, hatched: 0
+      daycare: emptyDaycare(), steps: 0, hatched: 0, dex: emptyDex()
     });
     game.emitMap();
     game.run(start.intro, base.manifest.id);
@@ -128,10 +132,14 @@ export class Game {
         switch (intent.t) {
           case 'tick': this.state.clock = (this.state.clock + Math.max(0, Math.min(60, Number(intent.seconds) || 0)) * GAME_MINUTES_PER_SECOND) % 1440; break;
           case 'turn': this.state.dir = intent.dir; break;
-          case 'step': this.step(intent.dir); break;
-          case 'interact': this.interact(); break;
+          case 'step': this.pcOpen = false; this.step(intent.dir); break;
+          case 'interact': this.pcOpen = false; this.interact(); break;
           case 'useItem': this.useItem(intent.item, intent.uid); break;
           case 'lead': this.lead(intent.uid); break;
+          case 'dex':
+            for (const m of this.state.party) markCaught(this.state.dex, m);
+            this.out.push({ t: 'dex', entries: dexEntries(this.content, this.state.dex) }); break;
+          case 'pc': this.pcOp(intent.op, intent.uid); break;
 
         }
       }
@@ -143,6 +151,7 @@ export class Game {
 
   private flush(): ServerEvent[] {
     const evs = this.out;
+    for (const m of this.state.party) markCaught(this.state.dex, m);   // also covers evolving and hatching
     evs.push({ t: 'view', view: this.view() });
     this.out = [];
     return evs;
@@ -663,13 +672,41 @@ export class Game {
         g.state.money -= loss;
         return loss;
       },
-      emit: (e: ServerEvent) => g.out.push(e),
+      emit: (e: ServerEvent) => {
+        if (e.t === 'battle' && e.ev.b === 'switch') markSeen(g.state.dex, e.ev.mon.species);
+        g.out.push(e);
+      },
       addMon: (m: Mon) => g.addMon(m),
       giveMoney: (n: number) => { g.state.money += n; }
     };
   }
 
+  private pcOp(op: 'deposit' | 'withdraw' | 'release' | 'close', uid?: string) {
+    if (!this.pcOpen) return;
+    if (op === 'close') { this.pcOpen = false; return; }
+    const s = this.state, say = (text: string) => this.out.push({ t: 'say', text });
+    if (op === 'deposit') {
+      const i = s.party.findIndex(m => m.uid === uid);
+      if (i < 0) return;
+      if (!s.party.some((m, j) => j !== i && !m.egg && m.hp > 0)) { say('That\'s your last Pokémon that can battle!'); return; }
+      s.box.push(...s.party.splice(i, 1));
+    } else {
+      const i = s.box.findIndex(m => m.uid === uid);
+      if (i < 0) return;
+      if (op === 'withdraw') {
+        if (s.party.length >= PARTY_MAX) { say('Your party is full!'); return; }
+        s.party.push(...s.box.splice(i, 1));
+      } else {
+        if (s.box[i].egg) { say('An Egg can\'t be released.'); return; }
+        const [m] = s.box.splice(i, 1);
+        say(`${monName(m)} was released.\nBye-bye, ${monName(m)}!`);
+      }
+    }
+    this.out.push({ t: 'pc', box: s.box.map(monView) });
+  }
+
   private addMon(m: Mon): 'party' | 'box' {
+    markCaught(this.state.dex, m);
     if (this.state.party.length < PARTY_MAX) { this.state.party.push(m); return 'party'; }
     this.state.box.push(m); return 'box';
   }
@@ -777,6 +814,7 @@ export class Game {
       get badges() { return s.badges.length; },
       unlockCoil: mode => { s.coil = { ...s.coil, [mode]: true }; },
       mart: stock => g.mart(stock),
+      openPc: () => { g.pcOpen = true; emit({ t: 'pc', box: s.box.map(monView) }); },
       heal: () => { for (const m of s.party) healMon(m); },
       partyAlive: () => g.partyAlive(),
       sfx: name => emit({ t: 'sfx', name }),
@@ -847,6 +885,7 @@ export class Game {
       }),
       party: s.party.map(monView), bag: { ...s.bag }, money: s.money, badges: s.badges.length,
       look: s.look, period: this.period, clock: Math.floor(s.clock),
+      dex: { seen: Object.keys(s.dex.seen).length, caught: Object.keys(s.dex.caught).length },
       ...(this.debug ? { debug: true } : {})
     };
   }
@@ -865,6 +904,10 @@ export function migrate(save: SaveData): SaveData {
   s.badges ??= []; s.coil ??= {}; s.repel ??= 0;   // v2: badges, Coil unlocks, Repel
   s.look ??= 'boy'; s.clock ??= 8 * 60;              // character look and world clock (no version bump: defaults are safe)
   s.daycare ??= emptyDaycare(); s.steps ??= 0; s.hatched ??= 0;   // v3: Vuggestuen and eggs
+  if (!s.dex) {                                                    // v4: Pokédex, from what the player owns
+    s.dex = emptyDex();
+    for (const m of [...s.party, ...s.box, ...s.daycare.slots.map(d => d.mon)]) markCaught(s.dex, m);
+  }
   s.v = SAVE_VERSION;
   return s;
 }
