@@ -329,7 +329,8 @@ export class BattleSession {
       // The player decides first; the AI never sees that choice, only the field.
       if (p1.requestState && !p1.isChoiceDone()) return this.request();
       const next = this.sides.find(s => s !== p1 && s.requestState && !s.isChoiceDone());
-      if (next) { this.sim.choose(next.id, this.aiChoice(next)); continue; }
+      // A choice the simulator refuses (a target during Dig's second turn, say) falls back to its default.
+      if (next) { if (!this.sim.choose(next.id, this.aiChoice(next))) this.sim.choose(next.id, 'default'); continue; }
       return;
     }
   }

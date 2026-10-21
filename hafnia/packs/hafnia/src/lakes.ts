@@ -67,8 +67,8 @@ function* finale(s: ScriptApi): Step {
   s.heal();
   s.setFlag('demoEnd', true);
   s.checkpoint();
-  s.chapterEnd('Copper & Current', 'End of the demo. Thank you for playing!');
-  s.say('c2.end.3');
+  s.chapterEnd('Chapter 2 complete', 'Harbour Saboteurs');
+  s.say('c2.end.next');
 }
 
 const bridgeEnter: Script = function* (s) {

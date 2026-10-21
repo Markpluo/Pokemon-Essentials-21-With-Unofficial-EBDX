@@ -1,10 +1,10 @@
 // Content checks run by the test suite (systems.md §12): every map, exit, building, NPC sprite and
 // encounter must point at something that exists, so a broken reference fails CI, not a playtest.
 import { Dex } from '@pkmn/sim';
-import { GRASS_TILE, SOLID_TILES, WATER_TILES, ns, type Content } from './content';
+import { GRASS_TILE, ICE_TILES, SOLID_TILES, WATER_TILES, ns, type Content } from './content';
 import { speciesExtra } from './pokemon';
 
-const KNOWN_TILES = new Set(['.', '=', 'f', 'r', 'k', 'q', 'a', 'l', 'd', '_', 'm', 'c', GRASS_TILE, ...SOLID_TILES]);
+const KNOWN_TILES = new Set(['.', '=', 'f', 'r', 'k', 'q', 'a', 'l', 'd', '_', 'm', 'c', 'W', 'v', 'y', GRASS_TILE, ...SOLID_TILES, ...ICE_TILES]);
 /** Objects the client draws itself (switches, valves, lily pads...). */
 const DRAWN = /^obj:/;
 
@@ -37,7 +37,7 @@ export function validateContent(content: Content): string[] {
       for (const n of m.npcs) {
         if (!images[n.sprite] && !DRAWN.test(n.sprite)) err(where, `NPC "${n.id}" uses sprite "${n.sprite}" missing from pack.json`);
         if (n.x < 0 || n.y < 0 || n.x >= m.w || n.y >= m.h) err(where, `NPC "${n.id}" is off the map`);
-        else if (!n.hidden && SOLID_TILES.has(m.grid[n.y][n.x]) && !(n.object && WATER_TILES.has(m.grid[n.y][n.x]))) err(where, `NPC "${n.id}" stands on a solid tile`);
+        else if (!n.hidden && SOLID_TILES.has(m.grid[n.y][n.x]) && !(n.object && (WATER_TILES.has(m.grid[n.y][n.x]) || m.grid[n.y][n.x] === 'w'))) err(where, `NPC "${n.id}" stands on a solid tile`);   // objects may float or hang on walls
         if (n.floor && !n.object) err(where, `NPC "${n.id}" is a floor object but not an object`);
       }
       const ids = new Set<string>();

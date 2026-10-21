@@ -1,5 +1,5 @@
 // The base game, "Copper & Current", as a content pack: the demo from the Prologue in Nørrebro
-// to the end of Chapter 2 on Dronning Louises Bro. Lines live in strings/en.json (from the demo
+// to the end of Chapter 3 on Cykelslangen. Lines live in strings/en.json (from the demo
 // script); each area's scripts live in their own file.
 import { speciesExtra, type Dir, type MapDef, type Pack, type Script } from '@hafnia/core';
 import manifest from '../pack.json';
@@ -11,9 +11,11 @@ import { HOME, intro } from './home';
 import { LAKES } from './lakes';
 import type { MapScripts } from './lib';
 import { starterVars } from './starters';
+import { VESTERBRO_SCRIPTS, norrebroWest } from './vesterbro';
 import { MAPS, STAMPS } from './world';
 
-const SCRIPTS: Record<string, MapScripts & { exitGuards?: Partial<Record<Dir, Script>> }> = { ...HOME, ...LAKES, ...CITY, ...FREETOWN, ...DRAGOR_SCRIPTS };
+const SCRIPTS: Record<string, MapScripts & { exitGuards?: Partial<Record<Dir, Script>> }> = { ...HOME, ...LAKES, ...CITY, ...FREETOWN, ...DRAGOR_SCRIPTS, ...VESTERBRO_SCRIPTS };
+SCRIPTS.norrebro = { ...SCRIPTS.norrebro, exitGuards: { left: norrebroWest } };
 
 const maps: Record<string, MapDef> = {};
 for (const [id, m] of Object.entries(MAPS)) {

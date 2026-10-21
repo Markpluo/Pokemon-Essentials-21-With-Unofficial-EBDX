@@ -121,10 +121,12 @@ export interface Respawn { map: string; x: number; y: number; dir: Dir; text: st
 export type FlagReader = (name: string) => any;
 
 // Outdoor: T trees, ~ sea, o still water, H house fronts, x containers, n railings.
-// Indoor and tunnels: w walls, K furniture, R rock, p pipes, P palm planters.
+// Indoor and tunnels: w walls, K furniture, R rock, p pipes, P palm planters. Ice (i) is walkable but slippery.
 export const SOLID_TILES = new Set(['T', '~', 'o', 'H', 'x', 'n', 'w', 'K', 'R', 'p', 'P']);
 export const WATER_TILES = new Set(['~', 'o']);
 export const GRASS_TILE = 'g';
+/** Ice: the player slides until something stops them (Gym 3). */
+export const ICE_TILES = new Set(['i']);
 
 export const ns = (pack: string, id: string) => (id.includes(':') ? id : `${pack}:${id}`);
 

@@ -4,7 +4,7 @@
 import { BattleSession } from './battle';
 import { DAYCARE_SLOTS, breed, compatText, compatibility, daycareStep, eggStepValue, emptyDaycare, giftEgg, hatch, type DaycareState } from './breeding';
 import type { CoilUnlocks } from './coil';
-import { Content, GRASS_TILE, SOLID_TILES, WATER_TILES, ns, type MapDef, type MapEvent, type NpcDef, type Period, type Respawn } from './content';
+import { Content, GRASS_TILE, ICE_TILES, SOLID_TILES, WATER_TILES, ns, type MapDef, type MapEvent, type NpcDef, type Period, type Respawn } from './content';
 import { dexEntries, emptyDex, markCaught, markSeen, type DexState } from './dex';
 import { ITEMS, itemEffect } from './items';
 import {
@@ -235,6 +235,13 @@ export class Game {
     if (this.solid(nx, ny)) { this.tickWorld(); return; }
     s.x = nx; s.y = ny;
     this.out.push({ t: 'walk', actor: 'player', dir });
+    // Ice: keep sliding until the next tile is blocked or the ice ends.
+    for (let guard = 0; ICE_TILES.has(this.tile(m, s.x, s.y) ?? '') && guard < 64; guard++) {
+      const fx = s.x + dx, fy = s.y + dy;
+      if (this.solid(fx, fy) || this.doors(m).has(`${fx},${fy}`)) break;
+      s.x = fx; s.y = fy;
+      this.out.push({ t: 'walk', actor: 'player', dir, frames: 5 });
+    }
     const w = m.warps?.find(w => w.x === nx && w.y === ny);
     if (w) {
       this.out.push({ t: 'sfx', name: 'door' });
