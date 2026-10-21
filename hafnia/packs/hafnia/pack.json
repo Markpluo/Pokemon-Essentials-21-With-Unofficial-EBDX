@@ -64,7 +64,17 @@
     "poliwag",
     "lilligant",
     "porygon",
-    "qwilfishhisui"
+    "qwilfishhisui",
+    "flittle",
+    "snorunt",
+    "cetoddle",
+    "cryogonal",
+    "spheal",
+    "cubchoo",
+    "bergmite",
+    "wooloo",
+    "mudbray",
+    "bramblin"
   ],
   "spriteKeys": {
     "qwilfishhisui": "QWILFISH_1"
@@ -158,7 +168,17 @@
     "tr/enforcer": "Graphics/Trainers/TEAMROCKET_M.png",
     "tr/ivar": "Graphics/Trainers/HIKER.png",
     "tr/freja": "Graphics/Trainers/LEADER_Misty.png",
-    "tr/alva": "Graphics/Trainers/LEADER_Erika.png"
+    "tr/alva": "Graphics/Trainers/LEADER_Erika.png",
+    "chars/kasper": "Graphics/Characters/trainer_LEADER_Blaine.png",
+    "tr/kasper": "Graphics/Trainers/LEADER_Blaine.png",
+    "chars/chef": "Graphics/Characters/NPC 12.png",
+    "chars/signe": "Graphics/Characters/trainer_PSYCHIC_F.png",
+    "tr/signe": "Graphics/Trainers/PSYCHIC_F.png",
+    "chars/raver": "Graphics/Characters/trainer_CRUSHGIRL.png",
+    "tr/bouncer": "Graphics/Trainers/BLACKBELT.png",
+    "chars/lifeguard": "Graphics/Characters/trainer_SWIMMER2_M.png",
+    "chars/barista": "Graphics/Characters/NPC 21.png",
+    "chars/ranger": "Graphics/Characters/trainer_POKEMONRANGER_M.png"
   },
   "audio": {
     "title": "Audio/BGM/Title.ogg",
@@ -184,6 +204,9 @@
     "hit_weak": "Audio/SE/Battle damage weak.ogg",
     "recall": "Audio/SE/Battle recall.ogg",
     "shake": "Audio/SE/Battle ball shake.ogg",
-    "throw": "Audio/SE/Battle throw.ogg"
+    "throw": "Audio/SE/Battle throw.ogg",
+    "pc": "Audio/SE/PC open.ogg",
+    "pc_close": "Audio/SE/PC close.ogg",
+    "pc_access": "Audio/SE/PC access.ogg"
   }
 }

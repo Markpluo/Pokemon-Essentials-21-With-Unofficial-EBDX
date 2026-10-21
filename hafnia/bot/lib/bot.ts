@@ -29,7 +29,7 @@ export interface Answer { when?: RegExp; pick: Match; once?: boolean }
  *  (Current, else Copper) as soon as it is charged, `catch` throws Poké Balls at wild Pokémon, `run` flees.
  *  A function decides each turn. */
 export type BattlePlan = 'fight' | 'coil' | 'catch' | 'run' | ((s: Probe) => BattleChoice);
-export type BattleChoice = { move: number | string; coil?: 'copper' | 'current' } | { ball: string } | { run: true } | { switchTo: number | string };
+export type BattleChoice = { move: number | string; coil?: 'copper' | 'current'; target?: number } | { ball: string } | { run: true } | { switchTo: number | string };
 
 export interface SettleOptions {
   /** Max time to wait for the overworld to be free again. */
@@ -236,6 +236,7 @@ export class Bot {
         if (s.picker.kind === 'look') await this.pick(opts.pickLook ?? 0);
         else if (s.picker.kind === 'species') await this.pick(opts.pickStarter ?? 0);
         else if (s.picker.kind === 'party') await this.pick(this.healthyIndex(s));
+        else await this.tap('B');   // summary, Pokédex, PC box, options: back out
         continue;
       }
       if (s.battle?.grid) { await this.battleTurn(s, opts.battle ?? this.battlePlan); continue; }
@@ -254,7 +255,7 @@ export class Bot {
     if (c.options.at(-1) === 'Type a name...') return Math.max(0, c.options.indexOf(this.name));
     const hay = [s.text ?? '', ...c.options].join('\n');
     const i = this.answers.findIndex(a => !a.when || a.when.test(hay));
-    if (i < 0) return 0;
+    if (i < 0) return c.options.includes('Log off') ? 'Log off' : 0;   // the PC menu: leave it
     const a = this.answers[i];
     if (a.once) this.answers.splice(i, 1);
     return a.pick;
@@ -300,6 +301,8 @@ export class Bot {
       }
       return this.gridPick(mi);
     }
+    // Multi battles: which foe a single-target move hits (default: the first one listed).
+    if (grid.key === 'target') return this.gridPick('move' in choice ? Math.min(choice.target ?? 0, grid.items.length - 1) : 0);
     // In the move menu but this turn is not a move: back out.
     await this.tap('B');
   }

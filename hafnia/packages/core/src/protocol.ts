@@ -9,7 +9,7 @@ export type Weather = 'rain' | 'sun' | 'sand' | 'snow' | 'none';
 // ---------- client -> server ----------
 export type CoilMode = 'copper' | 'current';
 export type BattleAction =
-  | { kind: 'move'; index: number; mode?: CoilMode }
+  | { kind: 'move'; index: number; mode?: CoilMode; target?: Slot }
   | { kind: 'switch'; uid: string }
   | { kind: 'item'; item: string; uid: string }
   | { kind: 'ball'; item: string }
@@ -30,20 +30,35 @@ export type Intent =
   | { t: 'save'; slot?: SaveSlot }
   | { t: 'slots' }
   | { t: 'autosave' }
-  | { t: 'debug'; cmd: DebugCommand; arg?: string | number };
+  | { t: 'debug'; cmd: DebugCommand; arg?: string | number }
+  | { t: 'dex' }
+  /** PC storage, only while a PC is open: deposit/withdraw/release a Pokémon by uid, or close it. */
+  | { t: 'pc'; op: 'deposit' | 'withdraw' | 'release' | 'close'; uid?: string };
 
 export type SaveSlot = 'auto' | 1 | 2 | 3;
 export interface SlotInfo { slot: SaveSlot; summary: string | null }
-export type DebugCommand = 'givePokemon' | 'heal' | 'levelUp' | 'items' | 'money' | 'unlockCoil' | 'encounters' | 'warp' | 'badge' | 'time' | 'hatchEggs' | 'layEgg';
+export type DebugCommand = 'givePokemon' | 'heal' | 'levelUp' | 'items' | 'money' | 'unlockCoil' | 'encounters' | 'warp' | 'badge' | 'time' | 'hatchEggs' | 'layEgg' | 'multiBattle';
 
 // ---------- server -> client ----------
-export interface MoveView { id: string; name: string; type: string; category: 'Physical' | 'Special' | 'Status'; power: number; pp: number; maxpp: number; disabled?: boolean }
+export interface MoveView {
+  id: string; name: string; type: string; category: 'Physical' | 'Special' | 'Status'; power: number; pp: number; maxpp: number; disabled?: boolean;
+  /** In a multi battle: the move hits one Pokémon the player picks. */
+  aim?: boolean;
+}
 export interface MonView {
   uid: string; species: string; key: string; name: string; types: string[]; level: number;
   hp: number; maxhp: number; status: StatusId; moves: MoveView[];
   exp: number; expLo: number; expHi: number; gender: '' | 'M' | 'F'; shiny: boolean;
   /** Present for eggs, which show no species, level or moves. */
   egg?: { hint: string };
+  /** The summary screen's details (not for eggs). */
+  info?: { nature: string; ability: string; abilityText: string; item?: string; ot?: string; ball?: string; stats: { atk: number; def: number; spa: number; spd: number; spe: number } };
+}
+/** One Pokédex line. Unseen species show only their number; caught ones show their entry. */
+export interface DexEntry {
+  n: number; species: string; seen: boolean; caught: boolean;
+  key?: string; name?: string; types?: string[];
+  category?: string; text?: string; height?: number; weight?: number;
 }
 export interface NpcView { id: string; sprite: string; x: number; y: number; dir: Dir; object?: boolean; floor?: boolean }
 export type Look = 'boy' | 'girl';
@@ -53,9 +68,12 @@ export interface WorldView {
   npcs: NpcView[]; party: MonView[]; bag: Record<string, number>; money: number;
   badges: number; debug?: boolean;
   look: Look; period: DayPeriod; clock: number;   // clock: minutes since midnight, in game time
+  dex: { seen: number; caught: number };
 }
 
 export type BattleSide = 'ally' | 'foe';
+/** Which of a side's two places in a multi battle: 0 is the player's (or the first trainer's), 1 the partner's (or the second trainer's). Absent means 0. */
+export type Slot = 0 | 1;
 export interface BattleMonView {
   uid?: string; species: string; key: string; name: string; level: number; hp: number; maxhp: number;
   status: StatusId; gender: '' | 'M' | 'F'; shiny: boolean; exp?: number; expLo?: number; expHi?: number;
@@ -63,15 +81,15 @@ export interface BattleMonView {
 export type BattleEvent =
   | { b: 'text'; text: string }
   | { b: 'trainerOut'; text: string; count: number }
-  | { b: 'switch'; side: BattleSide; mon: BattleMonView; text: string }
-  | { b: 'recall'; side: BattleSide; text: string }
+  | { b: 'switch'; side: BattleSide; slot?: Slot; mon: BattleMonView; text: string }
+  | { b: 'recall'; side: BattleSide; slot?: Slot; text: string }
   /** `id` picks the animation; `target` is the side the move aimed at (absent for field moves); `miss` and `still` trim it. */
-  | { b: 'move'; side: BattleSide; text: string; id: string; type: string; category: 'Physical' | 'Special' | 'Status'; target?: BattleSide; miss?: boolean; still?: boolean }
-  | { b: 'hp'; side: BattleSide; hp: number; maxhp: number; effect: 'super' | 'weak' | 'normal' | 'heal' | 'residual'; crit?: boolean; cause?: string }
-  | { b: 'boost'; side: BattleSide; up: boolean }
+  | { b: 'move'; side: BattleSide; slot?: Slot; text: string; id: string; type: string; category: 'Physical' | 'Special' | 'Status'; target?: BattleSide; targetSlot?: Slot; miss?: boolean; still?: boolean }
+  | { b: 'hp'; side: BattleSide; slot?: Slot; hp: number; maxhp: number; effect: 'super' | 'weak' | 'normal' | 'heal' | 'residual'; crit?: boolean; cause?: string }
+  | { b: 'boost'; side: BattleSide; slot?: Slot; up: boolean }
   | { b: 'weather'; weather: Weather; upkeep?: boolean }
-  | { b: 'status'; side: BattleSide; status: StatusId }
-  | { b: 'faint'; side: BattleSide; text: string }
+  | { b: 'status'; side: BattleSide; slot?: Slot; status: StatusId }
+  | { b: 'faint'; side: BattleSide; slot?: Slot; text: string }
   | { b: 'exp'; side: BattleSide; exp: number; expLo: number; expHi: number; level: number; hp: number; maxhp: number }
   | { b: 'throw'; shakes: number; caught: boolean }
   | { b: 'flee' }
@@ -93,6 +111,8 @@ export interface BattleRequest {
   bag: Record<string, number>;
   /** Present when the player's Coil is online. A string says why a mode can't be used now. */
   coil?: CoilView & { copper: string | null; current: string | null };
+  /** Multi battles: the opposing Pokémon a move with `aim` can target. */
+  targets?: { slot: Slot; name: string }[];
 }
 
 export interface BattleStart {
@@ -101,6 +121,8 @@ export interface BattleStart {
   bgm: string;
   trainer?: { name: string; title: string; sprite: string };
   foeCount: number;
+  /** Multi battles: the partner beside the player and the second opposing trainer. */
+  multi?: { partner: { name: string; sprite: string }; second: { name: string; title: string; sprite: string }; foeCount2: number };
   coil?: { ally?: CoilView; foe?: CoilView };
 }
 
@@ -132,6 +154,9 @@ export type ServerEvent =
   | { t: 'battleEnd'; result: BattleResult }
   | { t: 'chapterEnd'; title: string; subtitle: string }
   | { t: 'checkpoint' }
+  | { t: 'dex'; entries: DexEntry[] }
+  /** The PC is open (or changed): every boxed Pokémon, oldest first. */
+  | { t: 'pc'; box: MonView[] }
   | { t: 'error'; message: string };
 
 export type BattleResult = 'win' | 'lose' | 'run' | 'caught';

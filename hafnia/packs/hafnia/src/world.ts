@@ -1,4 +1,4 @@
-// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 2). Plain data,
+// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 3). Plain data,
 // so the client can import it for rendering without the scripts.
 // Outdoor tiles: '.' ground, '=' brick path, 'g' tall grass, 'f' flowers, 'T' trees, '~' sea, 'o' still water,
 //   'r' Den Røde Plads, 'k' Den Sorte Plads, 'q' cobbles, 'a' asphalt/concrete, 'l' bike lane, 'd' planks,
@@ -58,6 +58,7 @@ function norrebro(): MapData {
   dots(g, 'f', [[2, 3], [2, 4], [8, 3], [9, 3], [12, 3], [12, 4], [18, 4], [18, 5], [25, 3], [25, 4],
     [2, 10], [3, 10], [9, 11], [10, 11], [15, 10], [2, 18], [10, 18], [16, 18], [25, 18]]);
   fill(g, 24, 9, 2, 4, 'g');                  // courtyard planters
+  fill(g, 0, 8, 2, 1, '=');                   // Nørrebrogade runs on west to Den Grønne Sti (Ch3)
   return {
     id: 'norrebro', name: 'Nørrebro', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
     buildings: [
@@ -67,7 +68,7 @@ function norrebro(): MapData {
     encounters: [[30, 'pidgey'], [30, 'skwovet'], [20, 'rattata'], [15, 'nickit'], [5, 'toxel']],
     encountersNight: [[35, 'rattata'], [30, 'nickit'], [20, 'hoothoot'], [10, 'greavard'], [5, 'toxel']],
     levels: [6, 9],
-    exits: { down: { to: 'bridge', offset: -3 } }
+    exits: { down: { to: 'bridge', offset: -3 }, left: { to: 'route2', offset: -5 } }
   };
 }
 
@@ -209,7 +210,7 @@ function garden(): MapData {
   fill(g, 3, 13, 5, 4, 'o'); fill(g, 21, 13, 4, 4, 'o');
   dots(g, 'f', [[4, 3], [5, 3], [6, 3], [4, 4], [6, 4], [20, 3], [21, 3], [22, 3], [21, 4], [10, 14], [11, 14],
     [12, 15], [15, 15], [16, 14], [17, 14], [9, 17], [18, 17], [12, 17], [15, 17]]);
-  dots(g, 'T', [[2, 6], [3, 6]]);
+  dots(g, 'T', [[2, 5], [3, 5], [2, 6], [3, 6]]);   // a whole 2x2 tree, not a half-height stub
   fill(g, 2, 7, 4, 3, 'g'); fill(g, 21, 7, 4, 3, 'g');   // flower beds
   return {
     id: 'garden', name: 'Botanical Garden', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld',
@@ -491,11 +492,153 @@ function dragor(): MapData {
   };
 }
 
+// ---------- Chapter 3: Route 2, Vesterbro, Kødbyen, Cykelslangen, Islands Brygge ----------
+
+// Route 2: Den Grønne Sti, the sunken green bike highway from Nørrebro towards Vesterbro.
+function route2(): MapData {
+  const W = 30, H = 16, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 1, 'T'); fill(g, 0, 13, W, 3, 'T'); fill(g, 0, 0, 2, H, 'T'); fill(g, 28, 0, 2, H, 'T');
+  fill(g, 4, 3, 26, 1, 'l');                  // the bike path, in from Nørrebro on the right...
+  fill(g, 4, 3, 1, 13, 'l');                  // ...and down to Vesterbro
+  fill(g, 3, 13, 3, 3, '.'); fill(g, 4, 13, 1, 3, 'l');
+  fill(g, 2, 1, 7, 2, 'g'); fill(g, 20, 1, 6, 2, 'g'); fill(g, 11, 4, 4, 2, 'g'); fill(g, 16, 7, 3, 2, 'g');
+  fill(g, 15, 10, 4, 2, 'g'); fill(g, 7, 11, 3, 2, 'g'); fill(g, 2, 7, 2, 2, 'g');
+  fill(g, 7, 5, 2, 2, 'T'); fill(g, 19, 5, 2, 2, 'T'); fill(g, 9, 8, 5, 2, 'T'); fill(g, 21, 8, 4, 2, 'T');
+  fill(g, 22, 4, 4, 2, 'a');                  // under the Frederiksberg overpass
+  dots(g, 'f', [[10, 1], [13, 1], [16, 2], [11, 7], [25, 7], [23, 11], [12, 12]]);
+  return {
+    id: 'route2', name: 'Route 2: Den Grønne Sti', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld', buildings: [],
+    encounters: [[30, 'skwovet'], [25, 'nickit'], [20, 'combee'], [15, 'shroodle'], [10, 'flittle']],
+    encountersNight: [[35, 'nickit'], [25, 'hoothoot'], [20, 'shroodle'], [20, 'stunky']],
+    levels: [17, 20],
+    exits: { right: { to: 'norrebro', offset: 5 }, down: { to: 'vesterbro', offset: 9 } }
+  };
+}
+
+// Vesterbro: red-brick courtyards, the Hygge café and the Pokémon Center. Istedgade runs east to Cykelslangen.
+function vesterbro(): MapData {
+  const W = 28, H = 20, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 2, 'H'); fill(g, 0, 18, W, 2, 'H'); fill(g, 0, 0, 2, H, 'H'); fill(g, 26, 0, 2, H, 'H');
+  fill(g, 12, 0, 3, H, 'q');                  // Vesterbrogade, north to the Green Path and south to Kødbyen
+  fill(g, 2, 9, 26, 2, 'q');                  // Istedgade, east to the bridge
+  fill(g, 2, 15, 6, 3, 'H'); fill(g, 20, 15, 6, 3, 'H');
+  dots(g, 'f', [[3, 3], [3, 4], [10, 3], [16, 12], [16, 13], [23, 12], [3, 12], [9, 13]]);
+  fill(g, 22, 3, 3, 2, 'T');
+  return {
+    id: 'vesterbro', name: 'Vesterbro', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
+    buildings: [
+      { s: 'cafe', x: 4, y: 5, id: 'cafe' }, { s: 'orange', x: 8, y: 4 }, { s: 'pc', x: 16, y: 3, id: 'pc' },
+      { s: 'orange', x: 4, y: 12 }, { s: 'green', x: 17, y: 12 }
+    ],
+    exits: { up: { to: 'route2', offset: -9 }, right: { to: 'route3', offset: -5 }, down: { to: 'kodbyen', offset: 0 } }
+  };
+}
+
+const vbCafe = () => room('cafevb', 'Kaffebaren', [
+  'wwwwwwwwwww',
+  'wKKK___KKKw',
+  'w_________w',
+  'w_K_____K_w',
+  'w_________w',
+  'w____m____w',
+  'wwwwwwwwwww'
+], { to: 'vesterbro', x: 5, y: 8 });
+
+// Kødbyen, the white-tiled Meatpacking District: Kasper's food-bank kitchen, the locker row, the neon square and Gym 3.
+function kodbyen(): MapData {
+  const W = 28, H = 20, g = makeGrid(W, H, 'W');
+  fill(g, 0, 0, W, 2, 'H'); fill(g, 0, 18, W, 2, 'H'); fill(g, 0, 0, 2, H, 'H'); fill(g, 26, 0, 2, H, 'H');
+  fill(g, 12, 0, 3, 2, 'W');                  // the gateway from Vesterbro
+  fill(g, 14, 11, 10, 6, 'v');                // the neon square
+  fill(g, 2, 2, 8, 1, 'H');
+  return {
+    id: 'kodbyen', name: 'Kødbyen', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
+    buildings: [{ s: 'blue', x: 4, y: 4, id: 'kitchen' }, { s: 'gym', x: 18, y: 3, id: 'gym' }],
+    exits: { up: { to: 'vesterbro', offset: 0 } }
+  };
+}
+
+const kitchen = () => room('kitchen', 'Kasper\'s Kitchen', [
+  'wwwwwwwwwwwww',
+  'wKKKKK_KKKKKw',
+  'w___________w',
+  'w_KK_____KK_w',
+  'w___________w',
+  'w_KK_____KK_w',
+  'w_____m_____w',
+  'wwwwwwwwwwwww'
+], { to: 'kodbyen', x: 5, y: 7 });
+
+// Gym 3, the Kødbyen Cold Stores: sea ice over the locker floors. Slide to the three steam valves (in the walls)
+// and open them in menu order; the steam melts the ice block in the gap below Kasper.
+const gym3 = (): MapData => ({
+  ...room('gym3', 'Kødbyen Cold Stores', [
+    'wwwwwwwwwwwwwww',
+    'w_____________w',
+    'w_____________w',
+    'wwwwwww_wwwwwww',
+    'wiiiiiiiKiKiiiw',
+    'wiiKiiiiiiiiiiw',
+    'wiiiiiiiiiiiKiw',
+    'wiiiiiiKiiiiiiw',
+    'wKiiiiiiiiiiiiw',
+    'wiiiiiiiiKiiiiw',
+    'w_____________w',
+    'w______m______w',
+    'wwwwwwwwwwwwwww'
+  ], { to: 'kodbyen', x: 21, y: 8 }),
+  battleBg: 'indoor1'
+});
+
+// Route 3: Cykelslangen, the orange cycle snake over the harbour. A tailwind blows the whole way across.
+function route3(): MapData {
+  return {
+    id: 'route3', name: 'Route 3: Cykelslangen', ...grid([
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~yyyyyyy~~~~~~~~~',
+      '~~~~~~~~yyyyyyyyyy~~~~~~~~',
+      'yyyyyyyyyyy~~~~yyyyyyyyyyy',
+      'yyyyyyyyyy~~~~~~yyyyyyyyyy',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~'
+    ]),
+    battleBg: 'city', bgm: 'overworld', buildings: [],
+    fishing: [[50, 'tentacool'], [30, 'wingull'], [20, 'finizen']], fishLevels: [17, 21],
+    exits: { left: { to: 'vesterbro', offset: 5 }, right: { to: 'islandsbrygge', offset: 4 } }
+  };
+}
+
+// Islands Brygge: lawns, grain silos turned flats and the harbour bath. The south lawn runs out at the edge of
+// Kalvebod Wilds; past the reeds it's open water until the bike has Hydrofoils.
+function islandsbrygge(): MapData {
+  const W = 26, H = 22, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 2, 'H'); fill(g, 22, 0, 4, H, 'H'); fill(g, 0, 20, W, 2, '~');
+  fill(g, 0, 2, 2, 18, '~'); fill(g, 0, 8, 2, 2, 'y');              // the bridge lands on the west quay
+  fill(g, 2, 2, 1, 18, 'q');                                          // the quay
+  fill(g, 3, 3, 8, 6, 'o'); fill(g, 3, 3, 8, 1, 'd'); fill(g, 3, 8, 8, 1, 'd'); fill(g, 3, 3, 1, 6, 'd'); fill(g, 10, 3, 1, 6, 'd');
+  fill(g, 6, 5, 2, 2, 'd');                                            // the harbour bath's diving pier
+  fill(g, 14, 3, 6, 4, 'H');                                           // silo flats
+  fill(g, 2, 14, 20, 6, 'g'); fill(g, 6, 16, 3, 2, 'o'); fill(g, 15, 15, 2, 2, 'T');   // the Kalvebod edge: reeds and a pond
+  fill(g, 12, 9, 1, 11, '='); fill(g, 2, 9, 20, 1, '=');
+  dots(g, 'f', [[13, 11], [18, 11], [20, 8], [4, 11], [8, 12]]);
+  return {
+    id: 'islandsbrygge', name: 'Islands Brygge', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld', buildings: [],
+    encounters: [[25, 'wooloo'], [20, 'mudbray'], [20, 'wattrel'], [15, 'bramblin'], [10, 'ralts'], [10, 'starly']],
+    encountersNight: [[30, 'hoothoot'], [25, 'mudbray'], [20, 'ralts'], [15, 'stunky'], [10, 'bramblin']],
+    levels: [19, 22],
+    fishing: [[40, 'tentacool'], [30, 'finizen'], [30, 'shellos']], fishLevels: [18, 22],
+    exits: { left: { to: 'route3', offset: -4 } }
+  };
+}
+
 export const MAPS = {
   norrebro: norrebro(), flat: flat(), lukasflat: lukasFlat(), pcnorrebro: center('pcnorrebro', 'Pokémon Center', 'norrebro', 22, 8),
   gym1: gym1(), bridge: bridge(), route1: route1(), garden: garden(), palmhouse: palmhouse(), tunnels: tunnels(),
   indreby: indreby(), pcindreby: center('pcindreby', 'Pokémon Center', 'indreby', 5, 5), towerin: tower(),
   nyhavn: nyhavn(), cafein: cafe(), drydock: drydock(), route4: route4(), christianshavn: christianshavn(),
   pcchristianshavn: center('pcchristianshavn', 'Pokémon Center', 'christianshavn', 22, 11),
-  stadsgraven: stadsgraven(), gym2: gym2(), dragor: dragor()
+  stadsgraven: stadsgraven(), gym2: gym2(), dragor: dragor(),
+  route2: route2(), vesterbro: vesterbro(), cafevb: vbCafe(), pcvesterbro: center('pcvesterbro', 'Pokémon Center', 'vesterbro', 18, 8),
+  kodbyen: kodbyen(), kitchen: kitchen(), gym3: gym3(), route3: route3(), islandsbrygge: islandsbrygge()
 };

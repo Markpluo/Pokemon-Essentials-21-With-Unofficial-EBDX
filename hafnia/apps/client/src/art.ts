@@ -120,6 +120,38 @@ export function drawTile(g: G2, t: string, x: number, y: number, dx: number, dy:
       g.fillStyle = 'rgba(0,0,0,0.2)'; for (let i = 4; i < 32; i += 5) g.fillRect(dx + i, dy + 2, 1, 28);
       return true;
     }
+    case 'i': {
+      // Gym 3 sea ice: pale blue with a few scratches and a moving glint.
+      g.fillStyle = '#cfe8f5'; g.fillRect(dx, dy, 32, 32);
+      g.fillStyle = '#b5d8ec'; g.fillRect(dx, dy + 31, 32, 1); g.fillRect(dx + 31, dy, 1, 32);
+      g.fillStyle = '#e9f6fc'; const h = hash(x, y); g.fillRect(dx + h % 20, dy + (h >>> 5) % 24, 9, 1); g.fillRect(dx + (h >>> 3) % 24, dy + (h >>> 9) % 26, 5, 1);
+      if (((time >> 2) + x * 3 + y * 5) % 90 < 3) { g.fillStyle = '#fff'; g.fillRect(dx + 14, dy + 14, 4, 4); }
+      return true;
+    }
+    case 'W':
+      // Kødbyen's white-tiled yard.
+      g.fillStyle = '#e8e6df'; g.fillRect(dx, dy, 32, 32);
+      g.fillStyle = '#cfccc3'; g.fillRect(dx, dy + 15, 32, 1); g.fillRect(dx, dy + 31, 32, 1); g.fillRect(dx + 15, dy, 1, 32); g.fillRect(dx + 31, dy, 1, 32);
+      return true;
+    case 'v': {
+      // The neon square: dark paving with coloured light pooled on it.
+      g.fillStyle = '#3b3a48'; g.fillRect(dx, dy, 32, 32);
+      speckle(g, dx, dy, x, y, '#45445a', 5);
+      const c = ['rgba(255,80,170,0.22)', 'rgba(80,200,255,0.22)', 'rgba(255,211,107,0.18)'][hash(x, y) % 3];
+      g.fillStyle = c; g.beginPath(); g.arc(dx + 16, dy + 16, 12 + Math.sin(time / 20 + x) * 2, 0, 7); g.fill();
+      return true;
+    }
+    case 'y': {
+      // Cykelslangen's orange deck.
+      g.fillStyle = '#e07a2e'; g.fillRect(dx, dy, 32, 32);
+      g.fillStyle = '#c96a24'; g.fillRect(dx, dy + 30, 32, 2);
+      const up = tileAt(x, y - 1), down = tileAt(x, y + 1);
+      g.fillStyle = '#f7d9b8';
+      if (up !== 'y') g.fillRect(dx, dy, 32, 3);
+      if (down !== 'y') g.fillRect(dx, dy + 29, 32, 3);
+      if (x % 2 === 0 && up === 'y' && down === 'y') g.fillRect(dx + 6, dy + 15, 16, 2);
+      return true;
+    }
     case 'n':
       g.fillStyle = '#7a7e84'; g.fillRect(dx, dy, 32, 32);
       g.fillStyle = '#2f4a3a'; g.fillRect(dx + 13, dy, 6, 32);
@@ -196,6 +228,28 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
       g.fillStyle = '#58ad62'; g.beginPath(); g.arc(dx + 14, dy + 14, 8, 0, 7); g.fill();
       g.fillStyle = '#f2a6c4'; g.beginPath(); g.arc(dx + 20, dy + 10, 4, 0, 7); g.fill();
       break;
+    case 'locker':
+      box(3, 2, 26, 28, '#c9ccd2'); box(5, 4, 22, 24, '#dfe2e7'); box(15, 4, 2, 24, '#a9adb5');
+      for (let i = 0; i < 3; i++) { box(7, 7 + i * 3, 6, 1, '#8a8e96'); box(19, 7 + i * 3, 6, 1, '#8a8e96'); }
+      box(12, 17, 2, 4, '#565b66'); box(18, 17, 2, 4, '#565b66'); break;
+    case 'iceblock':
+      box(1, 2, 30, 28, '#9fd0ea'); box(3, 4, 26, 24, '#bfe3f5'); box(6, 7, 8, 3, '#eaf7fd'); box(18, 18, 6, 2, '#eaf7fd');
+      box(1, 28, 30, 2, '#7fb8d8'); break;
+    case 'bush': {
+      g.fillStyle = '#4f7f3a'; g.beginPath(); g.arc(dx + 16, dy + 18, 13, 0, 7); g.fill();
+      g.fillStyle = '#6a9a48'; g.beginPath(); g.arc(dx + 11, dy + 14, 7, 0, 7); g.arc(dx + 21, dy + 15, 6, 0, 7); g.fill();
+      g.fillStyle = '#f08a24'; for (const [bx, by] of [[9, 20], [14, 12], [20, 22], [23, 13], [16, 25], [11, 15]]) { g.beginPath(); g.arc(dx + bx, dy + by, 2, 0, 7); g.fill(); }
+      break;
+    }
+    case 'ladder': box(8, 0, 3, 32, '#c9ccd2'); box(21, 0, 3, 32, '#c9ccd2'); for (let i = 3; i < 32; i += 7) box(8, i, 16, 2, '#c9ccd2'); break;
+    case 'stove': {
+      box(2, 6, 28, 24, '#3b3f4a'); box(4, 8, 24, 6, '#565b66');
+      g.fillStyle = (time >> 3) % 2 ? '#ff8a5a' : '#ffb35a'; g.beginPath(); g.arc(dx + 10, dy + 11, 3, 0, 7); g.arc(dx + 22, dy + 11, 3, 0, 7); g.fill();
+      const puff = (time >> 3) % 6; g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.arc(dx + 16, dy + 3 - puff, 4 + puff, 0, 7); g.fill();
+      break;
+    }
+    case 'speaker': box(6, 4, 20, 26, '#26272c'); g.fillStyle = (time >> 3) % 2 ? '#ff50aa' : '#50c8ff';
+      g.beginPath(); g.arc(dx + 16, dy + 12, 5, 0, 7); g.arc(dx + 16, dy + 23, 4, 0, 7); g.fill(); break;
     default: box(8, 8, 16, 16, '#d0f');
   }
 }

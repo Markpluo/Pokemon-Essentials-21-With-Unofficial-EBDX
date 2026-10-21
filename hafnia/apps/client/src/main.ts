@@ -2,15 +2,15 @@
 // It holds no game rules. It sends intents to a game server (a Web Worker in solo play)
 // and plays back the events that come back.
 import type {
-  AnimPack, AnimTimeline, BattleAction, BattleEvent, BattleMonView, BattleRequest, BattleSide, BattleStart, CoilMode, CoilView, DebugCommand, Dir,
-  GameConnection, MapDef, MonView, MoveView, SaveSlot, ServerEvent, SlotInfo, Stamp, WorldView, Intent
+  AnimPack, AnimTimeline, Slot, BattleAction, BattleEvent, BattleMonView, BattleRequest, BattleSide, BattleStart, CoilMode, CoilView, DebugCommand, Dir,
+  DexEntry, GameConnection, MapDef, MonView, MoveView, SaveSlot, ServerEvent, SlotInfo, Stamp, WorldView, Intent
 } from '@hafnia/core';
 import { ITEMS } from '@hafnia/core/src/items';
 import hafniaManifest from '@hafnia/pack-hafnia/pack.json';
 import { MAPS as HAFNIA_MAPS, STAMPS as HAFNIA_STAMPS } from '@hafnia/pack-hafnia/world';
 import { drawBuildingArt, drawObject, drawTile } from './art';
 import { connectSolo } from './connection';
-import { AnimPlayer } from './anim';
+import { AnimPlayer, type Spot } from './anim';
 import { ANIM_TYPES, CRIT, HEAL, RESIDUAL, SEND_OUT, STATUS_ANIM, STAT_DOWN, STAT_UP, WEATHER_ANIM, animatedMoves, moveAnim, registerAnims, userPart } from './anim-data';
 import { Dex } from '@pkmn/sim';
 import hafniaAnims from '@hafnia/pack-hafnia/anims.json';
@@ -28,6 +28,8 @@ const ctx = canvas.getContext('2d')!;
 ctx.imageSmoothingEnabled = false;
 const FONT = '"Pixelify Sans", "Courier New", monospace';
 const ASSETS = 'game-assets';
+// A host with a file-count limit can ship assets inlined as { url: dataUri } in window.__hafniaAssets.
+const assetUrl = (url: string): string => (window as { __hafniaAssets?: Record<string, string> }).__hafniaAssets?.[url] ?? url;
 
 const TYPE_COLORS: Record<string, string> = {
   normal: '#a8a77a', fire: '#ee8130', water: '#6390f0', grass: '#7ac74c', flying: '#a98ff3', fairy: '#d685ad',
@@ -47,7 +49,7 @@ function image(key: string, url: string): Img {
   if (!im) {
     im = IMG[key] = new Image() as Img;
     im.onload = () => { if (/^pokemon\/(front|back)\//.test(key)) im.box = contentBox(im); };
-    im.src = url;
+    im.src = assetUrl(url);
   }
   return im;
 }
@@ -58,7 +60,8 @@ function preload(onProgress: (p: number) => void): Promise<void> {
   const list: Img[] = [];
   for (const [id, w] of Object.entries(WORLDS)) {
     for (const k of Object.keys(w.manifest.images)) list.push(packImg(k, id));
-    for (const sp of w.manifest.species) for (const kind of ['front', 'back', 'icons'] as const) list.push(monImg(kind, sp.toUpperCase()));
+    const keys: Record<string, string> = (w.manifest as { spriteKeys?: Record<string, string> }).spriteKeys ?? {};
+    for (const sp of w.manifest.species) for (const kind of ['front', 'back', 'icons'] as const) list.push(monImg(kind, keys[sp] ?? sp.toUpperCase()));
   }
   let done = 0;
   return Promise.all(list.map(im => new Promise<void>(res => {
@@ -82,8 +85,8 @@ function contentBox(im: HTMLImageElement) {
 }
 
 // ---------- audio ----------
-const audioUrl = (name: string) => name.startsWith('cries/')
-  ? `${ASSETS}/pokemon/${name}.ogg` : `${ASSETS}/${BASE_PACK}/audio/${name}.ogg`;
+const audioUrl = (name: string) => assetUrl(name.startsWith('cries/')
+  ? `${ASSETS}/pokemon/${name}.ogg` : `${ASSETS}/${BASE_PACK}/audio/${name}.ogg`);
 const Sound = {
   muted: false, bgmEl: null as HTMLAudioElement | null, bgmName: null as string | null, unlocked: false,
   vol: { bgm: 0.45, me: 0.6, se: 0.7 },
@@ -99,7 +102,7 @@ const Sound = {
     if (this.muted || !this.unlocked) return;
     const el = new Audio(audioUrl(name)); el.volume = vol ?? this.vol.se; el.play().catch(() => {});
   },
-  cry(key: string) { this.se('cries/' + key, 0.6); },
+  cry(key: string) { this.se('cries/' + key, 0.6 * this.vol.se / 0.7); },
   me(name: string): Promise<void> { // jingle: pause bgm, resolve when done (max 6s)
     return new Promise(res => {
       if (this.muted || !this.unlocked) { setTimeout(res, 600); return; }
@@ -174,7 +177,7 @@ const G = {
   npcs: new Map<string, Actor>(),
   ui: { text: null as null | { full: string; shown: number; w?: number }, choice: null as null | { options: string[]; idx: number; rect?: { x: number; y: number; w: number } },
     /** Which left/right or party picker is open, for the test bot (hafnia/bot). */
-    picker: null as null | { kind: 'species' | 'look' | 'party'; options: string[]; idx: number } }
+    picker: null as null | { kind: 'species' | 'look' | 'party' | 'summary' | 'dex' | 'box' | 'options'; options: string[]; idx: number } }
 };
 let conn: GameConnection;
 
@@ -196,13 +199,21 @@ async function send(intent: Intent) {
 
 /** Plays server events in order. Prompts and battle requests ask the player, send the answer and stop:
  *  the answer's own events (with a fresh view) supersede the rest of this batch. */
+let pcPending: MonView[] | null = null;
 async function play(evs: ServerEvent[]) {
+  await playEvents(evs);
+  // A PC was switched on: its screen runs once the script that opened it has finished.
+  if (pcPending) { const box = pcPending; pcPending = null; await pcScreen(box); }
+}
+async function playEvents(evs: ServerEvent[]) {
   for (const e of evs) {
     switch (e.t) {
       case 'view': applyView(e.view); break;
       case 'say': await say(e.text); break;
       case 'prompt': {
-        G.ui.text = { full: e.text, shown: e.text.length };
+        const ln = wrapText(e.text, VW - 16 - 44, 17), text = ln.slice(-3).join('\n');
+        if (ln.length > 3) await say(ln.slice(0, -3).join('\n')); // the question stays on screen with the options
+        G.ui.text = { full: text, shown: text.length };
         const i = await choose(e.options, e.cancel ?? -1);
         G.ui.text = null;
         return send({ t: 'answer', index: i });
@@ -238,7 +249,8 @@ async function play(evs: ServerEvent[]) {
       case 'evolve': await evolveScene(e); break;
       case 'hatch': await hatchScene(e); break;
       case 'error': console.error(e.message); await say(`Something went wrong: ${e.message}`); break;
-      case 'checkpoint': case 'title': break;
+      case 'pc': pcPending = e.box; break;
+      case 'dex': case 'checkpoint': case 'title': break;
     }
   }
 }
@@ -308,12 +320,15 @@ function wrapText(str: string, maxW: number, size: number) {
   return out;
 }
 async function say(str: string) {
+  // The box holds three lines: longer text continues on another page instead of being cut off.
+  const lines = wrapText(str, VW - 16 - 44, 17);
+  if (lines.length > 3) { for (let i = 0; i < lines.length; i += 3) await say(lines.slice(i, i + 3).join('\n')); return; }
   G.ui.text = { full: str, shown: 0 };
   for (;;) {
     await nextFrame();
     const t = G.ui.text!;
     if (t.shown < t.full.length) {
-      t.shown += 1.5;
+      t.shown += textSpeed();
       if (just('A') || just('B')) t.shown = t.full.length;
     } else if (just('A') || just('B')) { Sound.se('cursor', 0.4); break; }
   }
@@ -694,7 +709,7 @@ function drawChar(sprite: string, x: number, y: number, dir: Dir, frame: number,
 }
 function drawOverworld() {
   const { map: m, stamps } = mapOf(G.mapKey), [cx, cy] = camera();
-  ctx.fillStyle = '#2f6b3a'; ctx.fillRect(0, 0, VW, VH);
+  ctx.fillStyle = m.indoor ? '#0d1220' : '#2f6b3a'; ctx.fillRect(0, 0, VW, VH); // rooms smaller than the screen sit on black, not grass
   const x0 = Math.floor(cx / TILE) - 1, y0 = Math.floor(cy / TILE) - 1;
   for (let y = y0; y < y0 + 14; y++) for (let x = x0; x < x0 + 18; x++) {
     const t = tileAt(x, y); if (t === null) continue;
@@ -759,7 +774,7 @@ let turnDelay = 0;
 async function overworldTick() {
   const p = G.player;
   const menu = sticky.has('MENU'), a = sticky.has('A');
-  // A quick tap shorter than a frame still turns the player.
+  // A quick tap shorter than a frame still turns the player, or steps if already facing that way.
   const tapped = (['up', 'down', 'left', 'right'] as Dir[]).find(d => sticky.has(d));
   sticky.clear();
   if (menu) { await startMenu(); return; }
@@ -768,6 +783,7 @@ async function overworldTick() {
   if (!dir) {
     turnDelay = 0;
     if (tapped && tapped !== p.dir) { p.dir = tapped; conn.send({ t: 'turn', dir: tapped }); }
+    else if (tapped) await send({ t: 'step', dir: tapped });
     return;
   }
   if (p.dir !== dir && turnDelay === 0) { p.dir = dir; turnDelay = 5; conn.send({ t: 'turn', dir }); return; }
@@ -789,13 +805,14 @@ async function startMenu() {
   for (;;) {
     const w = G.world;
     const canBike = !!w?.bag.bike && !mapOf(G.mapKey).map.indoor;
-    const items = ['Pokémon', 'Bag', ...(canBike ? [G.biking ? 'Get off bike' : 'Ride bike'] : []), 'Save', ...(w?.debug ? ['Debug'] : []), 'Close'];
+    const items = [...(w?.dex.seen ? ['Pokédex'] : []), 'Pokémon', 'Bag', ...(canBike ? [G.biking ? 'Get off bike' : 'Ride bike'] : []), 'Save', 'Options', ...(w?.debug ? ['Debug'] : []), 'Close'];
     const ov = () => { if (w) { panel(8, 8, 200, 58); text(`${w.money} kr.`, 28, 34, 16, '#26324a'); text(`Badges: ${w.badges}`, 28, 54, 14, '#55617a'); } };
     G.overlays.push(ov);
     let c: number;
     try { c = await choose(items, items.length - 1, { x: VW - 168, y: 8, w: 160 }); } finally { G.overlays.pop(); }
     const pick = items[c];
     if (pick === 'Save') {
+      if (!w?.party.length) { await say('There is nothing to save yet.'); continue; } // don't offer slots that can't be used
       const r = await conn.send({ t: 'slots' });
       const slots = r.find(e => e.t === 'slots');
       if (!slots || slots.t !== 'slots') continue;
@@ -804,15 +821,14 @@ async function startMenu() {
       continue;
     }
     if (pick === 'Debug') { await debugMenu(); continue; }
+    if (pick === 'Options') { await optionsScreen(); continue; }
+    if (pick === 'Pokédex') { await dexScreen(); continue; }
     if (pick === 'Ride bike' || pick === 'Get off bike') { G.biking = !G.biking; Sound.se('select'); return; }
     if (pick === 'Close') return;
     if (pick === 'Pokémon') c = 0; else if (pick === 'Bag') c = 1;
     if (c === 0) {
       const i = await partyScreen('view', G.world?.party ?? []);
-      if (i > 0) {
-        const m = G.world!.party[i];
-        if (await ask(`Move ${m.name} to the front?`, ['Yes', 'No']) === 0) await send({ t: 'lead', uid: m.uid });
-      }
+      if (i > 0) await send({ t: 'lead', uid: G.world!.party[i].uid });
     } else if (c === 1) {
       const r = await bagMenu(G.world?.bag ?? {}, G.world?.party ?? [], false);
       if (r?.kind === 'item') await send({ t: 'useItem', item: r.item, uid: r.uid });
@@ -824,9 +840,9 @@ async function startMenu() {
 async function debugMenu() {
   const cmds: [string, DebugCommand, (string | number)?][] = [
     ['Give Lv. 10 Sprigatito', 'givePokemon', 'sprigatito'], ['Heal team', 'heal'], ['Lead +5 levels', 'levelUp', 5], ['Give items', 'items'], ['+10,000 kr.', 'money'],
-    ['Unlock Copper & Current', 'unlockCoil'], ['Toggle wild encounters', 'encounters'], ['Add a badge', 'badge'], ['Clock +6 hours', 'time'],
+    ['Unlock Copper & Current', 'unlockCoil'], ['Toggle wild encounters', 'encounters'], ['Add a badge', 'badge'], ['Clock +6 hours', 'time'], ['Try a multi battle', 'multiBattle'],
     ['Give Lv. 10 Ditto', 'givePokemon', 'ditto'], ['Vuggestuen: Egg now', 'layEgg'], ['Hatch Eggs now', 'hatchEggs'],
-    ...(['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven', 'dragor'] as const)
+    ...(['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven', 'dragor', 'route2', 'vesterbro', 'kodbyen', 'route3', 'islandsbrygge'] as const)
       .map(id => [`Warp: ${HAFNIA_MAPS[id].name}`, 'warp', `hafnia:${id}`] as [string, DebugCommand, string])
   ];
   const c = await choose([...cmds.map(x => x[0]), 'Animation viewer', 'Back'], cmds.length + 1, { x: 8, y: 8, w: 300 });
@@ -834,9 +850,10 @@ async function debugMenu() {
   else if (c < cmds.length) await send({ t: 'debug', cmd: cmds[c][1], ...(cmds[c][2] !== undefined ? { arg: cmds[c][2] } : {}) });
 }
 
-async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced', party: MonView[]): Promise<number> {
+/** The team list. In 'view' mode A opens a small menu (summary, move to front); it returns the index to move to the front. */
+async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced' | 'deposit', party: MonView[]): Promise<number> {
   let idx = 0;
-  const title = mode === 'item' ? 'Use on which Pokémon?' : mode === 'view' ? 'Your team' : 'Choose a Pokémon';
+  const title = mode === 'item' ? 'Use on which Pokémon?' : mode === 'view' ? 'Your team' : mode === 'deposit' ? 'Deposit which Pokémon?' : 'Choose a Pokémon';
   const ov = () => {
     ctx.fillStyle = '#20406e'; ctx.fillRect(0, 0, VW, VH);
     text(title, 20, 32, 20, '#fbf7ee');
@@ -865,8 +882,13 @@ async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced', party: M
       if (k === 'down') { idx = (idx + 1) % party.length; Sound.se('cursor'); }
       if (k === 'A') {
         Sound.se('select');
-        if (mode === 'view' && party[idx].egg) { await say(party[idx].egg!.hint); if (idx === 0) continue; }
-        else if (mode === 'view' && idx === 0) { await say(`${party[0].name} leads your team.`); continue; }
+        if (mode === 'view') {
+          const opts = ['Summary', ...(idx > 0 ? ['Move to front'] : []), 'Back'];
+          const c = opts[await choose(opts, opts.length - 1, { x: VW - 200, y: VH - 140, w: 190 })];
+          if (c === 'Summary') await summaryScreen(party, idx);
+          if (c === 'Move to front') return idx;
+          continue;
+        }
         if (mode === 'item' && party[idx].egg) { await say('That can\'t be used on an Egg.'); continue; }
         if (mode === 'forced' && party[idx].hp <= 0) { await say(`${party[idx].name} has no energy left to battle!`); continue; }
         return idx;
@@ -895,24 +917,316 @@ async function bagMenu(bag: Record<string, number>, party: MonView[], inBattle: 
   return i < 0 ? null : { kind: 'item', item, uid: party[i].uid };
 }
 
+// ---------- options (per browser) ----------
+const TEXT_SPEEDS: [string, number][] = [['Slow', 0.75], ['Normal', 1.5], ['Fast', 3], ['Instant', 999]];
+const OPTIONS = { text: 1, music: 7, sound: 7 };
+try { Object.assign(OPTIONS, JSON.parse(localStorage.getItem('hafnia.options') ?? '{}')); } catch { /* storage blocked */ }
+const textSpeed = () => TEXT_SPEEDS[OPTIONS.text]?.[1] ?? 1.5;
+function applyOptions() {
+  Sound.vol = { bgm: 0.45 * OPTIONS.music / 7, me: 0.6 * OPTIONS.music / 7, se: 0.7 * OPTIONS.sound / 7 };
+  if (Sound.bgmEl) Sound.bgmEl.volume = Math.min(1, Sound.vol.bgm);
+  try { localStorage.setItem('hafnia.options', JSON.stringify(OPTIONS)); } catch { /* storage blocked */ }
+}
+applyOptions();
+
+async function optionsScreen() {
+  const ANIMS: AnimMode[] = ['on', 'fast', 'off'];
+  const rows: { label: string; value: () => string; change: (d: number) => void }[] = [
+    { label: 'Text speed', value: () => TEXT_SPEEDS[OPTIONS.text][0], change: d => { OPTIONS.text = (OPTIONS.text + d + TEXT_SPEEDS.length) % TEXT_SPEEDS.length; } },
+    { label: 'Battle animations', value: () => ({ on: 'On', fast: 'Fast', off: 'Off' })[animMode], change: d => {
+      animMode = ANIMS[(ANIMS.indexOf(animMode) + d + ANIMS.length) % ANIMS.length];
+      try { localStorage.setItem('hafnia.anim', animMode); } catch { /* storage blocked */ }
+      applyAnimMode();
+    } },
+    { label: 'Music', value: () => '▮'.repeat(OPTIONS.music) + '▯'.repeat(10 - OPTIONS.music), change: d => { OPTIONS.music = Math.max(0, Math.min(10, OPTIONS.music + d)); } },
+    { label: 'Sound effects', value: () => '▮'.repeat(OPTIONS.sound) + '▯'.repeat(10 - OPTIONS.sound), change: d => { OPTIONS.sound = Math.max(0, Math.min(10, OPTIONS.sound + d)); } }
+  ];
+  let idx = 0;
+  const ov = () => {
+    ctx.fillStyle = '#20406e'; ctx.fillRect(0, 0, VW, VH);
+    text('Options', 20, 34, 22, '#fbf7ee');
+    rows.forEach((r, i) => {
+      const y = 56 + i * 52, sel = i === idx;
+      ctx.fillStyle = sel ? '#ffe9a8' : '#fbf7ee'; roundRect(16, y, VW - 32, 44, 8); ctx.fill();
+      text(r.label, 34, y + 28, 17, '#26324a');
+      text(`◀  ${r.value()}  ▶`, VW - 34, y + 28, 16, sel ? '#d9473a' : '#55617a', 'right');
+    });
+    text('Saved in this browser. The Sound button above the game mutes everything.', 20, VH - 40, 13, '#c6d3ef');
+    text('◀▶ change   B: back', VW - 20, VH - 12, 13, '#c6d3ef', 'right');
+  };
+  G.overlays.push(ov);
+  try {
+    for (;;) {
+      G.ui.picker = { kind: 'options', options: rows.map(r => r.label), idx };
+      const k = await waitKey('up', 'down', 'left', 'right', 'A', 'B');
+      if (k === 'B') { Sound.se('select'); return; }
+      if (k === 'up' || k === 'down') { idx = (idx + (k === 'up' ? rows.length - 1 : 1)) % rows.length; Sound.se('cursor'); continue; }
+      rows[idx].change(k === 'left' ? -1 : 1);
+      applyOptions(); Sound.se('cursor');
+    }
+  } finally { G.overlays.pop(); G.ui.picker = null; }
+}
+
+// ---------- summary ----------
+const STAT_LABELS: [keyof NonNullable<MonView['info']>['stats'], string][] = [['atk', 'Attack'], ['def', 'Defense'], ['spa', 'Sp. Atk'], ['spd', 'Sp. Def'], ['spe', 'Speed']];
+function drawWrapped(str: string, x: number, y: number, w: number, size: number, color: string, lineH = size + 5, maxLines = 6) {
+  wrapText(str, w, size).slice(0, maxLines).forEach((ln, i) => text(ln, x, y + i * lineH, size, color));
+}
+/** The left card shared by the summary and Pokédex: sprite, name, types. */
+function monCard(key: string | undefined, name: string, sub: string, types: string[], egg = false) {
+  ctx.fillStyle = '#fbf7ee'; roundRect(16, 46, 190, 300, 10); ctx.fill();
+  ctx.fillStyle = '#dfe7f5'; roundRect(26, 56, 170, 170, 8); ctx.fill();
+  if (egg) { const ic = monImg('icons', 'EGG'); if (ic.complete && ic.naturalWidth) ctx.drawImage(ic, 0, 0, 64, 64, 47, 77, 128, 128); }
+  else if (key) drawMonSprite(key, 'front', 111, 216, 1, true);
+  else text('?', 111, 162, 72, '#9fb3d9', 'center');
+  text(name, 111, 254, 19, '#26324a', 'center');
+  text(sub, 111, 276, 14, '#55617a', 'center');
+  types.forEach((t, i, a) => typeChip(t, 111 - a.length * 32 + i * 64 + 2, 290));
+}
+
+async function summaryScreen(list: MonView[], start: number) {
+  let idx = start, page = 0;
+  const PAGES = ['Info', 'Stats', 'Moves'];
+  const row = (label: string, value: string, y: number) => { text(label, 232, y, 14, '#55617a'); text(value, VW - 34, y, 15, '#26324a', 'right'); };
+  const ov = () => {
+    const m = list[idx], info = m.info;
+    ctx.fillStyle = '#20406e'; ctx.fillRect(0, 0, VW, VH);
+    PAGES.forEach((p, i) => {
+      if (m.egg && i > 0) return;
+      ctx.fillStyle = i === page ? '#ffd36b' : '#16305a'; roundRect(216 + i * 94, 10, 88, 28, 8); ctx.fill();
+      text(p, 260 + i * 94, 30, 15, i === page ? '#26324a' : '#c6d3ef', 'center');
+    });
+    text(`${idx + 1}/${list.length}`, 24, 31, 15, '#c6d3ef');
+    const g = m.gender === 'M' ? ' ♂' : m.gender === 'F' ? ' ♀' : '';
+    monCard(m.egg ? undefined : m.key, m.egg ? 'Egg' : m.name + g, m.egg ? '' : `Lv ${m.level}${m.shiny ? '  ★' : ''}`, m.egg ? [] : m.types, !!m.egg);
+    ctx.fillStyle = '#fbf7ee'; roundRect(216, 46, VW - 232, 300, 10); ctx.fill();
+    if (m.egg) { drawWrapped(m.egg.hint, 232, 80, VW - 270, 15, '#26324a'); }
+    else if (page === 0) {
+      row('Nature', info?.nature ?? '-', 76);
+      row('Ability', info?.ability ?? '-', 104);
+      drawWrapped(info?.abilityText ?? '', 232, 126, VW - 270, 12, '#55617a', 16, 3);
+      row('Held item', info?.item ?? 'None', 190);
+      row('Trainer', info?.ot ?? '-', 218);
+      row('Ball', info?.ball ?? 'Poké Ball', 246);
+      row('EXP. points', String(m.exp), 274);
+      row('To next level', m.level >= 100 ? '-' : String(Math.max(0, m.expHi - m.exp)), 302);
+      ctx.fillStyle = '#c9d2e3'; ctx.fillRect(232, 318, VW - 266, 6);
+      ctx.fillStyle = '#4aa3df'; ctx.fillRect(232, 318, (VW - 266) * Math.max(0, Math.min(1, (m.exp - m.expLo) / Math.max(1, m.expHi - m.expLo))), 6);
+    } else if (page === 1) {
+      text('HP', 232, 80, 15, '#26324a'); text(`${m.hp}/${m.maxhp}`, VW - 34, 80, 15, '#26324a', 'right');
+      hpBar(232, 88, VW - 266, m.hp, m.maxhp);
+      if (m.status) statusChip(m.status, 300, 68);
+      STAT_LABELS.forEach(([k, label], i) => {
+        const y = 134 + i * 40, v = info?.stats[k] ?? 0;
+        text(label, 232, y, 15, '#26324a'); text(String(v), VW - 34, y, 15, '#26324a', 'right');
+        ctx.fillStyle = '#dfe7f5'; roundRect(232, y + 8, VW - 266, 8, 4); ctx.fill();
+        ctx.fillStyle = '#c8743a'; roundRect(232, y + 8, Math.max(4, (VW - 266) * Math.min(1, v / Math.max(60, m.level * 3))), 8, 4); ctx.fill();
+      });
+    } else {
+      m.moves.forEach((mv, i) => {
+        const y = 58 + i * 70;
+        ctx.fillStyle = '#eef2fa'; roundRect(226, y, VW - 252, 62, 8); ctx.fill();
+        typeChip(mv.type, 236, y + 8);
+        text(mv.name, 306, y + 23, 17, '#26324a');
+        text(mv.category, 236, y + 48, 13, '#55617a');
+        text(mv.power ? `Power ${mv.power}` : 'No damage', 320, y + 48, 13, '#55617a');
+        text(`PP ${mv.pp}/${mv.maxpp}`, VW - 36, y + 48, 13, mv.pp ? '#26324a' : '#d9473a', 'right');
+      });
+    }
+    text(m.egg ? '▲▼ Pokémon   B: back' : '◀▶ page   ▲▼ Pokémon   B: back', VW - 20, VH - 12, 13, '#c6d3ef', 'right');
+  };
+  G.overlays.push(ov);
+  try {
+    for (;;) {
+      G.ui.picker = { kind: 'summary', options: list.map(m => m.name), idx };
+      const k = await waitKey('up', 'down', 'left', 'right', 'A', 'B');
+      if (k === 'B') return;
+      const pages = list[idx].egg ? 1 : PAGES.length;
+      if (k === 'left' || k === 'right' || k === 'A') { page = (page + (k === 'left' ? pages - 1 : 1)) % pages; Sound.se('cursor'); continue; }
+      idx = (idx + (k === 'up' ? list.length - 1 : 1)) % list.length;
+      if (list[idx].egg) page = 0; else Sound.cry(list[idx].key);
+    }
+  } finally { G.overlays.pop(); G.ui.picker = null; }
+}
+
+// ---------- Pokédex ----------
+async function dexScreen() {
+  const r = await conn.send({ t: 'dex' });
+  const d = r.find(e => e.t === 'dex');
+  if (!d || d.t !== 'dex') return;
+  const entries = d.entries, ROWS = 9;
+  const seen = entries.filter(e => e.seen).length, caught = entries.filter(e => e.caught).length;
+  let idx = 0;
+  const num = (n: number) => String(n).padStart(3, '0');
+  const ov = () => {
+    ctx.fillStyle = '#9a2f2a'; ctx.fillRect(0, 0, VW, VH);
+    text('Hafnia Pokédex', 20, 31, 20, '#fbf7ee');
+    text(`Seen ${seen}   Caught ${caught}   of ${entries.length}`, VW - 20, 31, 14, '#ffd9cf', 'right');
+    const e = entries[idx];
+    monCard(e.seen ? e.key : undefined, e.seen ? e.name! : '?????', `No. ${num(e.n)}`, e.types ?? []);
+    const first = Math.max(0, Math.min(idx - Math.floor(ROWS / 2), entries.length - ROWS));
+    ctx.fillStyle = '#fbf7ee'; roundRect(216, 46, VW - 232, 300, 10); ctx.fill();
+    for (let rI = 0; rI < Math.min(ROWS, entries.length); rI++) {
+      const i = first + rI, x = entries[i], y = 54 + rI * 32;
+      if (i === idx) { ctx.fillStyle = '#ffe9a8'; roundRect(222, y, VW - 244, 30, 6); ctx.fill(); }
+      if (x.caught) { ctx.fillStyle = '#d9473a'; ctx.beginPath(); ctx.arc(238, y + 15, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fbf7ee'; ctx.fillRect(232, y + 14, 12, 2); }
+      text(num(x.n), 252, y + 21, 15, '#55617a');
+      text(x.seen ? x.name! : '----------', 296, y + 21, 16, x.seen ? '#26324a' : '#9aa5bb');
+    }
+    text('▲▼ move   ◀▶ page   A: entry   B: back', VW - 20, VH - 12, 13, '#ffd9cf', 'right');
+  };
+  G.overlays.push(ov);
+  try {
+    for (;;) {
+      G.ui.picker = { kind: 'dex', options: entries.map(e => e.name ?? '?'), idx };
+      const k = await waitKey('up', 'down', 'left', 'right', 'A', 'B');
+      if (k === 'B') return;
+      const step = k === 'up' ? -1 : k === 'down' ? 1 : k === 'left' ? -ROWS : k === 'right' ? ROWS : 0;
+      if (step) { idx = Math.max(0, Math.min(entries.length - 1, idx + step)); Sound.se('cursor'); continue; }
+      const e = entries[idx];
+      if (!e.seen) { Sound.se('cursor'); continue; }
+      Sound.se('select'); Sound.cry(e.key!);
+      await dexEntryScreen(e);
+    }
+  } finally { G.overlays.pop(); G.ui.picker = null; }
+}
+
+async function dexEntryScreen(e: DexEntry) {
+  const ov = () => {
+    ctx.fillStyle = '#9a2f2a'; ctx.fillRect(0, 0, VW, VH);
+    text(`No. ${String(e.n).padStart(3, '0')}  ${e.name}`, 20, 31, 20, '#fbf7ee');
+    monCard(e.key, e.name!, e.caught ? e.category ?? '' : 'Seen', e.types ?? []);
+    ctx.fillStyle = '#fbf7ee'; roundRect(216, 46, VW - 232, 300, 10); ctx.fill();
+    if (!e.caught) { drawWrapped(`Catch ${e.name} to fill in its entry.`, 232, 80, VW - 270, 15, '#55617a'); return; }
+    text('Height', 232, 78, 14, '#55617a'); text(`${e.height} m`, 330, 78, 15, '#26324a');
+    text('Weight', 232, 102, 14, '#55617a'); text(`${e.weight} kg`, 330, 102, 15, '#26324a');
+    drawWrapped(e.text || 'No entry yet.', 232, 140, VW - 270, 15, '#26324a', 22, 8);
+    text('B: back', VW - 20, VH - 12, 13, '#ffd9cf', 'right');
+  };
+  G.overlays.push(ov);
+  try { await waitKey('A', 'B'); } finally { G.overlays.pop(); }
+}
+
+// ---------- PC storage ----------
+const BOX_COLS = 6, BOX_SIZE = 30;
+async function pcScreen(initial: MonView[]) {
+  let box = initial;
+  const pcSend = async (intent: Intent) => {
+    for (const e of await conn.send(intent)) {
+      if (e.t === 'pc') box = e.box;
+      else if (e.t === 'view') applyView(e.view);
+      else if (e.t === 'say') await say(e.text);
+    }
+  };
+  try {
+    for (;;) {
+      G.ui.text = { full: `${box.length} Pokémon in storage. What would you like to do?`, shown: 999 };
+      const c = await choose(['Open boxes', 'Deposit', 'Log off'], 2);
+      G.ui.text = null;
+      if (c === 2) break;
+      if (c === 1) {
+        for (;;) {
+          const party = G.world?.party ?? [];
+          const i = await partyScreen('deposit', party);
+          if (i < 0) break;
+          await pcSend({ t: 'pc', op: 'deposit', uid: party[i].uid });
+        }
+        continue;
+      }
+      let idx = 0;
+      for (;;) {
+        if (!box.length) { await say('The boxes are empty.'); break; }
+        idx = Math.min(idx, box.length - 1);
+        idx = await boxScreen(box, idx);
+        if (idx < 0) break;
+        const m = box[idx];
+        G.ui.text = { full: `${m.egg ? 'The Egg' : m.name} is selected.`, shown: 999 };
+        const opts = ['Withdraw', 'Summary', 'Release', 'Back'];
+        const o = await choose(opts, 3);
+        G.ui.text = null;
+        if (o === 0) await pcSend({ t: 'pc', op: 'withdraw', uid: m.uid });
+        else if (o === 1) await summaryScreen(box, idx);
+        else if (o === 2 && await ask(`Release ${m.name}? You won't see it again.`, ['Release', 'Keep']) === 0) await pcSend({ t: 'pc', op: 'release', uid: m.uid });
+      }
+    }
+  } finally {
+    G.ui.text = null;
+    Sound.se('pc_close');
+    await pcSend({ t: 'pc', op: 'close' });
+  }
+}
+
+/** The box grid: 30 Pokémon to a box, the cursor runs over all of them. Returns the index, or -1. */
+async function boxScreen(box: MonView[], start: number): Promise<number> {
+  let idx = start;
+  const ov = () => {
+    const page = Math.floor(idx / BOX_SIZE), pages = Math.max(1, Math.ceil(box.length / BOX_SIZE));
+    ctx.fillStyle = '#2d5a4a'; ctx.fillRect(0, 0, VW, VH);
+    text(`${pages > 1 ? '◀  ' : ''}Box ${page + 1}${pages > 1 ? '  ▶' : ''}`, VW / 2, 32, 20, '#fbf7ee', 'center');
+    text(`${box.length} stored`, VW - 20, 32, 13, '#cfe8dc', 'right');
+    ctx.fillStyle = '#e8f1ea'; roundRect(16, 46, VW - 32, 272, 10); ctx.fill();
+    for (let i = 0; i < BOX_SIZE; i++) {
+      const m = box[page * BOX_SIZE + i], cx = 24 + (i % BOX_COLS) * 78, cy = 52 + Math.floor(i / BOX_COLS) * 53;
+      if (page * BOX_SIZE + i === idx) { ctx.fillStyle = '#ffe9a8'; roundRect(cx, cy, 74, 50, 8); ctx.fill(); }
+      if (!m) continue;
+      const ic = monImg('icons', m.egg ? 'EGG' : m.key);
+      if (ic.complete && ic.naturalWidth) ctx.drawImage(ic, page * BOX_SIZE + i === idx ? (Math.floor(G.t / 15) % 2) * 64 : 0, 0, 64, 64, cx + 13, cy - 4, 52, 52);
+    }
+    const m = box[idx];
+    if (m) {
+      ctx.fillStyle = '#fbf7ee'; roundRect(16, 326, VW - 32, 34, 8); ctx.fill();
+      text(m.egg ? 'Egg' : `${m.name}  Lv ${m.level}`, 32, 349, 16, '#26324a');
+      if (!m.egg) m.types.forEach((t, i) => typeChip(t, VW - 160 + i * 66, 334));
+    }
+    text('A: select   B: back', VW - 20, VH - 8, 13, '#cfe8dc', 'right');
+  };
+  G.overlays.push(ov);
+  try {
+    for (;;) {
+      G.ui.picker = { kind: 'box', options: box.map(m => m.name), idx };
+      const k = await waitKey('up', 'down', 'left', 'right', 'A', 'B');
+      if (k === 'B') return -1;
+      if (k === 'A') { Sound.se('select'); return idx; }
+      const step = { up: -BOX_COLS, down: BOX_COLS, left: -1, right: 1 }[k as Dir];
+      const next = idx + step;
+      if (next >= 0 && next < box.length) { idx = next; Sound.se('cursor'); }
+    }
+  } finally { G.overlays.pop(); G.ui.picker = null; }
+}
+
 // ---------- battle ----------
+/** One place on the field: who stands there, the HP the bar shows, and sprite effects. */
+interface SpotState { mon: BattleMonView | null; hp: number; shown: boolean; fx: SpriteFx }
 interface BattleState {
   start: BattleStart; intro: number;
-  foe: BattleMonView | null; ally: BattleMonView | null; foeHp: number; allyHp: number;
-  foeShown: boolean; allyShown: boolean; trainerShown: boolean; trainerOffset: number; playerBackShown: boolean; playerOffset: number;
-  foeFx: SpriteFx; allyFx: SpriteFx;
-  ballFx: { x: number; y: number; dy?: number } | null; grid: GridState | null; lastIdx: Record<string, number>; foeLeft: number;
+  /** ally and foe; in a multi battle also ally2 (the partner) and foe2 (the second trainer). */
+  spots: Record<Spot, SpotState>;
+  trainerShown: boolean; trainerOffset: number; playerBackShown: boolean; playerOffset: number;
+  ballFx: { x: number; y: number; dy?: number } | null; grid: GridState | null; lastIdx: Record<string, number>; foeLeft: number; foeLeft2: number;
   savedBgm: string | null;
   coil: { ally?: CoilView; foe?: CoilView }; patina: Set<string>; overcharged: Set<string>; arc: { side: BattleSide; t: number } | null;
   request: BattleRequest | null;
 }
 interface GridState { x: number; y: number; w: number; h: number; items: { label: string; type?: string; sub?: string; dim?: boolean; on?: string }[]; cols: number; idx: number; key: string }
 let B: BattleState | null = null;
+const SPOTS: Spot[] = ['foe2', 'foe', 'ally2', 'ally']; // back to front, the order they are drawn in
+const spotOf = (side: BattleSide, slot?: number): Spot => (slot ? `${side}2` as Spot : side);
+const sideOfSpot = (s: Spot): BattleSide => (s.startsWith('ally') ? 'ally' : 'foe');
+const emptySpot = (): SpotState => ({ mon: null, hp: 0, shown: false, fx: {} });
 
 // ---------- battle animations ----------
-// Where each side's Pokémon stands: the middle of the sprite's body. Doubles will key this by slot.
-const CENTER: Record<BattleSide, { x: number; y: number }> = { foe: { x: 384, y: 128 }, ally: { x: 128, y: 224 } };
-const anim = new AnimPlayer({ nextFrame, centerOf: side => ({ ...CENTER[side] }), sfx: (n, v) => Sound.se(n, v), font: FONT });
+// Where each Pokémon stands: `foot` is where the sprite stands and `center` the middle of its body.
+// Multi battles squeeze two Pokémon onto each base.
+const LAYOUT: Record<'single' | 'multi', Partial<Record<Spot, { x: number; foot: number; scale: number }>>> = {
+  single: { foe: { x: 384, foot: 180, scale: 1 }, ally: { x: 128, foot: 286, scale: 1 } },
+  multi: {
+    foe: { x: 336, foot: 182, scale: 0.85 }, foe2: { x: 446, foot: 170, scale: 0.8 },
+    ally: { x: 104, foot: 290, scale: 0.9 }, ally2: { x: 232, foot: 280, scale: 0.85 }
+  }
+};
+const place = (s: Spot) => LAYOUT[B?.start.multi ? 'multi' : 'single'][s] ?? LAYOUT.single[sideOfSpot(s)]!;
+const centerOf = (s: Spot) => { const p = place(s); return { x: p.x, y: p.foot - (s.startsWith('foe') ? 52 : 62) * p.scale }; };
+const anim = new AnimPlayer({ nextFrame, centerOf, sfx: (n, v) => Sound.se(n, v), font: FONT });
 type AnimMode = 'on' | 'fast' | 'off';
 const ANIM_LABEL: Record<AnimMode, string> = { on: 'Animations on', fast: 'Animations fast', off: 'Animations off' };
 let animMode: AnimMode = 'on';
@@ -932,7 +1246,9 @@ document.getElementById('anim')?.addEventListener('click', () => {
 });
 applyAnimMode();
 const other = (s: BattleSide): BattleSide => (s === 'ally' ? 'foe' : 'ally');
-async function playAnim(tl: AnimTimeline, user: BattleSide, target = user) {
+/** The Pokémon facing a spot: the opposing side's first place. */
+const opp = (s: Spot): Spot => other(sideOfSpot(s));
+async function playAnim(tl: AnimTimeline, user: Spot, target = user) {
   if (animMode === 'off' || !B) return;
   await anim.play(tl, { user, target });
 }
@@ -942,7 +1258,7 @@ async function showText(str: string) {
   while (G.ui.text && G.ui.text.shown < str.length) {
     await nextFrame();
     if (!G.ui.text) break;
-    G.ui.text.shown += 1.5;
+    G.ui.text.shown += textSpeed();
     if (just('A') || just('B')) G.ui.text.shown = str.length;
   }
 }
@@ -996,9 +1312,9 @@ function drawArc(side: BattleSide, t: number) {
   ctx.globalAlpha = 0.25 * (1 - t / 30); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, VW, 288);
   ctx.globalAlpha = 1;
 }
-function sideFx(side: BattleSide): SpriteFx {
-  const b = B!, mon = side === 'foe' ? b.foe : b.ally, fx = side === 'foe' ? b.foeFx : b.allyFx;
-  const m = anim.modFor(side);
+function spotFx(s: Spot): SpriteFx {
+  const b = B!, { mon, fx } = b.spots[s];
+  const m = anim.modFor(s);
   const out: SpriteFx = {
     ...fx, dx: (fx.dx ?? 0) + m.dx, dy: (fx.dy ?? 0) + m.dy, alpha: m.alpha, sx: m.sx, sy: m.sy,
     ...(mon?.uid && b.patina.has(mon.uid) ? { tint: PATINA } : {}), ...(mon?.uid && b.overcharged.has(mon.uid) ? { glitch: 1 } : {})
@@ -1006,8 +1322,17 @@ function sideFx(side: BattleSide): SpriteFx {
   if (m.tint) { out.tint = m.tint; out.tintA = m.tintA; } // a move's flash shows over the patina
   return out;
 }
+/** A trainer's team, one ball per Pokémon, dimmed once fainted. */
+function teamBalls(count: number, left: number, x: number, y: number) {
+  ctx.fillStyle = 'rgba(29,43,69,0.85)'; roundRect(x, y, count * 26 + 14, 34, 10); ctx.fill();
+  for (let i = 0; i < count; i++) {
+    ctx.globalAlpha = i < left ? 1 : 0.35;
+    ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, x + 5 + i * 26, y + 1, 32, 32);
+    ctx.globalAlpha = 1;
+  }
+}
 function drawBattle() {
-  const b = B!, bg = b.start.bg;
+  const b = B!, bg = b.start.bg, multi = b.start.multi;
   ctx.save();
   if (anim.quake.x || anim.quake.y) { ctx.translate(Math.round(anim.quake.x), Math.round(anim.quake.y)); ctx.drawImage(packImg(`bb/${bg}_bg`), -8, -8, 528, 304); }
   ctx.drawImage(packImg(`bb/${bg}_bg`), 0, 0, 512, 288);
@@ -1015,30 +1340,42 @@ function drawBattle() {
   ctx.drawImage(packImg(`bb/${bg}_base1`), 256 + slide, 92);
   ctx.drawImage(packImg(`bb/${bg}_base0`), -128 - slide, 240);
   if (b.trainerShown && b.start.trainer) {
-    const ti = packImg(b.start.trainer.sprite);
-    if (ti.naturalWidth) ctx.drawImage(ti, 0, 0, ti.width, ti.height, 384 - 64 + slide + b.trainerOffset, 70, 128, 128);
+    const trainers = multi ? [[b.start.trainer.sprite, place('foe').x], [multi.second.sprite, place('foe2').x]] as const : [[b.start.trainer.sprite, 384]] as const;
+    const size = multi ? 112 : 128;
+    for (const [sprite, x] of trainers) {
+      const ti = packImg(sprite);
+      if (ti.naturalWidth) ctx.drawImage(ti, 0, 0, ti.width, ti.height, x - size / 2 + slide + b.trainerOffset, 70 + (128 - size), size, size);
+    }
   }
-  if (b.foe && b.foeShown) drawMonSprite(b.foe.key, 'front', 384 + slide, 180, 1, true, sideFx('foe'));
-  if (b.ballFx) ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, b.ballFx.x - 16, b.ballFx.y - 16 + (b.ballFx.dy || 0), 32, 32);
-  if (b.playerBackShown) {
-    const im = packImg(G.world?.look === 'girl' ? 'tr/player_back_girl' : 'tr/player_back'), fw = im.width / 5;
-    if (im.naturalWidth) ctx.drawImage(im, 0, 0, fw, im.height, 70 - slide + b.playerOffset, 292 - im.height * 0.62, fw * 0.62, im.height * 0.62);
+  for (const s of SPOTS) {
+    const st = b.spots[s];
+    if (s === 'ally' && b.playerBackShown) {
+      const im = packImg(G.world?.look === 'girl' ? 'tr/player_back_girl' : 'tr/player_back'), fw = im.width / 5;
+      if (im.naturalWidth) ctx.drawImage(im, 0, 0, fw, im.height, 70 - slide + b.playerOffset, 292 - im.height * 0.62, fw * 0.62, im.height * 0.62);
+    }
+    if (!st.mon || !st.shown) continue;
+    const p = place(s), foe = s.startsWith('foe');
+    drawMonSprite(st.mon.key, foe ? 'front' : 'back', p.x + (foe ? slide : -slide), p.foot, p.scale, true, spotFx(s));
+    if (s === 'foe' && b.ballFx) ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, b.ballFx.x - 16, b.ballFx.y - 16 + (b.ballFx.dy || 0), 32, 32);
   }
-  if (b.ally && b.allyShown) drawMonSprite(b.ally.key, 'back', 128 - slide, 286, 1, true, sideFx('ally'));
+  if (b.ballFx && !b.spots.foe.shown) ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, b.ballFx.x - 16, b.ballFx.y - 16 + (b.ballFx.dy || 0), 32, 32);
   anim.draw(ctx);
   ctx.restore();
   if (b.arc) drawArc(b.arc.side, b.arc.t);
-  if (b.foe && b.foeShown) databox(b.foe, 16, 20, false, b.foeHp);
-  if (b.ally && b.allyShown) databox(b.ally, VW - 246, 196, true, b.allyHp);
-  if (b.coil.foe && !b.trainerShown) drawCoil(b.coil.foe, 16, 78);
-  if (b.coil.ally && b.allyShown) drawCoil(b.coil.ally, VW - 42 - b.coil.ally.max * 18, 174);
-  if (b.start.trainer && b.trainerShown) { // the trainer's team, one ball per Pokémon
-    ctx.fillStyle = 'rgba(29,43,69,0.85)'; roundRect(16, 20, b.start.foeCount * 26 + 14, 34, 10); ctx.fill();
-    for (let i = 0; i < b.start.foeCount; i++) {
-      ctx.globalAlpha = i < b.foeLeft ? 1 : 0.35;
-      ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, 21 + i * 26, 21, 32, 32);
-      ctx.globalAlpha = 1;
-    }
+  const box = (s: Spot, x: number, y: number, nums: boolean) => { const st = b.spots[s]; if (st.mon && st.shown) databox(st.mon, x, y, nums, st.hp); };
+  if (multi) {
+    box('foe', 16, 12, false); box('foe2', 16, 70, false);
+    box('ally2', VW - 246, 146, false); box('ally', VW - 246, 206, true);
+    if (b.coil.foe && !b.trainerShown) drawCoil(b.coil.foe, 16, 128);
+    if (b.coil.ally && b.spots.ally.shown) drawCoil(b.coil.ally, VW - 42 - b.coil.ally.max * 18, 126);
+  } else {
+    box('foe', 16, 20, false); box('ally', VW - 246, 196, true);
+    if (b.coil.foe && !b.trainerShown) drawCoil(b.coil.foe, 16, 78);
+    if (b.coil.ally && b.spots.ally.shown) drawCoil(b.coil.ally, VW - 42 - b.coil.ally.max * 18, 174);
+  }
+  if (b.start.trainer && b.trainerShown) {
+    teamBalls(b.start.foeCount, b.foeLeft, 16, 20);
+    if (multi) teamBalls(multi.foeCount2, b.foeLeft2, 16, 60);
   }
   if (!G.ui.text) { ctx.fillStyle = '#1d2b45'; ctx.fillRect(0, 288, VW, 96); }
 }
@@ -1077,9 +1414,9 @@ async function gridChoose(items: GridState['items'], rect: { x: number; y: numbe
 
 async function battleStart(start: BattleStart) {
   B = {
-    start, intro: 300, foe: null, ally: null, foeHp: 0, allyHp: 0, foeShown: false, allyShown: false,
-    trainerShown: !!start.trainer, trainerOffset: 0, playerBackShown: true, playerOffset: 0, foeFx: {}, allyFx: {},
-    ballFx: null, grid: null, lastIdx: {}, foeLeft: start.foeCount, savedBgm: Sound.bgmName,
+    start, intro: 300, spots: { ally: emptySpot(), foe: emptySpot(), ally2: emptySpot(), foe2: emptySpot() },
+    trainerShown: !!start.trainer, trainerOffset: 0, playerBackShown: true, playerOffset: 0,
+    ballFx: null, grid: null, lastIdx: {}, foeLeft: start.foeCount, foeLeft2: start.multi?.foeCount2 ?? 0, savedBgm: Sound.bgmName,
     coil: { ...start.coil }, patina: new Set(), overcharged: new Set(), arc: null, request: null
   };
   Sound.bgm(start.bgm);
@@ -1090,24 +1427,26 @@ async function battleStart(start: BattleStart) {
   for (let i = 0; i <= 30; i++) { B.intro = 300 * (1 - i / 30); await nextFrame(); }
 }
 
-async function animateHp(side: BattleSide, target: number) {
-  const b = B!, key = side === 'foe' ? 'foeHp' : 'allyHp';
-  const start = b[key], frames = Math.max(8, Math.min(40, Math.abs(start - target) * 2));
-  for (let i = 1; i <= frames; i++) { b[key] = start + (target - start) * i / frames; await nextFrame(); }
+async function animateHp(s: Spot, target: number) {
+  const st = B!.spots[s];
+  const start = st.hp, frames = Math.max(8, Math.min(40, Math.abs(start - target) * 2));
+  for (let i = 1; i <= frames; i++) { st.hp = start + (target - start) * i / frames; await nextFrame(); }
 }
-async function flash(side: BattleSide) {
-  const b = B!, k = side === 'foe' ? 'foeFx' : 'allyFx';
-  for (let i = 0; i < 8; i++) { b[k] = { flash: i % 2 === 0 }; await wait(3); }
-  b[k] = {};
+async function flash(s: Spot) {
+  const st = B!.spots[s];
+  for (let i = 0; i < 8; i++) { st.fx = { flash: i % 2 === 0 }; await wait(3); }
+  st.fx = {};
 }
-async function grow(side: BattleSide) {
-  const b = B!, k = side === 'foe' ? 'foeFx' : 'allyFx';
-  for (let i = 0; i <= 10; i++) { b[k] = { shrink: i / 10 }; await nextFrame(); }
-  b[k] = {};
+async function grow(s: Spot) {
+  const st = B!.spots[s];
+  for (let i = 0; i <= 10; i++) { st.fx = { shrink: i / 10 }; await nextFrame(); }
+  st.fx = {};
 }
 
 async function battleEvent(e: BattleEvent) {
   const b = B!;
+  const at = 'side' in e ? spotOf(e.side, 'slot' in e ? e.slot : 0) : 'ally';
+  const st = b.spots[at];
   switch (e.b) {
     case 'text': await say(e.text); break;
     case 'trainerOut': await say(e.text); break;
@@ -1117,98 +1456,99 @@ async function battleEvent(e: BattleEvent) {
           for (let i = 0; i <= 16; i++) { b.trainerOffset = i * 12; await nextFrame(); }
           b.trainerShown = false;
         }
-        b.foe = e.mon; b.foeHp = e.mon.hp; b.foeShown = true;
+        st.mon = e.mon; st.hp = e.mon.hp; st.shown = true;
         if (b.start.kind === 'wild') { Sound.cry(e.mon.key); await say(e.text); }
-        else { await say(e.text); Sound.cry(e.mon.key); await Promise.all([grow('foe'), playAnim(SEND_OUT, 'foe')]); }
+        else { await say(e.text); Sound.cry(e.mon.key); await Promise.all([grow(at), playAnim(SEND_OUT, at)]); }
       } else {
-        if (b.ally && b.allyShown) {
-          await say(`${b.ally.name}, come back!`); Sound.se('recall');
-          b.allyShown = false; await wait(10);
+        if (st.mon && st.shown && at === 'ally') {
+          await say(`${st.mon.name}, come back!`); Sound.se('recall');
+          st.shown = false; await wait(10);
         }
-        if (b.playerBackShown) { for (let i = 0; i <= 12; i++) { b.playerOffset = -i * 16; await nextFrame(); } b.playerBackShown = false; }
-        b.ally = e.mon; b.allyHp = e.mon.hp;
+        if (at === 'ally' && b.playerBackShown) { for (let i = 0; i <= 12; i++) { b.playerOffset = -i * 16; await nextFrame(); } b.playerBackShown = false; }
+        st.mon = e.mon; st.hp = e.mon.hp;
         await say(e.text);
-        b.allyShown = true; Sound.cry(e.mon.key);
-        await Promise.all([grow('ally'), playAnim(SEND_OUT, 'ally')]);
+        st.shown = true; Sound.cry(e.mon.key);
+        await Promise.all([grow(at), playAnim(SEND_OUT, at)]);
       }
       break;
     }
-    case 'recall': await say(e.text); if (e.side === 'ally') b.allyShown = false; else b.foeShown = false; break;
+    case 'recall': await say(e.text); st.shown = false; break;
     case 'move': {
       if (animMode === 'off') { await say(e.text); break; }
       // Like the main games: the line appears, the move plays under it, and the battle moves on.
       await showText(e.text);
       if (!e.still) {
-        const target = e.target ?? other(e.side);
-        const tl = moveAnim(e.id, e.type, e.category, target === e.side);
-        await playAnim(e.miss ? userPart(tl) : tl, e.side, target);
+        const target = e.target ? spotOf(e.target, e.targetSlot) : opp(at);
+        const tl = moveAnim(e.id, e.type, e.category, target === at);
+        await playAnim(e.miss ? userPart(tl) : tl, at, target);
       }
       await wait(Math.round(20 / anim.speed));
       break;
     }
-    case 'boost': await playAnim(e.up ? STAT_UP : STAT_DOWN, e.side); break;
+    case 'boost': await playAnim(e.up ? STAT_UP : STAT_DOWN, at); break;
     case 'weather': if (e.weather !== 'none') await playAnim(WEATHER_ANIM[e.weather], 'ally'); break;
     case 'hp': {
-      const mon = e.side === 'foe' ? b.foe : b.ally;
+      const mon = st.mon;
       if (!mon) break;
-      const dropped = e.hp < (e.side === 'foe' ? b.foeHp : b.allyHp);
+      const dropped = e.hp < st.hp;
       if (dropped && e.effect !== 'residual') {
         Sound.se(e.effect === 'super' ? 'hit_super' : e.effect === 'weak' ? 'hit_weak' : 'hit');
-        if (e.crit) await playAnim(CRIT, e.side);
-        await flash(e.side);
+        if (e.crit) await playAnim(CRIT, at);
+        await flash(at);
       } else if (dropped && e.cause) {
-        const st = STATUS_ANIM[e.cause as keyof typeof STATUS_ANIM];
-        if (st) await playAnim(st, e.side);
-        else if (RESIDUAL[e.cause]) await playAnim(RESIDUAL[e.cause], e.side, other(e.side));
-      } else if (e.effect === 'heal' && e.cause !== 'drain' && e.hp > (e.side === 'foe' ? b.foeHp : b.allyHp)) await playAnim(HEAL, e.side);
+        const sa = STATUS_ANIM[e.cause as keyof typeof STATUS_ANIM];
+        if (sa) await playAnim(sa, at);
+        else if (RESIDUAL[e.cause]) await playAnim(RESIDUAL[e.cause], at, opp(at));
+      } else if (e.effect === 'heal' && e.cause !== 'drain' && e.hp > st.hp) await playAnim(HEAL, at);
       mon.hp = e.hp; mon.maxhp = e.maxhp;
-      await animateHp(e.side, e.hp);
+      await animateHp(at, e.hp);
       break;
     }
     case 'status': {
-      const mon = e.side === 'foe' ? b.foe : b.ally; if (mon) mon.status = e.status;
-      if (e.status) await playAnim(STATUS_ANIM[e.status], e.side);
+      if (st.mon) st.mon.status = e.status;
+      if (e.status) await playAnim(STATUS_ANIM[e.status], at);
       break;
     }
     case 'faint': {
-      const k = e.side === 'foe' ? 'foeFx' : 'allyFx', mon = e.side === 'foe' ? b.foe : b.ally;
-      if (mon) Sound.cry(mon.key);
-      for (let i = 0; i <= 16; i++) { b[k] = { dy: i * 6, shrink: 1 - i / 20 }; await nextFrame(); }
-      if (e.side === 'foe') { b.foeShown = false; b.foeLeft--; } else b.allyShown = false;
-      b[k] = {};
+      if (st.mon) Sound.cry(st.mon.key);
+      for (let i = 0; i <= 16; i++) { st.fx = { dy: i * 6, shrink: 1 - i / 20 }; await nextFrame(); }
+      st.shown = false;
+      if (at === 'foe') b.foeLeft--; else if (at === 'foe2') b.foeLeft2--;
+      st.fx = {};
       await say(e.text);
       break;
     }
     case 'exp': {
-      const a = b.ally; if (!a) break;
+      const a = b.spots.ally.mon; if (!a) break;
       const from = a.exp ?? e.exp;
       a.level = e.level; a.maxhp = e.maxhp; a.hp = e.hp; a.expLo = e.expLo; a.expHi = e.expHi;
       for (let i = 1; i <= 20; i++) { a.exp = from + (e.exp - from) * i / 20; await nextFrame(); }
-      b.allyHp = e.hp;
+      b.spots.ally.hp = e.hp;
       break;
     }
     case 'throw': {
+      const foe = b.spots.foe, to = place('foe');
       Sound.se('throw');
       for (let i = 0; i <= 24; i++) {
-        const t = i / 24; b.ballFx = { x: 120 + (384 - 120) * t, y: 260 - 200 * t + 260 * t * t - 60 * t };
+        const t = i / 24; b.ballFx = { x: 120 + (to.x - 120) * t, y: 260 - 200 * t + 260 * t * t - 60 * t };
         await nextFrame();
       }
-      for (let i = 0; i <= 10; i++) { b.foeFx = { shrink: 1 - i / 10 }; await nextFrame(); }
-      b.foeShown = false; b.foeFx = {};
+      for (let i = 0; i <= 10; i++) { foe.fx = { shrink: 1 - i / 10 }; await nextFrame(); }
+      foe.shown = false; foe.fx = {};
       for (let i = 0; i <= 10; i++) { b.ballFx!.y += 3; await nextFrame(); }
       for (let s = 0; s < e.shakes; s++) {
         await wait(18); Sound.se('shake');
         for (const d of [-4, -8, -4, 0, 4, 8, 4, 0]) { b.ballFx!.x += d / 2; await nextFrame(); }
       }
       await wait(20);
-      if (!e.caught) { b.ballFx = null; b.foeShown = true; }
+      if (!e.caught) { b.ballFx = null; foe.shown = true; }
       else b.ballFx = { ...b.ballFx!, dy: 0 };
       break;
     }
     case 'flee': Sound.se('flee'); break;
     case 'coil': b.coil[e.side] = e.coil; break;
     case 'copper': {
-      const mon = e.side === 'foe' ? b.foe : b.ally;
+      const mon = st.mon;
       Sound.se('recall');
       for (let i = 0; i < 12; i++) { if (mon?.uid) { if (i % 2) b.patina.add(mon.uid); else b.patina.delete(mon.uid); } await wait(3); }
       if (mon?.uid) b.patina.add(mon.uid);
@@ -1220,7 +1560,7 @@ async function battleEvent(e: BattleEvent) {
       Sound.se('hit_super', 0.4);
       for (let t = 0; t < 30; t++) { b.arc = { side: e.side, t }; await nextFrame(); }
       b.arc = null;
-      const mon = e.side === 'foe' ? b.foe : b.ally;
+      const mon = st.mon;
       if (e.b === 'overcharge' && mon?.uid) { b.patina.add(mon.uid); b.overcharged.add(mon.uid); }
       await say(e.text);
       break;
@@ -1259,7 +1599,13 @@ async function fightMenu(req: BattleRequest): Promise<BattleAction | null> {
     if (!m) continue;
     if (m.disabled) { await say(m.pp === 0 ? 'There\'s no PP left for this move!' : 'That move can\'t be used right now!'); continue; }
     if (mode === 'current' && m.category === 'Status') { await say('Status moves can\'t carry Current.'); continue; }
-    return { kind: 'move', index: mi, ...(mode ? { mode } : {}) };
+    let target: Slot | undefined;
+    if (m.aim && req.targets && req.targets.length > 1) {
+      const ti = await gridChoose(req.targets.map(t => ({ label: t.name, sub: t.slot ? 'right' : 'left' })), { x: 0, y: VH - 74, w: 512, h: 74, key: 'target' }, 2, true);
+      if (ti < 0) continue;
+      target = req.targets[ti].slot;
+    }
+    return { kind: 'move', index: mi, ...(mode ? { mode } : {}), ...(target !== undefined ? { target } : {}) };
   }
 }
 
@@ -1271,7 +1617,7 @@ async function battleMenu(req: BattleRequest): Promise<BattleAction> {
     return { kind: 'switch', uid: req.party[i].uid };
   }
   for (;;) {
-    const name = b.ally?.name ?? 'your Pokémon';
+    const name = b.spots.ally.mon?.name ?? 'your Pokémon';
     G.ui.text = { full: `What will ${name} do?`, shown: 999, w: 268 };
     const c = await gridChoose([{ label: 'Fight' }, { label: 'Bag' }, { label: 'Pokémon' }, { label: 'Run', dim: !req.canRun }],
       { x: 272, y: 288, w: 240, h: 96, key: 'cmd' }, 2, false);
@@ -1392,8 +1738,9 @@ async function animPreview(exitable = false) {
   const mon = (key: string, name: string): BattleMonView => ({ species: key.toLowerCase(), key, name, level: 12, hp: 40, maxhp: 40, status: '', gender: '', shiny: false });
   await battleStart({ kind: 'wild', bg: 'field', bgm: 'battle_wild', foeCount: 1 });
   const b = B!;
-  b.foe = mon('PONYTA', 'Ponyta'); b.ally = mon('SPRIGATITO', 'Sprigatito');
-  b.foeHp = b.allyHp = 40; b.foeShown = b.allyShown = true; b.playerBackShown = false;
+  b.spots.foe = { mon: mon('PONYTA', 'Ponyta'), hp: 40, shown: true, fx: {} };
+  b.spots.ally = { mon: mon('SPRIGATITO', 'Sprigatito'), hp: 40, shown: true, fx: {} };
+  b.playerBackShown = false;
   let idx = 0, user: BattleSide = 'ally';
   for (;;) {
     G.ui.text = { full: `${idx + 1}/${entries.length}  ${entries[idx].label}\n◀ ▶ pick · A play · B swap${exitable ? ' · Menu exit' : ''}`, shown: 999 };
@@ -1486,7 +1833,7 @@ function probe() {
     /** The NPCs actually drawn right now (the world view lags behind during cutscenes). */
     actors: [...G.npcs.values()].map(n => ({ id: n.id, x: n.x, y: n.y })),
     battle: B ? {
-      kind: B.start.kind, trainer: B.start.trainer?.name ?? null, ally: B.ally, foe: B.foe, coil: B.coil, request: B.request,
+      kind: B.start.kind, trainer: B.start.trainer?.name ?? null, ally: B.spots.ally.mon, foe: B.spots.foe.mon, ally2: B.spots.ally2.mon, foe2: B.spots.foe2.mon, coil: B.coil, request: B.request,
       grid: B.grid ? { key: B.grid.key, items: B.grid.items, idx: B.grid.idx, cols: B.grid.cols } : null
     } : null
   };

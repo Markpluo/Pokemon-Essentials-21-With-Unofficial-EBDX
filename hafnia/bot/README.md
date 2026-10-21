@@ -77,7 +77,7 @@ Pass any of them to `bot.loadSave(save, slot = 1)`.
 | `step(dir)`, `face(dir)`, `interact()`, `tap('A')` | Single inputs. |
 | `settle(opts)` | The autopilot: clicks through text, answers prompts, picks in pickers, fights battles, until you can walk again. Most calls end with it. `until: s => ...` stops early. |
 | `answers.push({ when: /question/, pick: 'Yes' })` | How to answer prompts (by label, prefix, regex or index). Without a match: the first option. |
-| `battlePlan = 'fight' \| 'coil' \| 'catch' \| 'run' \| (s => choice)` | How to fight. `coil` spends Current or Copper as soon as it's charged. A function gets the probe and returns `{ move, coil? }`, `{ ball }`, `{ run: true }` or `{ switchTo }`. |
+| `battlePlan = 'fight' \| 'coil' \| 'catch' \| 'run' \| (s => choice)` | How to fight. `coil` spends Current or Copper as soon as it's charged. A function gets the probe and returns `{ move, coil?, target? }` (target: which foe in a multi battle, 0 = left), `{ ball }`, `{ run: true }` or `{ switchTo }`. |
 | `wildBattle(plan)` | Paces in the nearest tall grass until something appears, then fights it. |
 | `fight(plan)` | Fights the battle that is starting now. |
 | `menu('Bag')`, `openMenu()`, `choose(label)`, `pick(label)` | Menus by label. |

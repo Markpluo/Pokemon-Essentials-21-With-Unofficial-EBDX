@@ -117,7 +117,32 @@ describe('Hafnia demo', () => {
     expect(d.said[0]).toContain('Welcome to Hafnia');
   });
 
-  it('plays from the first step to the end of Chapter 2', () => {
+  it('sends the NPCs with each map, so people in a scene that starts on arrival are drawn', () => {
+    const d = newGame();
+    const map = d.log.find(e => e.t === 'map' && e.map === 'hafnia:flat') as Extract<ServerEvent, { t: 'map' }>;
+    expect(map.npcs.map(n => n.id)).toContain('mum');
+  });
+
+  it('offers five starters, and Lukas and Maja pick by the table in trainers-and-encounters.md', () => {
+    const table: [string, string, string][] = [
+      ['sprigatito', 'charmander', 'popplio'], ['charmander', 'popplio', 'sprigatito'], ['popplio', 'sprigatito', 'charmander'],
+      ['eevee', 'charmander', 'sprigatito'], ['pikachu', 'sprigatito', 'popplio']
+    ];
+    table.forEach(([mine, lukas, maja], i) => {
+      const d = newGame(20 + i);
+      d.s.flags['debug:noEncounters'] = true;
+      d.walkTo(6, 6); d.exit('down', 12, 21); d.exit('down', 9, 15); d.exit('down', 11, 31);
+      d.answers.push(i, 0, 1);
+      d.exit('up', 14, 11);
+      const offer = d.log.find(e => e.t === 'pickSpecies') as Extract<ServerEvent, { t: 'pickSpecies' }>;
+      expect(offer.species.map(o => o.key ?? o)).toHaveLength(5);
+      expect([d.s.flags['hafnia:starter'], d.s.flags['hafnia:lukasStarter'], d.s.flags['hafnia:majaStarter']]).toEqual([mine, lukas, maja]);
+      expect(d.s.party[0].species).toBe(mine);
+      expect(d.battles[0]).toBe('win'); // the tutorial battle can't be lost
+    });
+  });
+
+  it('plays from the first step to the end of Chapter 3', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -223,7 +248,76 @@ describe('Hafnia demo', () => {
     d.exit('left', 0, 10); at('garden');
     d.exit('up', 13, 0); d.exit('up', 10, 0); at('bridge');
     expect(flag('demoEnd')).toBe(true);
-    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Copper & Current');
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 2 complete');
+
+    // Chapter 3: Den Grønne Sti to Vesterbro, the Empty-Sea Dinner, Gym 3 and Maja on Cykelslangen
+    const slide = (...dirs: Dir[]) => { for (const dir of dirs) d.send({ t: 'step', dir }); };
+    d.answers.length = 0;                                      // every prompt from here: the first option
+    d.exit('up', 9, 0); at('norrebro');
+    d.exit('left', 0, 8); at('route2');
+    expect(flag('ch3')).toBe(true);
+    d.exit('down', 4, 15); at('vesterbro');
+    expect(flag('vbArrive')).toBe(true);
+    d.exit('up', 5, 8); at('cafevb');
+    d.talkTo(5, 1);
+    d.walkTo(5, 5); at('vesterbro');
+    d.exit('down', 13, 19); at('kodbyen');
+    d.exit('up', 5, 7); at('kitchen');
+    d.talkTo(6, 1);
+    expect(flag('dinnerQuest')).toBe(true);
+    d.walkTo(6, 6); at('kodbyen');
+    d.exit('up', 21, 8); at('kodbyen');                     // the gym is shut until dinner
+    d.talkTo(7, 11);
+    expect(d.s.bag.icesalt).toBe(1);
+    d.exit('up', 13, 0); at('vesterbro');
+    d.exit('right', 27, 9); at('route3');
+    expect(flag('majaRace')).toBeFalsy();                     // not before the badge
+    d.exit('right', 25, 4); at('islandsbrygge');
+    d.talkTo(7, 3); d.talkTo(19, 17);
+    expect([d.s.bag.mussels, d.s.bag.buckthorn]).toEqual([1, 1]);
+    d.exit('left', 0, 8); d.exit('left', 0, 4); at('vesterbro');
+    d.exit('down', 13, 19); d.exit('up', 5, 7); at('kitchen');
+    d.talkTo(6, 1);
+    expect(flag('dinnerDone')).toBe(true);
+    expect(d.game.period).toBe('night');
+    d.walkTo(6, 6); at('kodbyen');
+    const before = d.battles.length;
+    d.talkTo(18, 11);                                          // Neon Nights: three tag battles with Signe
+    expect(d.battles.slice(before), d.where()).toEqual(['win', 'win', 'win']);
+    expect(flag('neonDone')).toBe(true);
+    d.exit('up', 21, 8); at('gym3');
+    // Sea ice: slide to the valves in menu order (forret, hovedret, dessert), then up through the melted gap.
+    slide('up', 'right', 'down', 'left', 'up', 'right');
+    expect([d.s.x, d.s.y], d.where()).toEqual([13, 7]);
+    d.send({ t: 'turn', dir: 'right' }); d.send({ t: 'interact' });
+    slide('left', 'up', 'left', 'up', 'left', 'down');
+    expect([d.s.x, d.s.y], d.where()).toEqual([1, 7]);
+    d.send({ t: 'turn', dir: 'left' }); d.send({ t: 'interact' });
+    slide('up', 'right', 'down', 'right', 'up', 'right');
+    expect([d.s.x, d.s.y], d.where()).toEqual([13, 4]);
+    d.send({ t: 'turn', dir: 'right' }); d.send({ t: 'interact' });
+    expect(flag('steam'), d.where()).toBe(true);
+    slide('left', 'down', 'left', 'up', 'left', 'up', 'right', 'up');
+    expect([d.s.x, d.s.y], d.where()).toEqual([7, 3]);
+    d.talkTo(7, 1);
+    expect(d.s.badges).toEqual(['hafnia:spray', 'hafnia:lily', 'hafnia:frost']);
+    expect([d.s.bag.bikelamp, d.s.bag.hydrofoils, d.s.bag.tmicywind]).toEqual([1, 1, 1]);
+    slide('down', 'down', 'left', 'down', 'right', 'down', 'right');
+    d.walkTo(7, 11); at('kodbyen');
+    d.exit('up', 13, 0); d.exit('right', 27, 9); at('route3');
+    expect(flag('ch3done')).toBe(true);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 3 complete');
+  });
+
+  it('a wrong steam valve closes them all again', () => {
+    const d = newGame(3);
+    Object.assign(d.s, { map: 'hafnia:gym3', x: 13, y: 7, dir: 'right' as Dir });
+    d.send({ t: 'interact' });                                 // forret: right
+    expect(d.s.flags['hafnia:vforret']).toBe(true);
+    Object.assign(d.s, { x: 13, y: 4, dir: 'right' as Dir });
+    d.send({ t: 'interact' });                                 // dessert before hovedret: wrong
+    expect(d.s.flags['hafnia:vforret']).toBe(false);
+    expect(d.said.at(-1)).toMatch(/Wrong course/);
   });
 
   it('saves and loads through the LocalServer', async () => {

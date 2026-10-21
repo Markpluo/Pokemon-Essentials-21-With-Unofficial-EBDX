@@ -182,7 +182,7 @@ const NORREBRO_NPCS: NpcDef[] = [
   { id: 'maja', sprite: 'chars/maja', x: 9, y: 9, dir: 'up', when: f => !f('yard'), talk: talk('p.yard.maja.2') },
   { id: 'lukas2', sprite: 'chars/lukas', x: 0, y: 0, dir: 'down', hidden: true },
   { id: 'baker', sprite: 'chars/oldman', x: 11, y: 9, dir: 'down',
-    talk: talk('Baker: Fresh cardamom buns! Sankt Hans Torv\'s finest.\nOn the house for my favourite neighbour.') },
+    talk: talk('Baker: Cardamom buns, fresh from Sankt Hans Torv!\nOn the house for my favourite neighbour.') },
   { id: 'tourist', sprite: 'chars/kid', x: 25, y: 13, dir: 'left',
     talk: talk('Tourist: We saw the statue at Langelinie today.\nThe Mermaid is so tiny! Everyone says that.') },
   { id: 'tariq', sprite: 'chars/tariq', x: 6, y: 13, dir: 'up', when: f => !f('mural'), talk: tariqTalk },
@@ -209,7 +209,7 @@ const NORREBRO_NPCS: NpcDef[] = [
     intro: ['Muralist Laura: Smeargle and I sign every wall\nwe paint. Want to be on one?'], lose: ['Laura: Okay, you can sign this one.'] }),
   trainer({ id: 'jonas', x: 15, y: 11, dir: 'left', sprite: 'chars/biker', sight: 2, cls: 'Cyclist', name: 'Jonas',
     when: f => !!f('starter'), foes: [{ species: 'starly', level: 8 }, { species: 'pidgey', level: 9 }],
-    intro: ['Cyclist Jonas: Nørrebrogade has more bikes than cars.\nAnd more battles than both!'], lose: ['Jonas: Flat tyre. Flat everything.'] }),
+    intro: ['Cyclist Jonas: Nørrebrogade has more bikes\nthan cars. And more battles than both!'], lose: ['Jonas: Flat tyre. Flat everything.'] }),
   trainer({ id: 'kim', x: 24, y: 8, dir: 'left', sprite: 'chars/rocker', sight: 3, cls: 'Raver', name: 'Kim', period: ['night'],
     when: f => !!f('starter'), foes: [{ species: 'pawmi', level: 9 }],
     intro: ['Raver Kim: The party\'s in a courtyard somewhere.\nI forgot which one. Battle me while I think!'], lose: ['Kim: That bass drop was you, wasn\'t it.'] }),
@@ -286,7 +286,11 @@ export function centerNpcs(map: string, outX: number, outY: number): NpcDef[] {
       s.checkpoint();
     } },
     { id: 'clerk', sprite: 'chars/clerk', x: 10, y: 2, dir: 'down', talk: function* (s) { yield* s.mart(MART_STOCK); } },
-    sign('pc', 6, 1, 'obj:pc', 'The PC hums. (Storage boxes come in a later update.)')
+    { id: 'pc', sprite: 'obj:pc', x: 6, y: 1, dir: 'down', object: true, talk: function* (s) {
+      s.sfx('pc');
+      s.say(`${s.player.name} booted up the PC.\nØrsted's storage system is online.`);
+      s.openPc();
+    } }
   ];
 }
 

@@ -8,9 +8,9 @@ import { itemBall, sign, talk, trainer, type MapScripts } from './lib';
 
 const enforcer: Script = function* (s) {
   if (s.flag('enforcer')) { s.say('Grid Enforcer: ...Fine. Go. I didn\'t see you.'); return; }
-  s.say('Grid Enforcer: Restricted area. This barrier is part of\nthe Vanguard grid. Turn around.');
+  s.say('Grid Enforcer: Restricted area. This barrier\nis part of the Vanguard grid. Turn around.');
   if (!s.flag('copper')) { s.say('Rotom: Bzzt! That barrier is way too strong.\nA Current alone won\'t get us through!'); return; }
-  s.say('Grid Enforcer: Wait. You were at the drydock. The Captain\'s\nlittle helper. Let\'s see how you handle real power.');
+  s.say('Grid Enforcer: Wait. You were at the drydock.\nThe Captain\'s little helper. Let\'s see how\nyou handle real power.');
   s.say('c2.enforcer.overcharge');
   const r = yield s.battle({ kind: 'trainer', ai: 2, overcharge: true, bg: 'city', trainer: { name: 'Sander', title: 'Grid Enforcer', sprite: 'tr/enforcer' },
     prize: 40, foes: [{ species: 'pawmi', level: 17 }, { species: 'magnemite', level: 18 }] });
