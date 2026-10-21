@@ -11,3 +11,6 @@ export { Game, SaveError, SAVE_VERSION, faceTo, migrate, type SaveData } from '.
 export { BattleSession } from './battle';
 export { LocalServer, type SaveStore } from './local-server';
 export { validateContent } from './validate';
+export { PvpBattle, type PvpPlayer } from './pvp';
+export { checkMon } from './legal';
+export type * from './online';

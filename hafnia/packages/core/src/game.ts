@@ -64,6 +64,8 @@ export class Game {
   private script: { stack: Generator<Pause, unknown, any>[]; onDone?: (v: unknown) => void } | null = null;
   /** Dev and test builds only: enables the debug menu commands. The online server never sets it. */
   debug = false;
+  /** The name is fixed (online characters): scripts don't ask for one. */
+  private named = false;
   private pause: Pause | null = null;
   private battle: BattleSession | null = null;
   private battleSoft = false;
@@ -75,17 +77,19 @@ export class Game {
     this.rng = new Rng(state.rng);
   }
 
-  /** Starts a new game: places the player and runs the base pack's intro script. */
-  static newGame(content: Content, seed: number): { game: Game; events: ServerEvent[] } {
+  /** Starts a new game: places the player and runs the base pack's intro script.
+   *  Online characters pass the account's trainer name, so the intro skips asking for one. */
+  static newGame(content: Content, seed: number, opts: { name?: string } = {}): { game: Game; events: ServerEvent[] } {
     const base = content.base, start = base.newGame!;
     const map = ns(base.manifest.id, start.map);
     const game = new Game(content, {
-      v: SAVE_VERSION, packs: [...content.packs.keys()], name: 'Player', map, x: start.x, y: start.y, dir: start.dir,
+      v: SAVE_VERSION, packs: [...content.packs.keys()], name: opts.name ?? 'Player', map, x: start.x, y: start.y, dir: start.dir,
       party: [], box: [], bag: {}, money: 3000, flags: {}, npcs: {},
       respawn: { ...start.respawn, map: ns(base.manifest.id, start.respawn.map) }, rng: seed >>> 0,
       badges: [], coil: {}, repel: 0, look: 'boy', clock: PERIOD_START.morning + 4 * 60,
       daycare: emptyDaycare(), steps: 0, hatched: 0
     });
+    game.named = !!opts.name;
     game.emitMap();
     game.run(start.intro, base.manifest.id);
     return { game, events: game.flush() };
@@ -692,7 +696,7 @@ export class Game {
     return {
       pack,
       player: {
-        get name() { return s.name; }, get x() { return s.x; }, get y() { return s.y; }, get dir() { return s.dir; },
+        get name() { return s.name; }, get named() { return g.named; }, get x() { return s.x; }, get y() { return s.y; }, get dir() { return s.dir; },
         face(dir) { s.dir = dir; emit({ t: 'face', actor: 'player', dir }); },
         faceTo(x, y) { s.dir = faceTo(s.x, s.y, x, y); emit({ t: 'face', actor: 'player', dir: s.dir }); },
         walk(dir, steps = 1) {
