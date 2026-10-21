@@ -14,6 +14,18 @@ npm test           # plays the whole prologue through game-core, no browser need
 npm run build      # static site in apps/client/dist
 ```
 
+Open the game with `?anims` (for example `http://localhost:5173/?anims`) for the battle
+animation preview: left/right picks an animation, A plays it, B swaps which side attacks.
+
+## Battle animations
+
+Moves animate from data, not code (`/mnt/project-files/design/battle-animations.md`). A move plays its
+pack's bespoke timeline from `packs/<pack>/anims.json` if there is one, otherwise the generic one for
+its type and category (`apps/client/src/anim-data.ts`). Steps (`lunge`, `shake`, `projectile`, `beam`,
+`particles`, `burst`, ...) are listed in `packages/core/src/anim.ts`; the player is `apps/client/src/anim.ts`.
+The header button cycles Animations on / fast / off, and `prefers-reduced-motion` turns off screen
+shake and strobing.
+
 ## Layout
 
 | Path | What it is |

@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./world": "./src/world.ts",
-    "./pack.json": "./pack.json"
+    "./pack.json": "./pack.json",
+    "./anims.json": "./anims.json"
   },
   "dependencies": {
     "@hafnia/core": "*"

@@ -2,18 +2,23 @@
 // It holds no game rules. It sends intents to a game server (a Web Worker in solo play)
 // and plays back the events that come back.
 import type {
-  BattleAction, BattleEvent, BattleMonView, BattleRequest, BattleSide, BattleStart, CoilMode, CoilView, DebugCommand, Dir,
+  AnimPack, AnimTimeline, BattleAction, BattleEvent, BattleMonView, BattleRequest, BattleSide, BattleStart, CoilMode, CoilView, DebugCommand, Dir,
   GameConnection, MapDef, MonView, MoveView, SaveSlot, ServerEvent, SlotInfo, Stamp, WorldView, Intent
 } from '@hafnia/core';
 import { ITEMS } from '@hafnia/core/src/items';
 import hafniaManifest from '@hafnia/pack-hafnia/pack.json';
 import { MAPS as HAFNIA_MAPS, STAMPS as HAFNIA_STAMPS } from '@hafnia/pack-hafnia/world';
 import { connectSolo } from './connection';
+import { AnimPlayer } from './anim';
+import { ANIM_TYPES, CRIT, HEAL, RESIDUAL, SEND_OUT, STATUS_ANIM, STAT_DOWN, STAT_UP, WEATHER_ANIM, animatedMoves, moveAnim, registerAnims, userPart } from './anim-data';
+import { Dex } from '@pkmn/sim';
+import hafniaAnims from '@hafnia/pack-hafnia/anims.json';
 
 // Render data for each installed content pack. A DLC pack adds an entry here.
-const WORLDS: Record<string, { maps: Record<string, Omit<MapDef, 'npcs' | 'doors'>>; stamps: Record<string, Stamp>; manifest: typeof hafniaManifest }> = {
-  hafnia: { maps: HAFNIA_MAPS, stamps: HAFNIA_STAMPS, manifest: hafniaManifest }
+const WORLDS: Record<string, { maps: Record<string, Omit<MapDef, 'npcs' | 'doors'>>; stamps: Record<string, Stamp>; manifest: typeof hafniaManifest; anims?: AnimPack }> = {
+  hafnia: { maps: HAFNIA_MAPS, stamps: HAFNIA_STAMPS, manifest: hafniaManifest, anims: hafniaAnims as AnimPack }
 };
+for (const w of Object.values(WORLDS)) if (w.anims) registerAnims(w.anims);
 const BASE_PACK = 'hafnia';
 
 const TILE = 32, VW = 512, VH = 384;
@@ -436,7 +441,7 @@ function drawChoice() {
 }
 
 // Pokemon sprites are horizontal strips of square frames.
-type SpriteFx = { shrink?: number; flash?: boolean; dy?: number; tint?: string; glitch?: number };
+type SpriteFx = { shrink?: number; flash?: boolean; dx?: number; dy?: number; tint?: string; tintA?: number; glitch?: number; alpha?: number; sx?: number; sy?: number };
 const tintCanvas = document.createElement('canvas');
 function drawMonSprite(key: string, side: 'front' | 'back', cx: number, bottom: number, scaleMul = 1, animate = true, opts: SpriteFx = {}) {
   const im = monImg(side, key); if (!im.complete || !im.naturalWidth) return;
@@ -444,8 +449,10 @@ function drawMonSprite(key: string, side: 'front' | 'back', cx: number, bottom: 
   const f = animate ? Math.floor(G.t / 2) % frames : 0;
   const scale = 2 * scaleMul * (opts.shrink ?? 1);
   const w = fh * scale, foot = ((im.box?.bottom ?? fh - 1) + 1) * scale;
-  if (opts.flash) ctx.globalAlpha = 0.4;
-  const dx = Math.round(cx - w / 2), dy = Math.round(bottom - foot + (opts.dy || 0));
+  // Squash and stretch keep the feet on the ground: scale around the bottom centre.
+  const sx = opts.sx ?? 1, sy = opts.sy ?? 1, dw = w * sx, dh = w * sy;
+  ctx.globalAlpha = (opts.flash ? 0.4 : 1) * (opts.alpha ?? 1);
+  const dx = Math.round(cx - dw / 2 + (opts.dx || 0)), dy = Math.round(bottom - foot * sy + (opts.dy || 0));
   if (opts.tint || opts.glitch) {
     // Copper patina / Overcharge: tint the sprite's own pixels on a scratch canvas.
     tintCanvas.width = w; tintCanvas.height = w;
@@ -453,12 +460,12 @@ function drawMonSprite(key: string, side: 'front' | 'back', cx: number, bottom: 
     g.imageSmoothingEnabled = false;
     g.drawImage(im, f * fh, 0, fh, fh, 0, 0, w, w);
     g.globalCompositeOperation = 'source-atop';
-    if (opts.tint) { g.globalAlpha = 0.38; g.fillStyle = opts.tint; g.fillRect(0, 0, w, w); }
+    if (opts.tint) { g.globalAlpha = opts.tintA ?? 0.38; g.fillStyle = opts.tint; g.fillRect(0, 0, w, w); }
     if (opts.glitch) { g.globalAlpha = 0.5; g.fillStyle = Math.floor(G.t / 3) % 2 ? '#ffffff' : COPPER; for (let y = 0; y < w; y += 8) if ((y + G.t) % 24 < 8) g.fillRect(0, y, w, 4); }
     g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
     const jit = opts.glitch ? (Math.floor(G.t / 2) % 3 - 1) * 3 : 0;
-    ctx.drawImage(tintCanvas, dx + jit, dy);
-  } else ctx.drawImage(im, f * fh, 0, fh, fh, dx, dy, w, w);
+    ctx.drawImage(tintCanvas, 0, 0, w, w, dx + jit, dy, dw, dh);
+  } else ctx.drawImage(im, f * fh, 0, fh, fh, dx, dy, dw, dh);
   ctx.globalAlpha = 1;
 }
 
@@ -777,6 +784,44 @@ interface BattleState {
 interface GridState { x: number; y: number; w: number; h: number; items: { label: string; type?: string; sub?: string; dim?: boolean; on?: string }[]; cols: number; idx: number; key: string }
 let B: BattleState | null = null;
 
+// ---------- battle animations ----------
+// Where each side's Pokémon stands: the middle of the sprite's body. Doubles will key this by slot.
+const CENTER: Record<BattleSide, { x: number; y: number }> = { foe: { x: 384, y: 128 }, ally: { x: 128, y: 224 } };
+const anim = new AnimPlayer({ nextFrame, centerOf: side => ({ ...CENTER[side] }), sfx: (n, v) => Sound.se(n, v), font: FONT });
+type AnimMode = 'on' | 'fast' | 'off';
+const ANIM_LABEL: Record<AnimMode, string> = { on: 'Animations on', fast: 'Animations fast', off: 'Animations off' };
+let animMode: AnimMode = 'on';
+try { const m = localStorage.getItem('hafnia.anim') as AnimMode | null; if (m && m in ANIM_LABEL) animMode = m; } catch { /* storage blocked */ }
+const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+function applyAnimMode() {
+  anim.speed = animMode === 'fast' ? 2 : 1;
+  anim.reduced = !!reducedMotion?.matches;
+  const btn = document.getElementById('anim');
+  if (btn) btn.textContent = ANIM_LABEL[animMode];
+}
+reducedMotion?.addEventListener?.('change', applyAnimMode);
+document.getElementById('anim')?.addEventListener('click', () => {
+  animMode = animMode === 'on' ? 'fast' : animMode === 'fast' ? 'off' : 'on';
+  try { localStorage.setItem('hafnia.anim', animMode); } catch { /* storage blocked */ }
+  applyAnimMode();
+});
+applyAnimMode();
+const other = (s: BattleSide): BattleSide => (s === 'ally' ? 'foe' : 'ally');
+async function playAnim(tl: AnimTimeline, user: BattleSide, target = user) {
+  if (animMode === 'off' || !B) return;
+  await anim.play(tl, { user, target });
+}
+/** Types a line into the text box and returns without waiting for a key, so an animation can play under it. */
+async function showText(str: string) {
+  G.ui.text = { full: str, shown: 0 };
+  while (G.ui.text && G.ui.text.shown < str.length) {
+    await nextFrame();
+    if (!G.ui.text) break;
+    G.ui.text.shown += 1.5;
+    if (just('A') || just('B')) G.ui.text.shown = str.length;
+  }
+}
+
 function hpBar(x: number, y: number, w: number, hp: number, max: number) {
   const r = Math.max(0, hp / max);
   ctx.fillStyle = '#3b3f4a'; roundRect(x, y, w, 10, 5); ctx.fill();
@@ -828,11 +873,18 @@ function drawArc(side: BattleSide, t: number) {
 }
 function sideFx(side: BattleSide): SpriteFx {
   const b = B!, mon = side === 'foe' ? b.foe : b.ally, fx = side === 'foe' ? b.foeFx : b.allyFx;
-  if (!mon?.uid) return fx;
-  return { ...fx, ...(b.patina.has(mon.uid) ? { tint: PATINA } : {}), ...(b.overcharged.has(mon.uid) ? { glitch: 1 } : {}) };
+  const m = anim.modFor(side);
+  const out: SpriteFx = {
+    ...fx, dx: (fx.dx ?? 0) + m.dx, dy: (fx.dy ?? 0) + m.dy, alpha: m.alpha, sx: m.sx, sy: m.sy,
+    ...(mon?.uid && b.patina.has(mon.uid) ? { tint: PATINA } : {}), ...(mon?.uid && b.overcharged.has(mon.uid) ? { glitch: 1 } : {})
+  };
+  if (m.tint) { out.tint = m.tint; out.tintA = m.tintA; } // a move's flash shows over the patina
+  return out;
 }
 function drawBattle() {
   const b = B!, bg = b.start.bg;
+  ctx.save();
+  if (anim.quake.x || anim.quake.y) { ctx.translate(Math.round(anim.quake.x), Math.round(anim.quake.y)); ctx.drawImage(packImg(`bb/${bg}_bg`), -8, -8, 528, 304); }
   ctx.drawImage(packImg(`bb/${bg}_bg`), 0, 0, 512, 288);
   const slide = b.intro;
   ctx.drawImage(packImg(`bb/${bg}_base1`), 256 + slide, 92);
@@ -848,6 +900,8 @@ function drawBattle() {
     if (im.naturalWidth) ctx.drawImage(im, 0, 0, fw, im.height, 70 - slide + b.playerOffset, 292 - im.height * 0.62, fw * 0.62, im.height * 0.62);
   }
   if (b.ally && b.allyShown) drawMonSprite(b.ally.key, 'back', 128 - slide, 286, 1, true, sideFx('ally'));
+  anim.draw(ctx);
+  ctx.restore();
   if (b.arc) drawArc(b.arc.side, b.arc.t);
   if (b.foe && b.foeShown) databox(b.foe, 16, 20, false, b.foeHp);
   if (b.ally && b.allyShown) databox(b.ally, VW - 246, 196, true, b.allyHp);
@@ -921,11 +975,6 @@ async function flash(side: BattleSide) {
   for (let i = 0; i < 8; i++) { b[k] = { flash: i % 2 === 0 }; await wait(3); }
   b[k] = {};
 }
-async function lunge(side: BattleSide) {
-  const b = B!, k = side === 'foe' ? 'foeFx' : 'allyFx', dir = side === 'foe' ? 1 : -1;
-  for (const d of [4, 8, 12, 8, 4, 0]) { b[k] = { dy: d * dir }; await nextFrame(); }
-  b[k] = {};
-}
 async function grow(side: BattleSide) {
   const b = B!, k = side === 'foe' ? 'foeFx' : 'allyFx';
   for (let i = 0; i <= 10; i++) { b[k] = { shrink: i / 10 }; await nextFrame(); }
@@ -945,7 +994,7 @@ async function battleEvent(e: BattleEvent) {
         }
         b.foe = e.mon; b.foeHp = e.mon.hp; b.foeShown = true;
         if (b.start.kind === 'wild') { Sound.cry(e.mon.key); await say(e.text); }
-        else { await say(e.text); Sound.cry(e.mon.key); await grow('foe'); }
+        else { await say(e.text); Sound.cry(e.mon.key); await Promise.all([grow('foe'), playAnim(SEND_OUT, 'foe')]); }
       } else {
         if (b.ally && b.allyShown) {
           await say(`${b.ally.name}, come back!`); Sound.se('recall');
@@ -955,29 +1004,47 @@ async function battleEvent(e: BattleEvent) {
         b.ally = e.mon; b.allyHp = e.mon.hp;
         await say(e.text);
         b.allyShown = true; Sound.cry(e.mon.key);
-        await grow('ally');
+        await Promise.all([grow('ally'), playAnim(SEND_OUT, 'ally')]);
       }
       break;
     }
     case 'recall': await say(e.text); if (e.side === 'ally') b.allyShown = false; else b.foeShown = false; break;
     case 'move': {
-      await say(e.text);
-      await lunge(e.side);
+      if (animMode === 'off') { await say(e.text); break; }
+      // Like the main games: the line appears, the move plays under it, and the battle moves on.
+      await showText(e.text);
+      if (!e.still) {
+        const target = e.target ?? other(e.side);
+        const tl = moveAnim(e.id, e.type, e.category, target === e.side);
+        await playAnim(e.miss ? userPart(tl) : tl, e.side, target);
+      }
+      await wait(Math.round(20 / anim.speed));
       break;
     }
+    case 'boost': await playAnim(e.up ? STAT_UP : STAT_DOWN, e.side); break;
+    case 'weather': if (e.weather !== 'none') await playAnim(WEATHER_ANIM[e.weather], 'ally'); break;
     case 'hp': {
       const mon = e.side === 'foe' ? b.foe : b.ally;
       if (!mon) break;
       const dropped = e.hp < (e.side === 'foe' ? b.foeHp : b.allyHp);
       if (dropped && e.effect !== 'residual') {
         Sound.se(e.effect === 'super' ? 'hit_super' : e.effect === 'weak' ? 'hit_weak' : 'hit');
+        if (e.crit) await playAnim(CRIT, e.side);
         await flash(e.side);
-      }
+      } else if (dropped && e.cause) {
+        const st = STATUS_ANIM[e.cause as keyof typeof STATUS_ANIM];
+        if (st) await playAnim(st, e.side);
+        else if (RESIDUAL[e.cause]) await playAnim(RESIDUAL[e.cause], e.side, other(e.side));
+      } else if (e.effect === 'heal' && e.cause !== 'drain' && e.hp > (e.side === 'foe' ? b.foeHp : b.allyHp)) await playAnim(HEAL, e.side);
       mon.hp = e.hp; mon.maxhp = e.maxhp;
       await animateHp(e.side, e.hp);
       break;
     }
-    case 'status': { const mon = e.side === 'foe' ? b.foe : b.ally; if (mon) mon.status = e.status; break; }
+    case 'status': {
+      const mon = e.side === 'foe' ? b.foe : b.ally; if (mon) mon.status = e.status;
+      if (e.status) await playAnim(STATUS_ANIM[e.status], e.side);
+      break;
+    }
     case 'faint': {
       const k = e.side === 'foe' ? 'foeFx' : 'allyFx', mon = e.side === 'foe' ? b.foe : b.ally;
       if (mon) Sound.cry(mon.key);
@@ -1109,6 +1176,7 @@ async function battleMenu(req: BattleRequest): Promise<BattleAction> {
 
 async function battleEnd() {
   await wait(20);
+  anim.clear();
   await fadeTo(1, 12);
   const saved = B?.savedBgm ?? null;
   G.scene = 'overworld'; B = null; G.ui.text = null;
@@ -1174,6 +1242,43 @@ async function titleFlow() {
   await send({ t: 'newGame' });
 }
 
+// ---------- animation preview (open the game with ?anims) ----------
+// Every bespoke move, the generic animation for each type and category, and the shared effects,
+// on a battle screen. Left/right picks, A plays, B swaps which side attacks.
+async function animPreview() {
+  type Entry = { label: string; run: (user: BattleSide) => Promise<unknown> };
+  const moveEntry = (id: string, type: string, category: 'Physical' | 'Special' | 'Status', label: string): Entry => ({
+    label, run: user => battleEvent({ b: 'move', side: user, id, type, category, text: `${label}`, ...(category === 'Status' && /self/.test(label) ? { target: user } : { target: other(user) }) })
+  });
+  const entries: Entry[] = [
+    ...animatedMoves().map(id => { const m = Dex.moves.get(id); return moveEntry(id, m.type.toLowerCase(), m.category, `${m.name} (${m.type})`); }),
+    ...ANIM_TYPES.flatMap(t => (['Physical', 'Special', 'Status'] as const).map(c => moveEntry('', t, c, `Generic ${t} ${c.toLowerCase()}`))),
+    ...ANIM_TYPES.map(t => moveEntry('', t, 'Status', `Generic ${t} status (self)`)),
+    { label: 'Stat up', run: u => battleEvent({ b: 'boost', side: u, up: true }) },
+    { label: 'Stat down', run: u => battleEvent({ b: 'boost', side: other(u), up: false }) },
+    ...(['brn', 'par', 'psn', 'tox', 'slp', 'frz'] as const).map(st => ({ label: `Status: ${st}`, run: (u: BattleSide) => playAnim(STATUS_ANIM[st], other(u)) })),
+    ...(['rain', 'sun', 'sand', 'snow'] as const).map(w => ({ label: `Weather: ${w}`, run: () => battleEvent({ b: 'weather', weather: w }) })),
+    { label: 'Critical hit', run: u => playAnim(CRIT, other(u)) },
+    { label: 'Heal', run: u => playAnim(HEAL, u) },
+    { label: 'Leech Seed drain', run: u => playAnim(RESIDUAL.leechseed, other(u), u) },
+    { label: 'Send out', run: u => playAnim(SEND_OUT, u) }
+  ];
+  const mon = (key: string, name: string): BattleMonView => ({ species: key.toLowerCase(), key, name, level: 12, hp: 40, maxhp: 40, status: '', gender: '', shiny: false });
+  await battleStart({ kind: 'wild', bg: 'field', bgm: 'battle_wild', foeCount: 1 });
+  const b = B!;
+  b.foe = mon('PONYTA', 'Ponyta'); b.ally = mon('SPRIGATITO', 'Sprigatito');
+  b.foeHp = b.allyHp = 40; b.foeShown = b.allyShown = true; b.playerBackShown = false;
+  let idx = 0, user: BattleSide = 'ally';
+  for (;;) {
+    G.ui.text = { full: `${idx + 1}/${entries.length}  ${entries[idx].label}\n◀ ▶ pick · A play · B swap (${user === 'ally' ? 'yours attacks' : 'foe attacks'})`, shown: 999 };
+    const k = await waitKey('left', 'right', 'up', 'down', 'A', 'B');
+    if (k === 'left' || k === 'up') idx = (idx + entries.length - 1) % entries.length;
+    else if (k === 'right' || k === 'down') idx = (idx + 1) % entries.length;
+    else if (k === 'B') user = other(user);
+    else { G.ui.text = null; await entries[idx].run(user); await wait(10); }
+  }
+}
+
 // ---------- main loop ----------
 let loadP = 0;
 function render() {
@@ -1219,7 +1324,8 @@ async function boot() {
   try { await document.fonts.load(`20px ${FONT}`); } catch { /* font optional */ }
   const [c] = await Promise.all([connectSolo(), preload(p => { loadP = p; })]);
   conn = c;
-  (window as any).__hafnia = { G, mode: c.mode, send: (i: Intent) => conn.send(i) }; // for tests and debugging
+  (window as any).__hafnia = { G, mode: c.mode, send: (i: Intent) => conn.send(i), play, anim }; // for tests and debugging
+  if (new URLSearchParams(location.search).has('anims')) { G.lock = true; return animPreview(); }
   G.lock = true;
   try { await titleFlow(); } finally { G.lock = false; }
   // Browsers close tabs without warning: autosave every 2 minutes and whenever the tab is hidden (systems.md §8).

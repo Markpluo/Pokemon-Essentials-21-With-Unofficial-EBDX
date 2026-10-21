@@ -3,6 +3,7 @@ export * from './content';
 export * from './script';
 export * from './pokemon';
 export * from './items';
+export * from './anim';
 export { COIL_DEFAULTS, type CoilRules, type CoilUnlocks } from './coil';
 export { Rng } from './rng';
 export { Game, SaveError, SAVE_VERSION, faceTo, migrate, type SaveData } from './game';
