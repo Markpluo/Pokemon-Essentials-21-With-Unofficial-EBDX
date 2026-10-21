@@ -1395,9 +1395,11 @@ function pollGamepad() {
   }
 }
 
-function update() {
+function update(first = true) {
   pollGamepad();
-  input.pressed = input.queue; input.queue = new Set();
+  // Scripts waiting on a frame only resume after the whole animation frame's updates have run, so a
+  // press must stay visible until then: catch-up updates in the same frame keep it instead of dropping it.
+  if (first) { input.pressed = input.queue; input.queue = new Set(); }
   if (G.scene !== 'overworld' || G.ui.text || G.ui.choice || G.overlays.length) sticky.clear();
   G.t++;
   const ws = frameWaiters; frameWaiters = [];
@@ -1411,7 +1413,7 @@ function update() {
 let last = performance.now(), acc = 0;
 function loop(now: number) {
   acc += Math.min(100, now - last); last = now;
-  while (acc >= 1000 / 60) { update(); acc -= 1000 / 60; }
+  for (let first = true; acc >= 1000 / 60; first = false) { update(first); acc -= 1000 / 60; }
   render();
   requestAnimationFrame(loop);
 }
