@@ -283,8 +283,8 @@ const WALK_FRAMES = 12;
 /** Hold B to run; ride the Cargo-Bike from the menu (outdoors). */
 const playerFrames = () => (G.biking ? 6 : input.held.B ? 7 : WALK_FRAMES);
 async function stepActor(a: Actor, dir: Dir, frames = WALK_FRAMES) {
-  if (a.arrivedAt === G.t) await nextFrame(); // a scripted walk straight after another: show the tile it reached
   a.dir = dir; a.moving = true;
+  if (a.arrivedAt === G.t) await nextFrame(); // a scripted walk straight after another: show the tile it reached
   const [dx, dy] = DIRS[dir];
   // One leg forward per tile, alternating, then standing for the second half (as on the handhelds).
   const leg = a.step % 2 ? 3 : 1;
