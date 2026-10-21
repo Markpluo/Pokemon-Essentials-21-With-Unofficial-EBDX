@@ -26,10 +26,6 @@ export interface BattleOptions {
   overcharge?: boolean;
   /** First battle of the game: the foe picks moves at random, deals half damage and can't knock the player's Pokémon out. */
   tutorial?: boolean;
-  /** Multi battle: a partner fights beside the player (their own team, AI-controlled). */
-  ally?: { name: string; sprite: string; foes: FoeSpec[] };
-  /** Multi battle: a second opposing trainer beside the first. */
-  foes2?: { name: string; sprite: string; foes: FoeSpec[] };
 }
 
 export type Pause =

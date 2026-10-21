@@ -210,10 +210,10 @@ function* starterScene(s: ScriptApi): Step {
   s.say('p.palm.maja');
   s.say('p.orsted.1'); s.say('p.orsted.2'); s.say('p.orsted.3');
   s.say('p.orsted.grass'); s.say('p.orsted.fire'); s.say('p.orsted.water');
-  s.say('Ørsted: And two more who simply wouldn\'t stay in the\ngreenhouse. An Eevee and a Pikachu. Take your pick!');
+  s.say('p.orsted.normal'); s.say('p.orsted.electric');
   yield* pickStarter(s);
   lukas.facePlayer(); s.player.faceTo(lukas.x, lukas.y);
-  s.say('p.lukas.pick');
+  s.say(s.flag('starter') === 'eevee' ? 'p.lukas.pick.even' : 'p.lukas.pick');
   maja.facePlayer();
   s.say('p.maja.pick');
   s.player.faceTo(prof.x, prof.y);

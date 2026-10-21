@@ -64,11 +64,11 @@ function* nyhavnAttack(s: ScriptApi): Step {
   a.place(s.player.x + 3, s.player.y, 'left'); b.place(s.player.x + 3, s.player.y + (s.player.y < 10 ? 1 : -1), 'left');
   a.show(); b.show();
   s.say('c2.ny.deck.1'); s.say('c2.ny.deck.2'); s.say('c2.ny.maja.2');
-  const r = yield s.battle({ kind: 'trainer', bg: 'city', trainer: { name: 'Deckhands', title: 'Deckhand', sprite: 'tr/deckhand' },
-    ally: { name: 'Maja', sprite: 'tr/maja', foes: [{ species: majaStarter(s), level: 15 }, { species: 'skwovet', level: 14 }] },
-    foes: [{ species: 'mareanie', level: 14 }, { species: 'stunky', level: 15 }],
-    foes2: { name: 'Deckhand', sprite: 'tr/deckhand', foes: [{ species: 'croagunk', level: 14 }, { species: 'shellos', level: 15 }] } });
+  // Maja takes the other deckhand off to the side; a true multi battle can replace this once doubles exist.
+  const r = yield s.battle({ kind: 'trainer', bg: 'city', trainer: { name: 'Deckhand', title: 'Deckhand', sprite: 'tr/deckhand' },
+    foes: [{ species: 'mareanie', level: 14 }, { species: 'stunky', level: 15 }] });
   if (r !== 'win') { a.hide(); b.hide(); maja.hide(); return; }
+  s.say('c2.ny.maja.won');
   s.say('c2.ny.deck.lose');
   a.hide(); b.hide();
   s.say('c2.ny.maja.3'); s.say('c2.ny.maja.4');
