@@ -28,6 +28,8 @@ const ctx = canvas.getContext('2d')!;
 ctx.imageSmoothingEnabled = false;
 const FONT = '"Pixelify Sans", "Courier New", monospace';
 const ASSETS = 'game-assets';
+// A host with a file-count limit can ship assets inlined as { url: dataUri } in window.__hafniaAssets.
+const assetUrl = (url: string): string => (window as { __hafniaAssets?: Record<string, string> }).__hafniaAssets?.[url] ?? url;
 
 const TYPE_COLORS: Record<string, string> = {
   normal: '#a8a77a', fire: '#ee8130', water: '#6390f0', grass: '#7ac74c', flying: '#a98ff3', fairy: '#d685ad',
@@ -47,7 +49,7 @@ function image(key: string, url: string): Img {
   if (!im) {
     im = IMG[key] = new Image() as Img;
     im.onload = () => { if (/^pokemon\/(front|back)\//.test(key)) im.box = contentBox(im); };
-    im.src = url;
+    im.src = assetUrl(url);
   }
   return im;
 }
@@ -83,8 +85,8 @@ function contentBox(im: HTMLImageElement) {
 }
 
 // ---------- audio ----------
-const audioUrl = (name: string) => name.startsWith('cries/')
-  ? `${ASSETS}/pokemon/${name}.ogg` : `${ASSETS}/${BASE_PACK}/audio/${name}.ogg`;
+const audioUrl = (name: string) => assetUrl(name.startsWith('cries/')
+  ? `${ASSETS}/pokemon/${name}.ogg` : `${ASSETS}/${BASE_PACK}/audio/${name}.ogg`);
 const Sound = {
   muted: false, bgmEl: null as HTMLAudioElement | null, bgmName: null as string | null, unlocked: false,
   vol: { bgm: 0.45, me: 0.6, se: 0.7 },
