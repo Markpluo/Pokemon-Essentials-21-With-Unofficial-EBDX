@@ -306,9 +306,9 @@ const ROUTE3: MapScripts = {
   onEnter: function* (s) { if (s.flag('frost') && !s.flag('majaRace')) yield* majaRace(s); },
   npcs: [
     { id: 'majar', sprite: 'chars/maja', x: 12, y: 2, dir: 'down', hidden: true },
-    trainer({ id: 'r3cyclist', x: 13, y: 3, dir: 'up', sprite: 'chars/biker', sight: 1, cls: 'Cyclist', name: 'Freja B.',
+    trainer({ id: 'r3cyclist', x: 13, y: 3, dir: 'up', sprite: 'chars/biker', sight: 1, cls: 'Cyclist', name: 'Frida',
       foes: [{ species: 'wattrel', level: 20 }, { species: 'starly', level: 20 }],
-      intro: ['Cyclist: The tailwind up here is free speed! / Battle me before it changes!'], lose: ['Cyclist: Headwind. Emotionally.'] })
+      intro: ['Cyclist: The tailwind up here is free speed!\nBattle me before it changes!'], lose: ['Cyclist: Headwind. Emotionally.'] })
   ]
 };
 
@@ -324,7 +324,7 @@ const ISLANDSBRYGGE: MapScripts = {
     { id: 'lifeguard', sprite: 'chars/lifeguard', x: 11, y: 4, dir: 'left', talk: talk('c3.ib.guard', 'c3.ib.guard.2') },
     trainer({ id: 'ibswim1', x: 5, y: 3, dir: 'left', sprite: 'chars/swimmer', sight: 2, cls: 'Swimmer', name: 'Lone',
       foes: [{ species: 'finizen', level: 20 }, { species: 'shellos', level: 20 }], intro: ['c3.ib.swim1.intro'], lose: ['c3.ib.swim1.lose'] }),
-    trainer({ id: 'ibswim2', x: 10, y: 7, dir: 'up', sprite: 'chars/swimmer', sight: 3, cls: 'Swimmer', name: 'Viggo',
+    trainer({ id: 'ibswim2', x: 10, y: 7, dir: 'up', sprite: 'chars/swimmer', sight: 3, cls: 'Swimmer', name: 'Torben',
       foes: [{ species: 'tentacool', level: 20 }, { species: 'spheal', level: 21 }], intro: ['c3.ib.swim2.intro'], lose: ['c3.ib.swim2.lose'] }),
     { id: 'ladder', sprite: 'obj:ladder', x: 7, y: 3, dir: 'down', object: true, talk: function* (s) {
       if (s.hasItem('mussels') || s.flag('dinnerDone')) { s.say('Mussels cling to the ladder. You have plenty.'); return; }

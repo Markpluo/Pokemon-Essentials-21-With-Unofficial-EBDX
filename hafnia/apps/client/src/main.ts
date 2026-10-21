@@ -125,12 +125,12 @@ const Sound = {
 };
 
 // ---------- input ----------
-type Key = Dir | 'A' | 'B' | 'MENU';
+type Key = Dir | 'A' | 'B' | 'MENU' | 'BIKE';
 const input = { held: {} as Partial<Record<Key, boolean>>, queue: new Set<Key>(), pressed: new Set<Key>() };
 const KEYMAP: Record<string, Key> = {
   ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
   w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right',
-  z: 'A', Z: 'A', ' ': 'A', Enter: 'A', x: 'B', X: 'B', Escape: 'B', Backspace: 'B', c: 'MENU', C: 'MENU', m: 'MENU', M: 'MENU'
+  z: 'A', Z: 'A', ' ': 'A', Enter: 'A', x: 'B', X: 'B', Escape: 'B', Backspace: 'B', c: 'MENU', C: 'MENU', m: 'MENU', M: 'MENU', r: 'BIKE', R: 'BIKE'
 };
 // Overworld presses that land while a request is in flight are kept until the overworld can use them.
 const sticky = new Set<Key>();
@@ -279,7 +279,7 @@ function placeNpc(e: Extract<ServerEvent, { t: 'place' }>) {
 
 const WALK_FRAMES = 12;
 /** Hold B to run; ride the Cargo-Bike from the menu (outdoors). */
-const playerFrames = () => (G.biking ? 6 : input.held.B ? 7 : WALK_FRAMES);
+const playerFrames = () => (G.biking ? (input.held.B ? 4 : 6) : input.held.B ? 7 : WALK_FRAMES); // B: run, or pedal harder on the bike
 async function stepActor(a: Actor, dir: Dir, frames = WALK_FRAMES) {
   a.dir = dir; a.moving = true;
   const [dx, dy] = DIRS[dir];
@@ -773,11 +773,15 @@ function bubble(x: number, y: number) {
 let turnDelay = 0;
 async function overworldTick() {
   const p = G.player;
-  const menu = sticky.has('MENU'), a = sticky.has('A');
+  const menu = sticky.has('MENU'), a = sticky.has('A'), bike = sticky.has('BIKE');
   // A quick tap shorter than a frame still turns the player, or steps if already facing that way.
   const tapped = (['up', 'down', 'left', 'right'] as Dir[]).find(d => sticky.has(d));
   sticky.clear();
   if (menu) { await startMenu(); return; }
+  if (bike) { // R: hop on or off without opening the menu
+    if (G.world?.bag.bike && !mapOf(G.mapKey).map.indoor) { G.biking = !G.biking; Sound.se('select'); }
+    return;
+  }
   if (a) { await send({ t: 'interact' }); return; }
   const dir = (['up', 'down', 'left', 'right'] as Dir[]).find(d => input.held[d]);
   if (!dir) {
@@ -1773,7 +1777,7 @@ function render() {
   if (G.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${G.fade})`; ctx.fillRect(0, 0, VW, VH); }
 }
 
-// Gamepad: d-pad or left stick to move, A/B as usual, Start or Y for the menu.
+// Gamepad: d-pad or left stick to move, A/B as usual, Start or Y for the menu, X for the bike.
 const padHeld: Partial<Record<Key, boolean>> = {};
 function pollGamepad() {
   const pad = navigator.getGamepads?.().find(p => p && p.connected);
@@ -1781,7 +1785,7 @@ function pollGamepad() {
   const b = (i: number) => !!pad.buttons[i]?.pressed, ax = pad.axes[0] ?? 0, ay = pad.axes[1] ?? 0;
   const now: Record<Key, boolean> = {
     up: b(12) || ay < -0.5, down: b(13) || ay > 0.5, left: b(14) || ax < -0.5, right: b(15) || ax > 0.5,
-    A: b(0), B: b(1), MENU: b(9) || b(3)
+    A: b(0), B: b(1), MENU: b(9) || b(3), BIKE: b(2)
   };
   for (const k of Object.keys(now) as Key[]) {
     if (now[k] && !padHeld[k]) press(k);

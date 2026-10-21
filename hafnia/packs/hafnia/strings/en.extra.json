@@ -14,5 +14,10 @@
  "c2.chr.maja.1": "Maja: Welcome to my favourite part of the city.\nDon't run, don't take photos of people.\nPhotos of Pokémon, fine.",
  "c2.alva.1": "Alva: Careful on the planks. The moat's choking.\nAlgae everywhere, and it's June.\nToo warm here, freezing there.",
  "c2.alva.2": "Alva: Warm water from those pipes. Vanguard's\noutflow. Can you help my barges?\nPush the floating booms together.",
- "p.coil.got": "Current unlocked! Your Coil can now charge up\nand power a move with Current."
+ "p.coil.got": "Current unlocked! Your Coil can now charge up\nand power a move with Current.",
+ "c2.enforcer.overcharge": "The Enforcer's Rotom crackles red: Overcharge!",
+ "c2.orsted.scan": "Your Pokédex buzzes. Ørsted: \"{player}! I've sent\nan update. Now it hums near hidden things!\"",
+ "p.bike.rotom": "Rotom: Bzzt! Ready to ride! Pick Ride bike in the\nMenu, or press R. Hold B to go faster!",
+ "c3.kasper.bike.2": "The Lamp lights the bike at night, and one day\nthe Hydrofoils will skim you over to Kalvebod Wilds.",
+ "c3.ib.wilds": "KALVEBOD WILDS. Past the reeds it's open water.\n(Not open yet in this demo.)"
 }
