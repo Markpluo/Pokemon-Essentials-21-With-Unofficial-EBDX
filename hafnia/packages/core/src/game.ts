@@ -770,6 +770,8 @@ export class Game {
       setLook: look => { s.look = look; },
       get period() { return g.period; },
       setTime: period => { s.clock = PERIOD_START[period]; },
+      get clock() { return Math.floor(s.clock); },
+      setClock: minutes => { s.clock = ((Math.floor(minutes) % 1440) + 1440) % 1440; },
       givePokemon: (species, level) => {
         const m = makeMon(species, level, g.rng, { ot: s.name });
         g.addMon(m);
@@ -893,12 +895,18 @@ export class Game {
 
   view(): WorldView {
     const s = this.state, m = this.map;
+    let goal: string | undefined;
+    for (const [id, p] of [...this.content.packs].reverse()) {
+      const g = p.goal?.(name => this.flag(id, name));
+      if (g) { goal = this.text(id, g); break; }
+    }
     return {
       name: s.name, map: m.key, x: s.x, y: s.y, dir: s.dir,
       npcs: this.npcViews(),
       party: s.party.map(monView), bag: { ...s.bag }, money: s.money, badges: s.badges.length,
       look: s.look, period: this.period, clock: Math.floor(s.clock),
       dex: { seen: Object.keys(s.dex.seen).length, caught: Object.keys(s.dex.caught).length },
+      ...(goal ? { goal } : {}),
       ...(this.debug ? { debug: true } : {})
     };
   }

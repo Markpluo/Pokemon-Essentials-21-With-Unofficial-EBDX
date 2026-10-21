@@ -69,6 +69,7 @@ export interface WorldView {
   badges: number; debug?: boolean;
   look: Look; period: DayPeriod; clock: number;   // clock: minutes since midnight, in game time
   dex: { seen: number; caught: number };
+  goal?: string;                                  // what the story wants next, for the start menu
 }
 
 export type BattleSide = 'ally' | 'foe';

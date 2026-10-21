@@ -84,6 +84,9 @@ export interface ScriptApi {
   readonly period: DayPeriod;
   /** Moves the clock forward to the start of a period (sleeping, waiting). */
   setTime(period: DayPeriod): void;
+  /** In-game minutes since midnight. */
+  readonly clock: number;
+  setClock(minutes: number): void;
   givePokemon(species: string, level: number): Mon;
   giveItem(item: string, qty?: number): void;
   hasItem(item: string): number;

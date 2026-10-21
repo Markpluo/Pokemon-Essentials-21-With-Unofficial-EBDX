@@ -810,7 +810,15 @@ async function startMenu() {
     const w = G.world;
     const canBike = !!w?.bag.bike && !mapOf(G.mapKey).map.indoor;
     const items = [...(w?.dex.seen ? ['Pokédex'] : []), 'Pokémon', 'Bag', ...(canBike ? [G.biking ? 'Get off bike' : 'Ride bike'] : []), 'Save', 'Options', ...(w?.debug ? ['Debug'] : []), 'Close'];
-    const ov = () => { if (w) { panel(8, 8, 200, 58); text(`${w.money} kr.`, 28, 34, 16, '#26324a'); text(`Badges: ${w.badges}`, 28, 54, 14, '#55617a'); } };
+    const ov = () => {
+      if (!w) return;
+      panel(8, 8, 200, 58); text(`${w.money} kr.`, 28, 34, 16, '#26324a'); text(`Badges: ${w.badges}`, 28, 54, 14, '#55617a');
+      if (w.goal) { // the next story step, so a returning player knows where to go
+        const lines = w.goal.split('\n');
+        panel(8, 72, 328, 34 + lines.length * 18); text('Current goal', 24, 94, 13, '#a0612a');
+        lines.forEach((l, i) => text(l, 24, 114 + i * 18, 13, '#26324a'));
+      }
+    };
     G.overlays.push(ov);
     let c: number;
     try { c = await choose(items, items.length - 1, { x: VW - 168, y: 8, w: 160 }); } finally { G.overlays.pop(); }
@@ -1759,7 +1767,18 @@ async function animPreview(exitable = false) {
 
 // ---------- main loop ----------
 let loadP = 0;
+// The touch Bike button shows once the bike is yours, outdoors, and names what a tap will do.
+const bikeBtn = document.getElementById('bikebtn');
+function syncBikeButton() {
+  if (!bikeBtn) return;
+  const show = G.scene === 'overworld' && !!G.world?.bag.bike && !!G.mapKey && !mapOf(G.mapKey).map.indoor;
+  if (bikeBtn.hidden === show) bikeBtn.hidden = !show;
+  const label = G.biking ? 'Get off' : 'Bike';
+  if (bikeBtn.textContent !== label) bikeBtn.textContent = label;
+}
+
 function render() {
+  syncBikeButton();
   ctx.textAlign = 'left';
   if (G.scene === 'loading') {
     ctx.fillStyle = '#0e2148'; ctx.fillRect(0, 0, VW, VH);
