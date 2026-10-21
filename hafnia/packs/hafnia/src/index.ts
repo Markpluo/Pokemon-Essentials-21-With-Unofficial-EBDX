@@ -5,6 +5,7 @@ import { speciesExtra, type Dir, type MapDef, type Pack, type Script } from '@ha
 import manifest from '../pack.json';
 import strings from '../strings/en.json';
 import { CITY } from './city';
+import { DRAGOR_SCRIPTS } from './dragor';
 import { FREETOWN } from './freetown';
 import { HOME, intro } from './home';
 import { LAKES } from './lakes';
@@ -12,7 +13,7 @@ import type { MapScripts } from './lib';
 import { starterVars } from './starters';
 import { MAPS, STAMPS } from './world';
 
-const SCRIPTS: Record<string, MapScripts & { exitGuards?: Partial<Record<Dir, Script>> }> = { ...HOME, ...LAKES, ...CITY, ...FREETOWN };
+const SCRIPTS: Record<string, MapScripts & { exitGuards?: Partial<Record<Dir, Script>> }> = { ...HOME, ...LAKES, ...CITY, ...FREETOWN, ...DRAGOR_SCRIPTS };
 
 const maps: Record<string, MapDef> = {};
 for (const [id, m] of Object.entries(MAPS)) {

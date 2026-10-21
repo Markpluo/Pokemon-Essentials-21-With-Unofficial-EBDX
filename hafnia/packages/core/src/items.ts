@@ -15,6 +15,7 @@ export interface ItemDef {
   revive?: number;           // fraction of max HP a fainted Pokémon comes back with
   ball?: number;             // catch-rate multiplier
   repel?: number;            // steps
+  breeding?: boolean;        // given to Vuggestuen with a Pokémon (Everstone, Destiny Knot)
   tm?: string;               // move taught (reusable)
 }
 
@@ -41,7 +42,9 @@ export const ITEMS: Record<string, ItemDef> = {
   bike: { name: 'Rotom Cargo-Bike', pocket: 'key', price: 0, desc: 'Ørsted\'s prototype. Ride it from the menu outdoors.' },
   oldrod: { name: 'Old Rod', pocket: 'key', price: 0, desc: 'Old Knud\'s rod. Face water and press A to fish.' },
   coppernail: { name: 'Copper Hull Nail', pocket: 'key', price: 0, desc: 'From the old ships. Lets the Coil make Patina armour.' },
-  lighthouselog: { name: 'Lighthouse Log', pocket: 'key', price: 0, desc: 'Yellowed pages from a lighthouse keeper\'s log.' }
+  lighthouselog: { name: 'Lighthouse Log', pocket: 'key', price: 0, desc: 'Yellowed pages from a lighthouse keeper\'s log.' },
+  everstone: { name: 'Everstone', pocket: 'other', price: 3000, breeding: true, desc: 'Leave it at Vuggestuen with a Pokémon and the Egg gets its nature.' },
+  destinyknot: { name: 'Destiny Knot', pocket: 'other', price: 20000, breeding: true, desc: 'Leave it at Vuggestuen with a Pokémon and the Egg inherits 5 IVs.' }
 };
 
 export const itemName = (id: string) => ITEMS[id]?.name ?? id;

@@ -234,6 +234,7 @@ async function play(evs: ServerEvent[]) {
       case 'battleEnd': await battleEnd(); break;
       case 'chapterEnd': await chapterEnd(e.title, e.subtitle); break;
       case 'evolve': await evolveScene(e); break;
+      case 'hatch': await hatchScene(e); break;
       case 'error': console.error(e.message); await say(`Something went wrong: ${e.message}`); break;
       case 'checkpoint': case 'title': break;
     }
@@ -418,6 +419,37 @@ async function evolveScene(e: Extract<ServerEvent, { t: 'evolve' }>) {
     for (let k = 0; k < 10; k++) { showTo = k % 2 === 1; white = 0.4; await wait(Math.max(4, 16 - k)); }
     white = 1; await wait(20); showTo = true; white = 0; Sound.cry(e.to);
     await wait(40);
+  } finally { G.overlays.pop(); }
+}
+
+// The egg wobbles, cracks (Eggs/000_cracks.png has 5 stages), flashes white and the baby appears.
+async function hatchScene(e: Extract<ServerEvent, { t: 'hatch' }>) {
+  let stage = -1, wobble = 0, white = 0, baby = false;
+  const egg = monImg('front', 'EGG'), cracks = monImg('front', 'EGG_cracks');
+  const ov = () => {
+    ctx.fillStyle = '#16304f'; ctx.fillRect(0, 0, VW, VH);
+    ctx.fillStyle = '#ffe9a8'; ctx.globalAlpha = 0.12; ctx.beginPath(); ctx.arc(VW / 2, 200, 120, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+    if (baby) drawMonSprite(e.key, 'front', VW / 2, 250, 1.1, true);
+    else if (egg.complete && egg.naturalWidth) {
+      const size = 112, x = VW / 2 - size / 2, y = 250 - size;
+      ctx.save(); ctx.translate(VW / 2, 250); ctx.rotate(Math.sin(wobble) * 0.18); ctx.translate(-VW / 2, -250);
+      ctx.drawImage(egg, 0, 0, egg.height, egg.height, x, y, size, size);
+      if (stage >= 0 && cracks.complete && cracks.naturalWidth) ctx.drawImage(cracks, stage * cracks.height, 0, cracks.height, cracks.height, x, y, size, size);
+      ctx.restore();
+    }
+    if (white > 0) { ctx.fillStyle = `rgba(255,255,255,${Math.min(1, white)})`; ctx.fillRect(0, 0, VW, VH); }
+  };
+  G.overlays.push(ov);
+  try {
+    await wait(30);
+    for (let s = 0; s < 5; s++) {
+      for (let i = 0; i < 16; i++) { wobble = Math.sin(i / 16 * Math.PI * 2) * (1 + s * 0.5); await nextFrame(); }
+      wobble = 0; stage = s; Sound.se('shake'); await wait(18);
+    }
+    for (let i = 0; i <= 12; i++) { white = i / 12; await nextFrame(); }
+    baby = true; Sound.cry(e.key);
+    for (let i = 12; i >= 0; i--) { white = i / 12; await nextFrame(); }
+    await wait(30);
   } finally { G.overlays.pop(); }
 }
 
@@ -786,7 +818,8 @@ async function debugMenu() {
   const cmds: [string, DebugCommand, (string | number)?][] = [
     ['Give Lv. 10 Sprigatito', 'givePokemon', 'sprigatito'], ['Heal team', 'heal'], ['Lead +5 levels', 'levelUp', 5], ['Give items', 'items'], ['+10,000 kr.', 'money'],
     ['Unlock Copper & Current', 'unlockCoil'], ['Toggle wild encounters', 'encounters'], ['Add a badge', 'badge'], ['Clock +6 hours', 'time'],
-    ...(['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven'] as const)
+    ['Give Lv. 10 Ditto', 'givePokemon', 'ditto'], ['Vuggestuen: Egg now', 'layEgg'], ['Hatch Eggs now', 'hatchEggs'],
+    ...(['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven', 'dragor'] as const)
       .map(id => [`Warp: ${HAFNIA_MAPS[id].name}`, 'warp', `hafnia:${id}`] as [string, DebugCommand, string])
   ];
   const c = await choose([...cmds.map(x => x[0]), 'Animation viewer', 'Back'], cmds.length + 1, { x: 8, y: 8, w: 300 });
@@ -804,7 +837,9 @@ async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced', party: M
       const y = 46 + i * 54, sel = i === idx;
       ctx.fillStyle = sel ? '#ffe9a8' : '#fbf7ee'; roundRect(16, y, VW - 32, 48, 8); ctx.fill();
       const ic = monImg('icons', m.key); if (ic.complete && ic.naturalWidth) ctx.drawImage(ic, (Math.floor(G.t / 15) % 2) * 64, 0, 64, 64, 18, y - 10, 60, 60);
-      text(m.name, 84, y + 22, 18, '#26324a'); text('Lv ' + m.level, 84, y + 41, 14, '#55617a');
+      text(m.name, 84, y + 22, 18, '#26324a');
+      if (m.egg) { text(m.egg.hint, 84, y + 41, 12, '#55617a'); return; }
+      text('Lv ' + m.level, 84, y + 41, 14, '#55617a');
       if (m.status) statusChip(m.status, 150, y + 30);
       hpBar(220, y + 12, 170, m.hp, m.maxhp);
       text(`${m.hp}/${m.maxhp}`, VW - 28, y + 22, 14, '#26324a', 'right');
@@ -822,7 +857,9 @@ async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced', party: M
       if (k === 'down') { idx = (idx + 1) % party.length; Sound.se('cursor'); }
       if (k === 'A') {
         Sound.se('select');
-        if (mode === 'view' && idx === 0) { await say(`${party[0].name} leads your team.`); continue; }
+        if (mode === 'view' && party[idx].egg) { await say(party[idx].egg!.hint); if (idx === 0) continue; }
+        else if (mode === 'view' && idx === 0) { await say(`${party[0].name} leads your team.`); continue; }
+        if (mode === 'item' && party[idx].egg) { await say('That can\'t be used on an Egg.'); continue; }
         if (mode === 'forced' && party[idx].hp <= 0) { await say(`${party[idx].name} has no energy left to battle!`); continue; }
         return idx;
       }
@@ -844,6 +881,7 @@ async function bagMenu(bag: Record<string, number>, party: MonView[], inBattle: 
     return { kind: 'ball', item };
   }
   if (def.repel) return { kind: 'item', item, uid: '' };
+  if (def.breeding) { await say(def.desc); return null; }
   if (def.pocket === 'key' || (def.pocket === 'other' && !def.heal && !def.cures)) { await say(def.desc); return null; }
   const i = await partyScreen('item', party);
   return i < 0 ? null : { kind: 'item', item, uid: party[i].uid };

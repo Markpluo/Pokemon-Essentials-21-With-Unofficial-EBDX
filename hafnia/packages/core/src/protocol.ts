@@ -34,7 +34,7 @@ export type Intent =
 
 export type SaveSlot = 'auto' | 1 | 2 | 3;
 export interface SlotInfo { slot: SaveSlot; summary: string | null }
-export type DebugCommand = 'givePokemon' | 'heal' | 'levelUp' | 'items' | 'money' | 'unlockCoil' | 'encounters' | 'warp' | 'badge' | 'time';
+export type DebugCommand = 'givePokemon' | 'heal' | 'levelUp' | 'items' | 'money' | 'unlockCoil' | 'encounters' | 'warp' | 'badge' | 'time' | 'hatchEggs' | 'layEgg';
 
 // ---------- server -> client ----------
 export interface MoveView { id: string; name: string; type: string; category: 'Physical' | 'Special' | 'Status'; power: number; pp: number; maxpp: number; disabled?: boolean }
@@ -42,6 +42,8 @@ export interface MonView {
   uid: string; species: string; key: string; name: string; types: string[]; level: number;
   hp: number; maxhp: number; status: StatusId; moves: MoveView[];
   exp: number; expLo: number; expHi: number; gender: '' | 'M' | 'F'; shiny: boolean;
+  /** Present for eggs, which show no species, level or moves. */
+  egg?: { hint: string };
 }
 export interface NpcView { id: string; sprite: string; x: number; y: number; dir: Dir; object?: boolean; floor?: boolean }
 export type Look = 'boy' | 'girl';
@@ -106,6 +108,7 @@ export type ServerEvent =
   | { t: 'title'; hasSave: boolean; summary?: string; slots?: SlotInfo[] }
   | { t: 'slots'; slots: SlotInfo[] }
   | { t: 'evolve'; from: string; to: string; fromName: string; toName: string }
+  | { t: 'hatch'; key: string; name: string; shiny: boolean }
   | { t: 'view'; view: WorldView }
   | { t: 'say'; text: string }
   | { t: 'prompt'; text: string; options: string[]; cancel?: number }

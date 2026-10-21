@@ -471,11 +471,31 @@ const gym2 = (): MapData => ({
   battleBg: 'field'
 });
 
+// Dragør (Ch3): the yellow fishing village. Vuggestuen (the daycare) and its pram yard behind a beech
+// hedge, cobbled lanes and the old harbour. Reached by debug warp until the Amager Coast Path exists.
+function dragor(): MapData {
+  const W = 26, H = 20, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 2, 'T'); fill(g, 0, 18, W, 2, 'T'); fill(g, 0, 0, 2, H, 'T');
+  fill(g, 21, 0, 5, H, '~');                  // Øresund
+  fill(g, 20, 2, 1, 16, 'q');                 // the quay
+  fill(g, 2, 9, 18, 1, 'q');                  // Strandgade
+  fill(g, 10, 2, 1, 16, 'q');                 // Kongevejen
+  fill(g, 2, 11, 8, 6, 'T'); fill(g, 4, 12, 4, 4, '.'); g[11][4] = g[11][5] = '.';   // pram yard inside a beech hedge
+  dots(g, 'f', [[4, 12], [7, 12], [2, 3], [2, 4], [8, 2], [9, 2], [12, 7], [13, 7], [17, 7], [18, 7], [12, 16], [18, 16]]);
+  return {
+    id: 'dragor', name: 'Dragør', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
+    buildings: [
+      { s: 'home', x: 3, y: 3, id: 'vuggestuen' }, { s: 'orange', x: 12, y: 3 }, { s: 'green', x: 16, y: 3 },
+      { s: 'red', x: 12, y: 12 }, { s: 'orange', x: 16, y: 12 }
+    ]
+  };
+}
+
 export const MAPS = {
   norrebro: norrebro(), flat: flat(), lukasflat: lukasFlat(), pcnorrebro: center('pcnorrebro', 'Pokémon Center', 'norrebro', 22, 8),
   gym1: gym1(), bridge: bridge(), route1: route1(), garden: garden(), palmhouse: palmhouse(), tunnels: tunnels(),
   indreby: indreby(), pcindreby: center('pcindreby', 'Pokémon Center', 'indreby', 5, 5), towerin: tower(),
   nyhavn: nyhavn(), cafein: cafe(), drydock: drydock(), route4: route4(), christianshavn: christianshavn(),
   pcchristianshavn: center('pcchristianshavn', 'Pokémon Center', 'christianshavn', 22, 11),
-  stadsgraven: stadsgraven(), gym2: gym2()
+  stadsgraven: stadsgraven(), gym2: gym2(), dragor: dragor()
 };
