@@ -187,3 +187,19 @@ describe('battle rules', () => {
     expect(first).toContain('Ember');
   });
 });
+
+describe('animation events', () => {
+  it('tells the client which move was used, at whom, and what it did', () => {
+    const t = battle({ party: [['pikachu', 30, ['thundershock', 'growl', 'sunnyday']]], foes: [{ species: 'snorlax', level: 50, moves: ['splash'] }] });
+    t.act({ kind: 'move', index: 0 });
+    t.act({ kind: 'move', index: 1 });
+    t.act({ kind: 'move', index: 2 });
+    const evs = t.battleEvents();
+    expect(evs).toContainEqual(expect.objectContaining({ b: 'move', side: 'ally', id: 'thundershock', type: 'electric', category: 'Special', target: 'foe' }));
+    expect(evs).toContainEqual(expect.objectContaining({ b: 'move', side: 'foe', id: 'splash', target: 'foe' }));
+    expect(evs).toContainEqual({ b: 'boost', side: 'foe', up: false });
+    expect(evs).toContainEqual({ b: 'weather', weather: 'sun' });
+    // Field moves are logged as targeting the user, so they play as self-targeted animations.
+    expect(evs).toContainEqual(expect.objectContaining({ b: 'move', id: 'sunnyday', target: 'ally' }));
+  });
+});
