@@ -43,13 +43,14 @@ class Client {
   /** Answers prompts with the first option and battles with the first move until nothing is asked. */
   async drive(events: ServerEvent[]) {
     for (let guard = 0; guard < 500; guard++) {
-      const ask = [...events].reverse().find(e => e.t === 'prompt' || e.t === 'pickSpecies' || e.t === 'battleRequest');
+      const ask = [...events].reverse().find(e => ['prompt', 'pickSpecies', 'battleRequest', 'askName', 'pickLook'].includes(e.t));
       if (!ask) return;
       events = await this.intent(this.answer(ask));
     }
     throw new Error('drive: too many steps');
   }
   answer(e: ServerEvent): Intent {
+    if (e.t === 'askName') return { t: 'answer', index: 0, text: e.suggestions[0] };
     if (e.t !== 'battleRequest') return { t: 'answer', index: 0 };
     const r = e.request;
     if (r.forceSwitch) return { t: 'battle', action: { kind: 'switch', uid: r.party.find(p => p.hp > 0 && p.uid !== r.activeUid)!.uid } };
@@ -65,7 +66,9 @@ async function newPlayer(hub: Hub, email: string, name: string, invite?: string)
   const hello = await c.auth(email, { trainerName: name, birthYear: 1990, ...(invite ? { invite } : {}) });
   expect(hello).toMatchObject({ s: 'hello', me: { name } });
   expect(await c.intent({ t: 'title' })).toEqual([expect.objectContaining({ t: 'title', hasSave: false })]);
-  await c.drive(await c.intent({ t: 'newGame' }));
+  const intro = await c.intent({ t: 'newGame' });
+  expect(intro.some(e => e.t === 'askName')).toBe(false); // online characters use the account's name
+  await c.drive(intro);
   // The starter comes later in the story (the playthrough test covers that): hand out a team here.
   const game = hub.sessions.get(c.of('hello')[0].me.id)!.game!, rng = new Rng(name.length);
   game.state.party.push(makeMon('sprigatito', 12, rng, { ot: name }), makeMon('popplio', 11, rng, { ot: name }));

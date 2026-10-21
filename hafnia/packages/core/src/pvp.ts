@@ -7,7 +7,7 @@ import { healMon, maxPp, monName, monView, moveView, speciesExtra, speciesName, 
 import type { BattleAction, BattleEvent, BattleMonView, BattleRequest, BattleSide, ServerEvent, StatusId } from './protocol';
 import type { Rng } from './rng';
 
-export interface PvpPlayer { name: string; party: Mon[] }
+export interface PvpPlayer { name: string; party: Mon[]; /** Trainer sprite shown to the opponent. */ sprite?: string }
 type Side = 0 | 1;
 type SimSide = Battle['p1'];
 type SimPokemon = SimSide['pokemon'][number];
@@ -48,7 +48,7 @@ export class PvpBattle {
     for (const i of [0, 1] as Side[]) {
       const foe = this.players[1 - i];
       this.out[i].push(
-        { t: 'battleStart', battle: { kind: 'trainer', bg: this.bg, bgm: 'battle_trainer', trainer: { name: foe.name, title: 'Trainer', sprite: 'tr/player' }, foeCount: this.teams[1 - i].length } },
+        { t: 'battleStart', battle: { kind: 'trainer', bg: this.bg, bgm: 'battle_trainer', trainer: { name: foe.name, title: 'Trainer', sprite: foe.sprite ?? 'tr/player_boy' }, foeCount: this.teams[1 - i].length } },
         { t: 'battle', ev: { b: 'text', text: `You are challenged by ${foe.name}!` } }
       );
     }
@@ -189,7 +189,7 @@ export class PvpBattle {
     };
     const evs: BattleEvent[] = [];
     let afterHit: BattleEvent[] = [];
-    let pending: 'super' | 'weak' | null = null;
+    let pending: 'super' | 'weak' | null = null, crit = false;
     for (const line of lines) {
       const parts = line.split('|').slice(1);
       const [cmd, a1 = '', a2 = '', a3 = ''] = parts;
@@ -205,15 +205,19 @@ export class PvpBattle {
           break;
         }
         case 'move': {
-          const mv = Dex.moves.get(a2);
-          evs.push({ b: 'move', side: sideOf(a1), text: `${name(a1)} used ${mv.name}!`, type: mv.type.toLowerCase(), category: mv.category });
+          const mv = Dex.moves.get(a2), flag = (k: string) => parts.includes(`[${k}]`);
+          evs.push({
+            b: 'move', side: sideOf(a1), text: `${name(a1)} used ${mv.name}!`, id: mv.id, type: mv.type.toLowerCase(), category: mv.category,
+            ...(a3 && !flag('notarget') ? { target: sideOf(a3) } : {}), ...(flag('miss') ? { miss: true } : {}), ...(flag('still') ? { still: true } : {})
+          });
           break;
         }
         case '-damage': case '-heal': case '-sethp': {
           const [cur, max] = a2.split(' ')[0].split('/').map(Number);
           const effect = cmd === '-heal' ? 'heal' : from ? 'residual' : (pending ?? 'normal');
-          pending = null;
-          evs.push({ b: 'hp', side: sideOf(a1), hp: cur || 0, maxhp: max || 1, effect });
+          const isCrit = !from && crit, cause = from?.replace(/^(item|ability|move): /, '').toLowerCase().replace(/[^a-z]/g, '');
+          pending = null; crit = false;
+          evs.push({ b: 'hp', side: sideOf(a1), hp: cur || 0, maxhp: max || 1, effect, ...(isCrit ? { crit: true } : {}), ...(cause ? { cause } : {}) });
           if (!from) { evs.push(...afterHit); afterHit = []; }
           else {
             const src = from.replace(/^(item|ability|move): /, '');
@@ -224,7 +228,7 @@ export class PvpBattle {
         }
         case '-supereffective': pending = 'super'; afterHit.push({ b: 'text', text: 'It\'s super effective!' }); break;
         case '-resisted': pending = 'weak'; afterHit.push({ b: 'text', text: 'It\'s not very effective...' }); break;
-        case '-crit': afterHit.unshift({ b: 'text', text: 'A critical hit!' }); break;
+        case '-crit': crit = true; afterHit.unshift({ b: 'text', text: 'A critical hit!' }); break;
         case '-miss': evs.push({ b: 'text', text: a2 ? `${name(a2)} avoided the attack!` : `${name(a1)}'s attack missed!` }); break;
         case '-immune': evs.push({ b: 'text', text: `It doesn't affect ${name(a1, false)}...` }); break;
         case '-fail': evs.push({ b: 'text', text: 'But it failed!' }); break;
@@ -241,13 +245,17 @@ export class PvpBattle {
           const n = Number(a3), up = cmd === '-boost';
           const amount = n === 0 ? (up ? 'won\'t go any higher!' : 'won\'t go any lower!')
             : n === 1 ? (up ? 'rose!' : 'fell!') : n === 2 ? (up ? 'rose sharply!' : 'harshly fell!') : (up ? 'rose drastically!' : 'severely fell!');
+          if (n !== 0) evs.push({ b: 'boost', side: sideOf(a1), up });
           evs.push({ b: 'text', text: `${name(a1)}'s ${STAT_NAMES[a2] ?? a2} ${amount}` });
           break;
         }
         case '-ability': evs.push({ b: 'text', text: `[${name(a1)}'s ${a2}]` }); break;
         case '-weather': {
           const w: Record<string, string> = { RainDance: 'It started to rain!', SunnyDay: 'The sunlight turned harsh!', Sandstorm: 'A sandstorm kicked up!', Snow: 'It started to snow!', none: 'The weather returned to normal.' };
-          if (!parts.includes('[upkeep]') && w[a1]) evs.push({ b: 'text', text: w[a1] });
+          const upkeep = parts.includes('[upkeep]');
+          const weather = ({ RainDance: 'rain', SunnyDay: 'sun', Sandstorm: 'sand', Snow: 'snow', none: 'none' } as const)[a1 as 'none'];
+          if (weather) evs.push({ b: 'weather', weather, ...(upkeep ? { upkeep } : {}) });
+          if (!upkeep && w[a1]) evs.push({ b: 'text', text: w[a1] });
           break;
         }
         case 'faint': evs.push({ b: 'faint', side: sideOf(a1), text: `${name(a1)} fainted!` }); break;

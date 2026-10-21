@@ -177,10 +177,12 @@ export class Session {
   private stepBucket: Bucket;
   private seen: { map: string; x: number; y: number; dir: string } | null = null;
   private gone = false;
+  private lastTick: number;
 
   constructor(private hub: Hub, private link: Link, public account: Account, private blocked: Set<string>) {
     this.chatBucket = new Bucket(1, 5, hub.opts.now);
     this.stepBucket = new Bucket(10, 10, hub.opts.now);
+    this.lastTick = hub.opts.now();
   }
 
   get id() { return this.account.id; }
@@ -269,6 +271,11 @@ export class Session {
     }
     if (this.trade) return [];
     if (intent.t === 'step' && !this.stepBucket.take()) return [];
+    if (intent.t === 'tick') { // the world clock follows real time on the server, whatever the client claims
+      const now = this.hub.opts.now();
+      intent = { t: 'tick', seconds: Math.min(60, (now - this.lastTick) / 1000) };
+      this.lastTick = now;
+    }
     const events = g.handle(intent);
     if (events.some(e => e.t === 'checkpoint')) await this.save();
     this.announce();
@@ -298,7 +305,7 @@ export class Session {
 
   view(): PlayerView | null {
     const s = this.game?.state;
-    return s ? { id: this.id, name: this.name, sprite: 'chars/player', x: s.x, y: s.y, dir: s.dir } : null;
+    return s ? { id: this.id, name: this.name, sprite: s.look === 'girl' ? 'chars/player_girl' : 'chars/player', x: s.x, y: s.y, dir: s.dir } : null;
   }
 
   /** Tells the players on this map (and the old one) where this player is now. */
@@ -520,7 +527,7 @@ export class Session {
 
   private startBattle(other: Session) {
     const players: [Session, Session] = [other, this];
-    const battle = new PvpBattle(players.map(s => ({ name: s.name, party: s.game!.state.party })) as any, new Rng(this.hub.opts.seed()));
+    const battle = new PvpBattle(players.map(s => ({ name: s.name, party: s.game!.state.party, sprite: `tr/player_${s.game!.state.look === 'girl' ? 'girl' : 'boy'}` })) as any, new Rng(this.hub.opts.seed()));
     const p: Pvp = { battle, players, timer: null };
     this.pvp = other.pvp = p;
     this.hub.log(`battle: ${other.name} vs ${this.name}`);
