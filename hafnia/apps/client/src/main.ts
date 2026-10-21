@@ -283,8 +283,9 @@ async function changeMap(e: Extract<ServerEvent, { t: 'map' }>) {
   const first = G.scene !== 'overworld' && G.scene !== 'battle';
   if (G.mapKey) Sound.se('door', 0.3);
   await fadeTo(1, first ? 12 : 10);
-  G.mapKey = e.map;
-  G.npcs = new Map(e.npcs.map(n => [n.id, { ...n, px: 0, py: 0, moving: false, step: 0, anim: 0 }]));
+  G.mapKey = e.map; G.npcs = new Map();
+  if (G.world) applyView({ ...G.world, map: e.map, x: e.x, y: e.y, dir: e.dir, npcs: e.npcs });
+  else for (const n of e.npcs) G.npcs.set(n.id, { ...n, px: 0, py: 0, moving: false, step: 0, anim: 0 });
   Object.assign(G.player, { x: e.x, y: e.y, dir: e.dir, px: 0, py: 0, moving: false });
   G.scene = 'overworld'; G.mapBanner = 120;
   if (mapOf(e.map).map.indoor) G.biking = false;

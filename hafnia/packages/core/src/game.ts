@@ -413,7 +413,7 @@ export class Game {
 
   private emitMap() {
     const m = this.map, s = this.state;
-    // The NPCs come with the map: the view only follows at the end of the batch, after any cutscene.
+    // NPCs ride along so a cutscene that starts on arrival (Mum in the intro) can show them before the next view
     this.out.push({ t: 'map', map: m.key, name: m.name, x: s.x, y: s.y, dir: s.dir, bgm: m.bgm, npcs: this.npcViews() });
   }
 
