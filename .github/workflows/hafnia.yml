@@ -1,5 +1,7 @@
 # Copper & Current (hafnia/): typecheck, tests (including the scripted prologue playthrough and
 # content validation) and a production build on every push and pull request that touches it.
+# Then the test bot (hafnia/bot) plays the real game in headless Chromium; its report, screenshots
+# and failure videos are uploaded as the "bot-results" artifact.
 name: hafnia
 
 on:
@@ -25,3 +27,26 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: hafnia
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: hafnia/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run bot
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bot-results
+          path: hafnia/bot/results/
+          retention-days: 14

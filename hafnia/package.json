@@ -2,16 +2,25 @@
   "name": "hafnia",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*", "packs/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "packs/*",
+    "apps/*"
+  ],
   "scripts": {
     "pbs": "node tools/pbs-import.mjs",
     "assets": "node tools/sync-assets.mjs",
     "dev": "npm run assets && npm -w @hafnia/client run dev",
     "build": "npm run assets && npm -w @hafnia/client run build",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p bot/tsconfig.json --noEmit",
+    "bot": "playwright test -c bot/playwright.config.ts",
+    "bot:report": "playwright show-report bot/results/report"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@types/node": "^22.20.5",
+    "esbuild": "0.28.2",
     "typescript": "^5.9.3",
     "vite": "^7.1.12",
     "vitest": "^3.2.4"

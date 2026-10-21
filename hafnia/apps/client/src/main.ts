@@ -172,7 +172,9 @@ const G = {
   mapKey: '', world: null as WorldView | null,
   player: { id: 'player', sprite: 'chars/player', x: 0, y: 0, dir: 'down', px: 0, py: 0, moving: false, step: 0, anim: 0 } as Actor,
   npcs: new Map<string, Actor>(),
-  ui: { text: null as null | { full: string; shown: number; w?: number }, choice: null as null | { options: string[]; idx: number; rect?: { x: number; y: number; w: number } } }
+  ui: { text: null as null | { full: string; shown: number; w?: number }, choice: null as null | { options: string[]; idx: number; rect?: { x: number; y: number; w: number } },
+    /** Which left/right or party picker is open, for the test bot (hafnia/bot). */
+    picker: null as null | { kind: 'species' | 'look' | 'party'; options: string[]; idx: number } }
 };
 let conn: GameConnection;
 
@@ -342,11 +344,13 @@ async function pickSpecies(opts: Extract<ServerEvent, { t: 'pickSpecies' }>['spe
   const ov = () => {
     ctx.fillStyle = 'rgba(10,20,40,0.72)'; ctx.fillRect(0, 0, VW, VH);
     panel(32, 24, 448, 230);
+    // Up to three cards at full size; more (the five starters) share the panel's width.
+    const step = Math.min(160, 432 / opts.length), x0 = VW / 2 - step * (opts.length - 1) / 2, fit = step / 160;
     opts.forEach((sp, i) => {
-      const cx = 96 + i * 160, cy = 150, sel = i === idx;
-      if (sel) { ctx.fillStyle = '#ffe9a8'; roundRect(cx - 66, 40, 132, 168, 10); ctx.fill(); }
-      drawMonSprite(sp.key, 'front', cx, cy + 14, sel ? 0.9 : 0.75, sel);
-      text(sp.name, cx, 182, 18, '#1d2b45', 'center');
+      const cx = x0 + i * step, cy = 150, sel = i === idx;
+      if (sel) { ctx.fillStyle = '#ffe9a8'; roundRect(cx - step / 2 + 6, 40, step - 12, 168, 10); ctx.fill(); }
+      drawMonSprite(sp.key, 'front', cx, cy + 14, (sel ? 0.9 : 0.75) * Math.max(0.7, fit), sel);
+      text(sp.name, cx, 182, fit < 1 ? 14 : 18, '#1d2b45', 'center');
       sp.types.forEach((t, k, a) => typeChip(t, cx - (a.length * 36) + 36 + k * 72 - 30, 194));
     });
   };
@@ -354,13 +358,14 @@ async function pickSpecies(opts: Extract<ServerEvent, { t: 'pickSpecies' }>['spe
   try {
     for (;;) {
       G.ui.text = { full: opts[idx].blurb, shown: 999 };
+      G.ui.picker = { kind: 'species', options: opts.map(o => o.name), idx };
       const k = await waitKey('left', 'right', 'A');
       if (k === 'left') { idx = (idx + opts.length - 1) % opts.length; Sound.se('cursor'); continue; }
       if (k === 'right') { idx = (idx + 1) % opts.length; Sound.se('cursor'); continue; }
       Sound.se('select');
       return idx;
     }
-  } finally { G.overlays.pop(); G.ui.text = null; }
+  } finally { G.overlays.pop(); G.ui.text = null; G.ui.picker = null; }
 }
 
 /** Name entry: pick a suggestion or type one (window.prompt keeps phones' own keyboards working). */
@@ -396,12 +401,13 @@ async function pickLook(str: string, options: Extract<ServerEvent, { t: 'pickLoo
   try {
     G.ui.text = { full: str, shown: 999 };
     for (;;) {
+      G.ui.picker = { kind: 'look', options: options.map(o => o.look), idx };
       const k = await waitKey('left', 'right', 'A');
       if (k === 'left' || k === 'right') { idx = (idx + (k === 'left' ? options.length - 1 : 1)) % options.length; Sound.se('cursor'); continue; }
       Sound.se('select');
       return idx;
     }
-  } finally { G.overlays.pop(); G.ui.text = null; }
+  } finally { G.overlays.pop(); G.ui.text = null; G.ui.picker = null; }
 }
 
 async function evolveScene(e: Extract<ServerEvent, { t: 'evolve' }>) {
@@ -851,6 +857,7 @@ async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced', party: M
   try {
     if (!party.length) { await say('You have no Pokémon yet.'); return -1; }
     for (;;) {
+      G.ui.picker = { kind: 'party', options: party.map(m => m.name), idx };
       const k = await waitKey('up', 'down', 'A', 'B');
       if (k === 'B') { if (mode === 'forced') continue; return -1; }
       if (k === 'up') { idx = (idx + party.length - 1) % party.length; Sound.se('cursor'); }
@@ -864,7 +871,7 @@ async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced', party: M
         return idx;
       }
     }
-  } finally { G.overlays.pop(); }
+  } finally { G.overlays.pop(); G.ui.picker = null; }
 }
 
 type BagChoice = { kind: 'item'; item: string; uid: string } | { kind: 'ball'; item: string } | null;
@@ -898,6 +905,7 @@ interface BattleState {
   ballFx: { x: number; y: number; dy?: number } | null; grid: GridState | null; lastIdx: Record<string, number>; foeLeft: number; foeLeft2: number;
   savedBgm: string | null;
   coil: { ally?: CoilView; foe?: CoilView }; patina: Set<string>; overcharged: Set<string>; arc: { side: BattleSide; t: number } | null;
+  request: BattleRequest | null;
 }
 interface GridState { x: number; y: number; w: number; h: number; items: { label: string; type?: string; sub?: string; dim?: boolean; on?: string }[]; cols: number; idx: number; key: string }
 let B: BattleState | null = null;
@@ -1109,7 +1117,7 @@ async function battleStart(start: BattleStart) {
     start, intro: 300, spots: { ally: emptySpot(), foe: emptySpot(), ally2: emptySpot(), foe2: emptySpot() },
     trainerShown: !!start.trainer, trainerOffset: 0, playerBackShown: true, playerOffset: 0,
     ballFx: null, grid: null, lastIdx: {}, foeLeft: start.foeCount, foeLeft2: start.multi?.foeCount2 ?? 0, savedBgm: Sound.bgmName,
-    coil: { ...start.coil }, patina: new Set(), overcharged: new Set(), arc: null
+    coil: { ...start.coil }, patina: new Set(), overcharged: new Set(), arc: null, request: null
   };
   Sound.bgm(start.bgm);
   for (let i = 0; i < 3; i++) { await fadeTo(0.8, 4); await fadeTo(0, 4); }
@@ -1303,6 +1311,7 @@ async function fightMenu(req: BattleRequest): Promise<BattleAction | null> {
 
 async function battleMenu(req: BattleRequest): Promise<BattleAction> {
   const b = B!;
+  b.request = req;
   if (req.forceSwitch) {
     const i = await partyScreen('forced', req.party);
     return { kind: 'switch', uid: req.party[i].uid };
@@ -1481,11 +1490,9 @@ function pollGamepad() {
   }
 }
 
-function update(first = true) {
+function update() {
   pollGamepad();
-  // Scripts waiting on a frame only resume after the whole animation frame's updates have run, so a
-  // press must stay visible until then: catch-up updates in the same frame keep it instead of dropping it.
-  if (first) { input.pressed = input.queue; input.queue = new Set(); }
+  input.pressed = input.queue; input.queue = new Set();
   if (G.scene !== 'overworld' || G.ui.text || G.ui.choice || G.overlays.length) sticky.clear();
   G.t++;
   const ws = frameWaiters; frameWaiters = [];
@@ -1496,20 +1503,47 @@ function update(first = true) {
   }
 }
 
+// Debug builds take ?speed=N to run the game N times faster (the test bot uses it).
+const SPEED = import.meta.env.DEV || import.meta.env.VITE_DEBUG === '1' ? Math.max(1, Math.min(8, Number(new URLSearchParams(location.search).get('speed')) || 1)) : 1;
+// When one display frame runs several updates (30 Hz screens, lag, ?speed), let the coroutines resume
+// between updates. Otherwise a key pressed in the first update is cleared by the second before any
+// menu or text box sees it.
+const yieldTask = () => new Promise<void>(r => { const ch = new MessageChannel(); ch.port1.onmessage = () => r(); ch.port2.postMessage(0); });
 let last = performance.now(), acc = 0;
-function loop(now: number) {
-  acc += Math.min(100, now - last); last = now;
-  for (let first = true; acc >= 1000 / 60; first = false) { update(first); acc -= 1000 / 60; }
+async function loop(now: number) {
+  acc += Math.min(100, now - last) * SPEED; last = now;
+  for (let n = 0; acc >= 1000 / 60; n++) { if (n) await yieldTask(); update(); acc -= 1000 / 60; }
   render();
   requestAnimationFrame(loop);
 }
+
+/** A plain-data snapshot of what the screen shows and is waiting for. The test bot (hafnia/bot) reads it. */
+const choiceIds = new WeakMap<object, number>(); // tells two identical menus in a row apart
+let choiceSeq = 0;
+function probe() {
+  const t = G.ui.text, c = G.ui.choice;
+  if (c && !choiceIds.has(c)) choiceIds.set(c, ++choiceSeq);
+  return {
+    scene: G.scene, busy: G.busy, lock: G.lock, fade: G.fade, moving: G.player.moving, biking: G.biking,
+    map: G.mapKey, x: G.player.x, y: G.player.y, dir: G.player.dir, overlays: G.overlays.length,
+    text: t ? t.full : null, textDone: !t || t.shown >= t.full.length,
+    choice: c ? { options: c.options, idx: c.idx, id: choiceIds.get(c)! } : null,
+    picker: G.ui.picker ? { ...G.ui.picker } : null,
+    world: G.world,
+    battle: B ? {
+      kind: B.start.kind, trainer: B.start.trainer?.name ?? null, ally: B.spots.ally.mon, foe: B.spots.foe.mon, ally2: B.spots.ally2.mon, foe2: B.spots.foe2.mon, coil: B.coil, request: B.request,
+      grid: B.grid ? { key: B.grid.key, items: B.grid.items, idx: B.grid.idx, cols: B.grid.cols } : null
+    } : null
+  };
+}
+export type Probe = ReturnType<typeof probe>;
 
 async function boot() {
   requestAnimationFrame(loop);
   try { await document.fonts.load(`20px ${FONT}`); } catch { /* font optional */ }
   const [c] = await Promise.all([connectSolo(), preload(p => { loadP = p; })]);
   conn = c;
-  (window as any).__hafnia = { G, mode: c.mode, send: (i: Intent) => conn.send(i), play, anim }; // for tests and debugging
+  (window as any).__hafnia = { G, mode: c.mode, send: (i: Intent) => conn.send(i), play, anim, probe }; // for tests and debugging
   if (new URLSearchParams(location.search).has('anims') || location.hash === '#anims') { G.lock = true; return animPreview(); }
   G.lock = true;
   try { await titleFlow(); } finally { G.lock = false; }

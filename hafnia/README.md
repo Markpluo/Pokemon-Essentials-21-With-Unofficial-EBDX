@@ -12,7 +12,11 @@ npm install
 npm run dev        # copies assets from ../Graphics and ../Audio, then starts Vite
 npm test           # plays the whole prologue through game-core, no browser needed
 npm run build      # static site in apps/client/dist
+npm run bot        # the test bot plays the real game in headless Chromium (bot/README.md)
 ```
+
+To check a feature, add a scenario to `bot/scenarios/` rather than playtesting by hand: the bot walks,
+talks, battles, catches, saves and screenshots, and CI runs it on every push.
 
 Pick "Animation viewer" in the Debug menu (dev builds), or open the game with `?anims` (for example `http://localhost:5173/play.html?anims`) for the battle
 animation preview: left/right picks an animation, A plays it, B swaps which side attacks.
