@@ -202,7 +202,9 @@ async function play(evs: ServerEvent[]) {
       case 'view': applyView(e.view); break;
       case 'say': await say(e.text); break;
       case 'prompt': {
-        G.ui.text = { full: e.text, shown: e.text.length };
+        const ln = wrapText(e.text, VW - 16 - 44, 17), text = ln.slice(-3).join('\n');
+        if (ln.length > 3) await say(ln.slice(0, -3).join('\n')); // the question stays on screen with the options
+        G.ui.text = { full: text, shown: text.length };
         const i = await choose(e.options, e.cancel ?? -1);
         G.ui.text = null;
         return send({ t: 'answer', index: i });
@@ -308,6 +310,9 @@ function wrapText(str: string, maxW: number, size: number) {
   return out;
 }
 async function say(str: string) {
+  // The box holds three lines: longer text continues on another page instead of being cut off.
+  const lines = wrapText(str, VW - 16 - 44, 17);
+  if (lines.length > 3) { for (let i = 0; i < lines.length; i += 3) await say(lines.slice(i, i + 3).join('\n')); return; }
   G.ui.text = { full: str, shown: 0 };
   for (;;) {
     await nextFrame();
