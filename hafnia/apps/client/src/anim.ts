@@ -4,26 +4,29 @@
 // effects layer that drawBattle draws above the sprites. One step per frame tick, 60 ticks a second.
 import type { AnimAt, AnimPreset, AnimShape, AnimStep, AnimTimeline, AnimWho, BattleSide } from '@hafnia/core';
 
+/** A place on the battlefield: a side's first Pokémon, or (multi battles) its second. */
+export type Spot = BattleSide | 'ally2' | 'foe2';
+
 export interface Point { x: number; y: number }
 export interface AnimHost {
   nextFrame(): Promise<void>;
   /** Where a side's Pokémon is on screen (the middle of its body). */
-  centerOf(side: BattleSide): Point;
+  centerOf(side: Spot): Point;
   sfx(name: string, vol?: number): void;
   font: string;
 }
 /** Who plays which role in a timeline. For self-targeted moves user and target are the same side. */
-export interface Cast { user: BattleSide; target: BattleSide }
+export interface Cast { user: Spot; target: Spot }
 /** What the player adds to a sprite while a step runs. */
 export interface SpriteMod { dx: number; dy: number; alpha: number; sx: number; sy: number; tint?: string; tintA?: number }
 
 const SCENE = { w: 512, h: 288 };
 const FPS = 60;
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
-const other = (s: BattleSide): BattleSide => (s === 'ally' ? 'foe' : 'ally');
+const other = (s: Spot): Spot => (s.startsWith('ally') ? 'foe' : 'ally');
 
 interface Effect { draw(g: CanvasRenderingContext2D): void }
-interface Mod { side: BattleSide; m: Partial<SpriteMod> }
+interface Mod { side: Spot; m: Partial<SpriteMod> }
 interface Particle {
   x: number; y: number; vx: number; vy: number; ay: number; drag: number; sway: number;
   age: number; life: number; delay: number; size: number; grow: number; alpha: number;
@@ -51,7 +54,7 @@ export class AnimPlayer {
   clear() { this.effects.clear(); this.mods.clear(); this.quake = { x: 0, y: 0 }; }
 
   /** The combined sprite offsets of every running step for one side. */
-  modFor(side: BattleSide): SpriteMod {
+  modFor(side: Spot): SpriteMod {
     const out: SpriteMod = { dx: 0, dy: 0, alpha: 1, sx: 1, sy: 1 };
     for (const { side: s, m } of this.mods) {
       if (s !== side) continue;
@@ -65,7 +68,7 @@ export class AnimPlayer {
 
   // ---------- steps ----------
 
-  private side(who: AnimWho | undefined, cast: Cast, dflt: AnimWho): BattleSide { return cast[who ?? dflt]; }
+  private side(who: AnimWho | undefined, cast: Cast, dflt: AnimWho): Spot { return cast[who ?? dflt]; }
   private at(at: AnimAt | undefined, cast: Cast, dflt: AnimWho): Point {
     return at === 'screen' ? { x: SCENE.w / 2, y: SCENE.h / 2 } : this.host.centerOf(cast[at ?? dflt]);
   }
@@ -75,7 +78,7 @@ export class AnimPlayer {
     const n = this.frames(ms);
     for (let i = 0; i < n; i++) { each(n === 1 ? 1 : i / (n - 1), i, n); await this.host.nextFrame(); }
   }
-  private async withMod(side: BattleSide, ms: number, fn: (t: number, i: number) => Partial<SpriteMod>) {
+  private async withMod(side: Spot, ms: number, fn: (t: number, i: number) => Partial<SpriteMod>) {
     const mod: Mod = { side, m: {} };
     this.mods.add(mod);
     try { await this.run(ms, (t, i) => { mod.m = fn(t, i); }); } finally { this.mods.delete(mod); }

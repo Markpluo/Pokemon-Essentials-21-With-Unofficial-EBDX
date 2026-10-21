@@ -160,7 +160,7 @@
  "c2.ny.freja.1": "Woman in oilskin: Listen to the water!",
  "c2.ny.deck.1": "Deckhand: Nobody follows the Captain. Nobody!",
  "c2.ny.deck.2": "Deckhand: Two of you? Fine. Two of us.",
- "c2.ny.maja.2": "Maja: You and me, {player}. I'll take the left one,\nyou take the right!",
+ "c2.ny.maja.2": "Maja: You and me, {player}. I'll take the left one.",
  "c2.ny.deck.lose": "Deckhands: Abandon quay!",
  "c2.ny.maja.3": "Maja: Black Fleet. Yellow-and-black oilskins.\nSame as the rooftop in Nørrebro.",
  "c2.ny.maja.4": "Maja: They're headed for Refshaleøen. The harbour bus\ngoes there. Come on!",
@@ -228,6 +228,5 @@
  "c2.dusk.maja.2": "Maja: Come on. Let's go home before the lights\ncome back on and somebody asks questions.",
  "c2.end.1": "Behind you, the lights come back on. Somewhere under\nthe harbour, something is still singing. Barely.",
  "c2.end.2": "Copper & Current · End of the demo. Thank you for playing!",
- "c2.end.3": "Your save is kept. The story continues in Chapter 3:\nThe White Butchery.",
- "c2.ny.maja.won": "Maja: Ha! Mine's down too. Skwovet barely broke a sweat."
+ "c2.end.3": "Your save is kept. The story continues in Chapter 3:\nThe White Butchery."
 }

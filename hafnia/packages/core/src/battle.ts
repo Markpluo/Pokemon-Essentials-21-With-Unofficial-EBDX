@@ -7,7 +7,7 @@ import { applyCurrent, applyOvercharge, applyPatina, coilBlock, installCoil, typ
 import type { Rules } from './content';
 import { ITEMS, itemEffect } from './items';
 import type {
-  BattleEvent, BattleMonView, BattleRequest, BattleResult, BattleSide, CoilMode, CoilView, ServerEvent, StatusId
+  BattleEvent, BattleMonView, BattleRequest, BattleResult, BattleSide, CoilMode, CoilView, ServerEvent, Slot, StatusId
 } from './protocol';
 import {
   calcStats, gainExp, makeMon, maxPp, monName, monView, moveView, replaceMove, speciesExtra, speciesName, type Mon
@@ -56,6 +56,9 @@ const STATUS_TEXT: Record<string, string> = {
   brn: 'was burned!', par: 'is paralyzed! It may be unable to move!', psn: 'was poisoned!',
   tox: 'was badly poisoned!', slp: 'fell asleep!', frz: 'was frozen solid!'
 };
+/** Move targets that need a pick in a multi battle (everything else hits a fixed set of Pokémon). */
+const AIMED = new Set(['normal', 'any', 'adjacentFoe']);
+
 const CANT_TEXT: Record<string, string> = {
   par: 'is paralyzed! It can\'t move!', slp: 'is fast asleep.', frz: 'is frozen solid!',
   flinch: 'flinched and couldn\'t move!', Attract: 'is immobilized by love!', recharge: 'must recharge!',
@@ -67,6 +70,9 @@ export class BattleSession {
   private sim: Battle;
   private logIndex = 0;
   private foes: Mon[];
+  /** Multi battles: the partner's team (p3) and the second trainer's (p4). */
+  private partnerMons: Mon[] = [];
+  private foes2: Mon[] = [];
   private runAttempts = 0;
   private started = false;
   private pendingEffect: 'super' | 'weak' | null = null;
@@ -92,14 +98,27 @@ export class BattleSession {
         unlocks: opts.overcharge ? { copper: true, current: true } : opts.foeCoil ?? {}, overcharge: !!opts.overcharge, seTurn: -1
       }
     };
-    this.foes = opts.foes.map(f => makeMon(f.species, f.level, rng, { moves: f.moves, item: f.item, ability: f.ability }));
-    this.sim = new Battle({ formatid: 'gen9customgame' as any, seed: rng.simSeed() as any });
+    const build = (list: BattleOptions['foes']) => list.map(f => makeMon(f.species, f.level, rng, { moves: f.moves, item: f.item, ability: f.ability }));
+    this.foes = build(opts.foes);
+    let format: any;
+    if (opts.multi) {
+      // Showdown's multi battle: p1 (player) and p3 (partner) against p2 and p4, one Pokémon each on the field.
+      format = Object.create(Dex.formats.get('gen9customgame'));
+      format.gameType = 'multi'; format.playerCount = 4;
+      this.partnerMons = build(opts.multi.partner.foes);
+      this.foes2 = build(opts.multi.second.foes);
+    }
+    this.sim = new Battle({ formatid: 'gen9customgame' as any, ...(format ? { format } : {}), seed: rng.simSeed() as any });
 
     const party = host.party;
     const lead = party.findIndex(m => m.hp > 0);
     const order = [party[lead], ...party.filter((_, i) => i !== lead)];
     this.sim.setPlayer('p1', { name: host.playerName, team: order.map(m => this.toSet(m, true)) as any });
     this.sim.setPlayer('p2', { name: opts.trainer?.name ?? 'Wild', team: this.foes.map(m => this.toSet(m, false)) as any });
+    if (opts.multi) {
+      this.sim.setPlayer('p3', { name: opts.multi.partner.name, team: this.partnerMons.map(m => this.toSet(m, false)) as any });
+      this.sim.setPlayer('p4', { name: opts.multi.second.name, team: this.foes2.map(m => this.toSet(m, false)) as any });
+    }
     for (const p of this.sim.p1.pokemon) { this.restore(p, this.monOf(p)!); if (opts.tutorial) (p as any).m.guarded = true; }
     this.logIndex = this.sim.log.length;
   }
@@ -160,7 +179,19 @@ export class BattleSession {
 
   private monOf(p: SimPokemon): Mon | undefined {
     const uid = (p.set as any).uid as string;
-    return this.host.party.find(m => m.uid === uid) ?? this.foes.find(m => m.uid === uid);
+    return this.host.party.find(m => m.uid === uid) ?? [...this.foes, ...this.partnerMons, ...this.foes2].find(m => m.uid === uid);
+  }
+
+  /** Every side in play: p1 and p2, plus p3 and p4 in a multi battle. */
+  private get sides(): SimSide[] { return this.sim.sides as SimSide[]; }
+  /** The Pokémon on the field that a side's moves can hit, in target order (1, 2). */
+  private opponents(side: SimSide): SimPokemon[] {
+    const mine = side === this.sim.p1 || side === this.sides[2];
+    return this.sides.filter(s => (s === this.sim.p1 || s === this.sides[2]) !== mine).map(s => s.active[0]);
+  }
+  /** "move 2" or, for an aimed move in a multi battle, "move 2 1" (target 1 or 2). */
+  private moveChoice(index: number, id: string, target: number): string {
+    return this.opts.multi && AIMED.has(Dex.moves.get(id).target) ? `move ${index + 1} ${target + 1}` : `move ${index + 1}`;
   }
 
   // ---------- flow ----------
@@ -172,15 +203,19 @@ export class BattleSession {
       battle: {
         kind: o.kind, bg: o.bg ?? 'field', bgm: o.kind === 'wild' ? 'battle_wild' : 'battle_trainer',
         ...(o.trainer ? { trainer: o.trainer } : {}), foeCount: this.foes.length,
+        ...(o.multi ? { multi: {
+          partner: { name: o.multi.partner.name, sprite: o.multi.partner.sprite },
+          second: { name: o.multi.second.name, title: o.multi.second.title, sprite: o.multi.second.sprite }, foeCount2: this.foes2.length
+        } } : {}),
         ...(this.coil.ally.enabled || this.coil.foe.enabled ? { coil: {
           ...(this.coil.ally.enabled ? { ally: this.coilView('ally') } : {}),
           ...(this.coil.foe.enabled ? { foe: this.coilView('foe') } : {})
         } } : {})
       }
     });
-    if (o.trainer) this.ev({ b: 'text', text: `${o.trainer.title} ${o.trainer.name} would like to battle!` });
-    this.sim.choose('p1', 'default');
-    this.sim.choose('p2', 'default');
+    if (o.multi && o.trainer) this.ev({ b: 'text', text: `${o.trainer.title} ${o.trainer.name} and ${o.multi.second.title} ${o.multi.second.name}\nwould like to battle!` });
+    else if (o.trainer) this.ev({ b: 'text', text: `${o.trainer.title} ${o.trainer.name} would like to battle!` });
+    for (const side of this.sides) this.sim.choose(side.id, 'default');
     for (const side of [this.sim.p1, this.sim.p2]) side.addSideCondition('hafniacoil', side.active[0]);
     if (o.tutorial) this.sim.p1.active[0].addVolatile('hafniaguard');
     this.advance();
@@ -201,7 +236,10 @@ export class BattleSession {
           const why = coilBlock(action.mode, this.coil.ally, active, slot && Dex.moves.get(slot.id).category);
           if (why) { this.ev({ b: 'text', text: why }); return this.request(); }
         }
-        if (!slot || !this.sim.choose('p1', `move ${action.index + 1}`)) {
+        const foes = this.opponents(p1);
+        let target: number = action.target ?? 0;
+        if (!foes[target] || foes[target].fainted) target = foes.findIndex(f => f && !f.fainted);
+        if (!slot || !this.sim.choose('p1', this.moveChoice(action.index, slot.id, Math.max(0, target)))) {
           this.ev({ b: 'text', text: 'That move can\'t be used right now!' });
           return this.request();
         }
@@ -282,13 +320,19 @@ export class BattleSession {
       if (this.result) return;
       if (this.askNext()) return;
       if (this.ending) return this.finish(this.ending);
-      if (this.sim.ended) return this.finish(this.sim.winner === this.host.playerName ? 'win' : 'lose');
-      const p2 = this.sim.p2, p1 = this.sim.p1;
+      if (this.sim.ended) return this.finish(this.won() ? 'win' : 'lose');
+      const p1 = this.sim.p1;
       // The player decides first; the AI never sees that choice, only the field.
       if (p1.requestState && !p1.isChoiceDone()) return this.request();
-      if (p2.requestState && !p2.isChoiceDone()) { this.sim.choose('p2', this.aiChoice(p2)); continue; }
+      const next = this.sides.find(s => s !== p1 && s.requestState && !s.isChoiceDone());
+      if (next) { this.sim.choose(next.id, this.aiChoice(next)); continue; }
       return;
     }
+  }
+
+  private won(): boolean {
+    if (!this.opts.multi) return this.sim.winner === this.host.playerName;
+    return this.sim.p2.pokemonLeft + this.sides[3].pokemonLeft === 0;
   }
 
   // ---------- learning moves mid-battle ----------
@@ -334,15 +378,22 @@ export class BattleSession {
     this.syncParty();
     const active = p1.active[0];
     const moves = req?.active?.[0]?.moves ?? [];
+    const targets = this.opts.multi
+      ? this.opponents(p1).map((f, i) => ({ slot: i as Slot, name: f?.name ?? '', fainted: !f || f.fainted })).filter(f => !f.fainted).map(({ slot, name }) => ({ slot, name }))
+      : [];
     const out: BattleRequest = {
       moves: moves.filter((m: any) => m.id !== WAIT)
-        .map((m: any) => moveView(m.id, m.pp ?? 0, m.maxpp ?? 0, m.disabled === true || m.pp === 0)),
+        .map((m: any) => ({
+          ...moveView(m.id, m.pp ?? 0, m.maxpp ?? 0, m.disabled === true || m.pp === 0),
+          ...(targets.length > 1 && AIMED.has(Dex.moves.get(m.id).target) ? { aim: true } : {})
+        })),
       forceSwitch: !!req?.forceSwitch,
       canCatch: this.opts.kind === 'wild',
       canRun: this.opts.kind === 'wild',
       activeUid: (active?.set as any)?.uid ?? '',
       party: this.host.party.map(monView),
-      bag: { ...this.host.bag }
+      bag: { ...this.host.bag },
+      ...(this.opts.multi ? { targets } : {})
     };
     const c = this.coil.ally;
     if (c.enabled && active && !req?.forceSwitch) {
@@ -360,8 +411,16 @@ export class BattleSession {
     const moves: any[] = req.active[0].moves;
     const usable = moves.map((m, i) => ({ m, i, mv: Dex.moves.get(m.id) })).filter(({ m }) => !m.disabled && m.pp !== 0);
     if (!usable.length) return 'default';
-    const tier = this.ai();
-    const me = side.active[0], foe = this.sim.p1.active[0];
+    const tier = side === this.sides[2] ? this.opts.multi?.partner.ai ?? 2 : this.ai();
+    const me = side.active[0];
+    const targets = this.opponents(side).map((p, t) => ({ p, t })).filter(x => x.p && !x.p.fainted);
+    // Tier 2+ aims at whichever opponent its best move hurts most; lower tiers pick a target at random.
+    let aim = targets.length ? this.host.rng.pick(targets) : { p: this.sim.p1.active[0], t: 0 };
+    if (tier >= 2 && targets.length > 1) {
+      const best = (x: typeof aim) => Math.max(0, ...usable.filter(u => u.mv.category !== 'Status').map(u => this.estimateDamage(me, x.p, u.mv) / Math.max(1, 100 * x.p.hp / x.p.maxhp)));
+      aim = targets.reduce((a, b) => (best(b) > best(a) ? b : a));
+    }
+    const foe = aim.p;
     const foeHpPct = 100 * foe.hp / foe.maxhp;
     // Useless: a status move on a foe that already has one, or an attack it is immune to or doubly resists.
     const useless = (mv: ReturnType<typeof Dex.moves.get>) => mv.category === 'Status'
@@ -390,7 +449,7 @@ export class BattleSession {
       pick = scored.length > 1 && this.host.rng.chance(0.2) ? scored[1] : scored[0];
     }
     const c = this.coil.foe;
-    if (c.enabled && !c.used && c.pips >= this.host.rules.coil.ready) {
+    if (side === this.sim.p2 && c.enabled && !c.used && c.pips >= this.host.rules.coil.ready) {
       const pct = pick.pct ?? (pick.mv.category === 'Status' ? 0 : this.estimateDamage(me, foe, pick.mv));
       let mode: CoilMode | 'overcharge' | '' = '';
       if (c.overcharge) mode = 'overcharge';
@@ -398,7 +457,7 @@ export class BattleSession {
       else if (c.unlocks.copper && 100 * me.hp / me.maxhp > 50 && foe.getTypes().some(t => Dex.getImmunity(t, me.getTypes()) && Dex.getEffectiveness(t, me.getTypes()) > 0)) mode = 'copper';
       if (mode) for (const e of this.activate('foe', mode)) this.ev(e);
     }
-    return `move ${pick.i + 1}`;
+    return this.moveChoice(pick.i, pick.mv.id, aim.t);
   }
 
   /** Average damage of a move as a percentage of the target's max HP (no crits, mean roll). */
@@ -452,9 +511,11 @@ export class BattleSession {
     if (result === 'win' && this.opts.kind === 'trainer' && this.opts.trainer) {
       const t = this.opts.trainer;
       this.host.emit({ t: 'bgm', name: this.opts.leader ? 'victory_leader' : 'victory_trainer' });
-      this.ev({ b: 'text', text: `You defeated ${t.title} ${t.name}!` });
+      const m = this.opts.multi;
+      this.ev({ b: 'text', text: m ? `You defeated ${t.title} ${t.name}\nand ${m.second.title} ${m.second.name}!` : `You defeated ${t.title} ${t.name}!` });
       const rules = this.host.rules;
-      const prize = this.foes[this.foes.length - 1].level * (this.opts.prize ?? rules.prizeBase[t.title] ?? rules.prizeDefault);
+      const base = (title: string) => this.opts.prize ?? rules.prizeBase[title] ?? rules.prizeDefault;
+      const prize = this.foes[this.foes.length - 1].level * base(t.title) + (m ? this.foes2[this.foes2.length - 1].level * base(m.second.title) : 0);
       this.host.giveMoney(prize);
       this.ev({ b: 'text', text: `You got ${prize} kr. for winning!` });
     } else if (result === 'win') this.host.emit({ t: 'bgm', name: 'victory_wild' });
@@ -551,8 +612,10 @@ export class BattleSession {
 
   private ev(e: BattleEvent) { this.host.emit({ t: 'battle', ev: e }); }
 
-  private sideOf(ident: string): BattleSide { return ident.startsWith('p1') ? 'ally' : 'foe'; }
-  private simSide(ident: string): SimSide { return ident.startsWith('p1') ? this.sim.p1 : this.sim.p2; }
+  private sideOf(ident: string): BattleSide { return ident.startsWith('p1') || ident.startsWith('p3') ? 'ally' : 'foe'; }
+  /** p3 and p4 stand in the second place of their side. */
+  private slotOf(ident: string): { slot?: Slot } { return ident.startsWith('p3') || ident.startsWith('p4') ? { slot: 1 } : {}; }
+  private simSide(ident: string): SimSide { return this.sides[Number(ident[1]) - 1] ?? this.sim.p1; }
   private pokemonOf(ident: string): SimPokemon | undefined {
     const name = ident.slice(ident.indexOf(':') + 1).trim();
     const list = this.simSide(ident).pokemon.filter(p => p.name === name);
@@ -560,6 +623,7 @@ export class BattleSession {
   }
   private nameOf(ident: string, start = true): string {
     const name = ident.slice(ident.indexOf(':') + 1).trim();
+    if (ident.startsWith('p3')) return `${this.opts.multi!.partner.name}'s ${name}`;
     if (this.sideOf(ident) === 'ally') return name;
     const pre = this.opts.kind === 'wild' ? 'wild' : 'opposing';
     return `${start ? 'The' : 'the'} ${pre} ${name}`;
@@ -606,10 +670,13 @@ export class BattleSession {
         case '-zbroken': evs.push({ b: 'text', text: `${this.nameOf(a1)} couldn't fully protect itself\nand got hurt!` }); break;
         case 'switch': case 'drag': {
           const p = this.pokemonOf(a1)!, side = this.sideOf(a1);
-          let text = side === 'ally' ? `Go! ${p.name}!` : this.opts.kind === 'wild' ? `A wild ${p.name} appeared!`
+          const m = this.opts.multi;
+          let text = a1.startsWith('p3') ? `${m!.partner.name} sent out ${p.name}!`
+            : a1.startsWith('p4') ? `${m!.second.title} ${m!.second.name} sent out ${p.name}!`
+            : side === 'ally' ? `Go! ${p.name}!` : this.opts.kind === 'wild' ? `A wild ${p.name} appeared!`
             : `${this.opts.trainer!.title} ${this.opts.trainer!.name} sent out ${p.name}!`;
           if (cmd === 'drag') text = `${this.nameOf(a1)} was dragged out!`;
-          evs.push({ b: 'switch', side, mon: this.monView(p), text });
+          evs.push({ b: 'switch', side, ...this.slotOf(a1), mon: this.monView(p), text });
           break;
         }
         case 'move': {
@@ -617,8 +684,8 @@ export class BattleSession {
           const mv = Dex.moves.get(a2);
           const flag = (k: string) => parts.includes(`[${k}]`);
           evs.push({
-            b: 'move', side: this.sideOf(a1), text: `${this.nameOf(a1)} used ${mv.name}!`, id: mv.id, type: mv.type.toLowerCase(), category: mv.category,
-            ...(a3 && !flag('notarget') ? { target: this.sideOf(a3) } : {}), ...(flag('miss') ? { miss: true } : {}), ...(flag('still') ? { still: true } : {})
+            b: 'move', side: this.sideOf(a1), ...this.slotOf(a1), text: `${this.nameOf(a1)} used ${mv.name}!`, id: mv.id, type: mv.type.toLowerCase(), category: mv.category,
+            ...(a3 && !flag('notarget') ? { target: this.sideOf(a3), ...(this.slotOf(a3).slot ? { targetSlot: 1 as Slot } : {}) } : {}), ...(flag('miss') ? { miss: true } : {}), ...(flag('still') ? { still: true } : {})
           });
           break;
         }
@@ -630,7 +697,7 @@ export class BattleSession {
           this.pendingEffect = null;
           const crit = !from && this.pendingCrit; this.pendingCrit = false;
           const cause = from?.replace(/^(item|ability|move): /, '').toLowerCase().replace(/[^a-z]/g, '');
-          evs.push({ b: 'hp', side, hp: cur || 0, maxhp: max || this.pokemonOf(a1)?.maxhp || 1, effect, ...(crit ? { crit } : {}), ...(cause ? { cause } : {}) });
+          evs.push({ b: 'hp', side, ...this.slotOf(a1), hp: cur || 0, maxhp: max || this.pokemonOf(a1)?.maxhp || 1, effect, ...(crit ? { crit } : {}), ...(cause ? { cause } : {}) });
           if (!from) flushAfterHit();
           if (from) {
             const src = from.replace(/^(item|ability|move): /, '');
@@ -655,12 +722,12 @@ export class BattleSession {
         case '-ohko': evs.push({ b: 'text', text: 'It\'s a one-hit KO!' }); break;
         case '-hitcount': evs.push({ b: 'text', text: `The Pokémon was hit ${a2} time${a2 === '1' ? '' : 's'}!` }); break;
         case '-status': {
-          evs.push({ b: 'status', side: this.sideOf(a1), status: a2 as StatusId });
+          evs.push({ b: 'status', side: this.sideOf(a1), ...this.slotOf(a1), status: a2 as StatusId });
           evs.push({ b: 'text', text: `${this.nameOf(a1)} ${STATUS_TEXT[a2] ?? 'was afflicted!'}` });
           break;
         }
         case '-curestatus': {
-          evs.push({ b: 'status', side: this.sideOf(a1), status: '' });
+          evs.push({ b: 'status', side: this.sideOf(a1), ...this.slotOf(a1), status: '' });
           const t = a2 === 'slp' ? 'woke up!' : a2 === 'frz' ? 'thawed out!' : a2 === 'par' ? 'was cured of paralysis.' : 'was cured!';
           evs.push({ b: 'text', text: `${this.nameOf(a1)} ${t}` });
           break;
@@ -675,7 +742,7 @@ export class BattleSession {
           const up = cmd === '-boost';
           const amount = n === 0 ? (up ? 'won\'t go any higher!' : 'won\'t go any lower!')
             : n === 1 ? (up ? 'rose!' : 'fell!') : n === 2 ? (up ? 'rose sharply!' : 'harshly fell!') : (up ? 'rose drastically!' : 'severely fell!');
-          if (n !== 0) evs.push({ b: 'boost', side: this.sideOf(a1), up });
+          if (n !== 0) evs.push({ b: 'boost', side: this.sideOf(a1), ...this.slotOf(a1), up });
           evs.push({ b: 'text', text: `${this.nameOf(a1)}'s ${stat} ${amount}` });
           break;
         }
@@ -714,7 +781,7 @@ export class BattleSession {
         case '-mustrecharge': break;
         case 'faint': {
           const p = this.pokemonOf(a1)!, side = this.sideOf(a1);
-          evs.push({ b: 'faint', side, text: `${this.nameOf(a1)} fainted!` });
+          evs.push({ b: 'faint', side, ...this.slotOf(a1), text: `${this.nameOf(a1)} fainted!` });
           this.charge(side, 1, evs);
           for (const e of evs.splice(0)) this.ev(e);
           if (side === 'foe') this.awardExp(p);

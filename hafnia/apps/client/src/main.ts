@@ -2,7 +2,7 @@
 // It holds no game rules. It sends intents to a game server (a Web Worker in solo play)
 // and plays back the events that come back.
 import type {
-  AnimPack, AnimTimeline, BattleAction, BattleEvent, BattleMonView, BattleRequest, BattleSide, BattleStart, CoilMode, CoilView, DebugCommand, Dir,
+  AnimPack, AnimTimeline, Slot, BattleAction, BattleEvent, BattleMonView, BattleRequest, BattleSide, BattleStart, CoilMode, CoilView, DebugCommand, Dir,
   GameConnection, MapDef, MonView, MoveView, SaveSlot, ServerEvent, SlotInfo, Stamp, WorldView, Intent
 } from '@hafnia/core';
 import { ITEMS } from '@hafnia/core/src/items';
@@ -10,7 +10,7 @@ import hafniaManifest from '@hafnia/pack-hafnia/pack.json';
 import { MAPS as HAFNIA_MAPS, STAMPS as HAFNIA_STAMPS } from '@hafnia/pack-hafnia/world';
 import { drawBuildingArt, drawObject, drawTile } from './art';
 import { connectSolo } from './connection';
-import { AnimPlayer } from './anim';
+import { AnimPlayer, type Spot } from './anim';
 import { ANIM_TYPES, CRIT, HEAL, RESIDUAL, SEND_OUT, STATUS_ANIM, STAT_DOWN, STAT_UP, WEATHER_ANIM, animatedMoves, moveAnim, registerAnims, userPart } from './anim-data';
 import { Dex } from '@pkmn/sim';
 import hafniaAnims from '@hafnia/pack-hafnia/anims.json';
@@ -817,7 +817,7 @@ async function startMenu() {
 async function debugMenu() {
   const cmds: [string, DebugCommand, (string | number)?][] = [
     ['Give Lv. 10 Sprigatito', 'givePokemon', 'sprigatito'], ['Heal team', 'heal'], ['Lead +5 levels', 'levelUp', 5], ['Give items', 'items'], ['+10,000 kr.', 'money'],
-    ['Unlock Copper & Current', 'unlockCoil'], ['Toggle wild encounters', 'encounters'], ['Add a badge', 'badge'], ['Clock +6 hours', 'time'],
+    ['Unlock Copper & Current', 'unlockCoil'], ['Toggle wild encounters', 'encounters'], ['Add a badge', 'badge'], ['Clock +6 hours', 'time'], ['Try a multi battle', 'multiBattle'],
     ['Give Lv. 10 Ditto', 'givePokemon', 'ditto'], ['Vuggestuen: Egg now', 'layEgg'], ['Hatch Eggs now', 'hatchEggs'],
     ...(['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven', 'dragor'] as const)
       .map(id => [`Warp: ${HAFNIA_MAPS[id].name}`, 'warp', `hafnia:${id}`] as [string, DebugCommand, string])
@@ -888,22 +888,37 @@ async function bagMenu(bag: Record<string, number>, party: MonView[], inBattle: 
 }
 
 // ---------- battle ----------
+/** One place on the field: who stands there, the HP the bar shows, and sprite effects. */
+interface SpotState { mon: BattleMonView | null; hp: number; shown: boolean; fx: SpriteFx }
 interface BattleState {
   start: BattleStart; intro: number;
-  foe: BattleMonView | null; ally: BattleMonView | null; foeHp: number; allyHp: number;
-  foeShown: boolean; allyShown: boolean; trainerShown: boolean; trainerOffset: number; playerBackShown: boolean; playerOffset: number;
-  foeFx: SpriteFx; allyFx: SpriteFx;
-  ballFx: { x: number; y: number; dy?: number } | null; grid: GridState | null; lastIdx: Record<string, number>; foeLeft: number;
+  /** ally and foe; in a multi battle also ally2 (the partner) and foe2 (the second trainer). */
+  spots: Record<Spot, SpotState>;
+  trainerShown: boolean; trainerOffset: number; playerBackShown: boolean; playerOffset: number;
+  ballFx: { x: number; y: number; dy?: number } | null; grid: GridState | null; lastIdx: Record<string, number>; foeLeft: number; foeLeft2: number;
   savedBgm: string | null;
   coil: { ally?: CoilView; foe?: CoilView }; patina: Set<string>; overcharged: Set<string>; arc: { side: BattleSide; t: number } | null;
 }
 interface GridState { x: number; y: number; w: number; h: number; items: { label: string; type?: string; sub?: string; dim?: boolean; on?: string }[]; cols: number; idx: number; key: string }
 let B: BattleState | null = null;
+const SPOTS: Spot[] = ['foe2', 'foe', 'ally2', 'ally']; // back to front, the order they are drawn in
+const spotOf = (side: BattleSide, slot?: number): Spot => (slot ? `${side}2` as Spot : side);
+const sideOfSpot = (s: Spot): BattleSide => (s.startsWith('ally') ? 'ally' : 'foe');
+const emptySpot = (): SpotState => ({ mon: null, hp: 0, shown: false, fx: {} });
 
 // ---------- battle animations ----------
-// Where each side's Pokémon stands: the middle of the sprite's body. Doubles will key this by slot.
-const CENTER: Record<BattleSide, { x: number; y: number }> = { foe: { x: 384, y: 128 }, ally: { x: 128, y: 224 } };
-const anim = new AnimPlayer({ nextFrame, centerOf: side => ({ ...CENTER[side] }), sfx: (n, v) => Sound.se(n, v), font: FONT });
+// Where each Pokémon stands: `foot` is where the sprite stands and `center` the middle of its body.
+// Multi battles squeeze two Pokémon onto each base.
+const LAYOUT: Record<'single' | 'multi', Partial<Record<Spot, { x: number; foot: number; scale: number }>>> = {
+  single: { foe: { x: 384, foot: 180, scale: 1 }, ally: { x: 128, foot: 286, scale: 1 } },
+  multi: {
+    foe: { x: 336, foot: 182, scale: 0.85 }, foe2: { x: 446, foot: 170, scale: 0.8 },
+    ally: { x: 104, foot: 290, scale: 0.9 }, ally2: { x: 232, foot: 280, scale: 0.85 }
+  }
+};
+const place = (s: Spot) => LAYOUT[B?.start.multi ? 'multi' : 'single'][s] ?? LAYOUT.single[sideOfSpot(s)]!;
+const centerOf = (s: Spot) => { const p = place(s); return { x: p.x, y: p.foot - (s.startsWith('foe') ? 52 : 62) * p.scale }; };
+const anim = new AnimPlayer({ nextFrame, centerOf, sfx: (n, v) => Sound.se(n, v), font: FONT });
 type AnimMode = 'on' | 'fast' | 'off';
 const ANIM_LABEL: Record<AnimMode, string> = { on: 'Animations on', fast: 'Animations fast', off: 'Animations off' };
 let animMode: AnimMode = 'on';
@@ -923,7 +938,9 @@ document.getElementById('anim')?.addEventListener('click', () => {
 });
 applyAnimMode();
 const other = (s: BattleSide): BattleSide => (s === 'ally' ? 'foe' : 'ally');
-async function playAnim(tl: AnimTimeline, user: BattleSide, target = user) {
+/** The Pokémon facing a spot: the opposing side's first place. */
+const opp = (s: Spot): Spot => other(sideOfSpot(s));
+async function playAnim(tl: AnimTimeline, user: Spot, target = user) {
   if (animMode === 'off' || !B) return;
   await anim.play(tl, { user, target });
 }
@@ -987,9 +1004,9 @@ function drawArc(side: BattleSide, t: number) {
   ctx.globalAlpha = 0.25 * (1 - t / 30); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, VW, 288);
   ctx.globalAlpha = 1;
 }
-function sideFx(side: BattleSide): SpriteFx {
-  const b = B!, mon = side === 'foe' ? b.foe : b.ally, fx = side === 'foe' ? b.foeFx : b.allyFx;
-  const m = anim.modFor(side);
+function spotFx(s: Spot): SpriteFx {
+  const b = B!, { mon, fx } = b.spots[s];
+  const m = anim.modFor(s);
   const out: SpriteFx = {
     ...fx, dx: (fx.dx ?? 0) + m.dx, dy: (fx.dy ?? 0) + m.dy, alpha: m.alpha, sx: m.sx, sy: m.sy,
     ...(mon?.uid && b.patina.has(mon.uid) ? { tint: PATINA } : {}), ...(mon?.uid && b.overcharged.has(mon.uid) ? { glitch: 1 } : {})
@@ -997,8 +1014,17 @@ function sideFx(side: BattleSide): SpriteFx {
   if (m.tint) { out.tint = m.tint; out.tintA = m.tintA; } // a move's flash shows over the patina
   return out;
 }
+/** A trainer's team, one ball per Pokémon, dimmed once fainted. */
+function teamBalls(count: number, left: number, x: number, y: number) {
+  ctx.fillStyle = 'rgba(29,43,69,0.85)'; roundRect(x, y, count * 26 + 14, 34, 10); ctx.fill();
+  for (let i = 0; i < count; i++) {
+    ctx.globalAlpha = i < left ? 1 : 0.35;
+    ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, x + 5 + i * 26, y + 1, 32, 32);
+    ctx.globalAlpha = 1;
+  }
+}
 function drawBattle() {
-  const b = B!, bg = b.start.bg;
+  const b = B!, bg = b.start.bg, multi = b.start.multi;
   ctx.save();
   if (anim.quake.x || anim.quake.y) { ctx.translate(Math.round(anim.quake.x), Math.round(anim.quake.y)); ctx.drawImage(packImg(`bb/${bg}_bg`), -8, -8, 528, 304); }
   ctx.drawImage(packImg(`bb/${bg}_bg`), 0, 0, 512, 288);
@@ -1006,30 +1032,42 @@ function drawBattle() {
   ctx.drawImage(packImg(`bb/${bg}_base1`), 256 + slide, 92);
   ctx.drawImage(packImg(`bb/${bg}_base0`), -128 - slide, 240);
   if (b.trainerShown && b.start.trainer) {
-    const ti = packImg(b.start.trainer.sprite);
-    if (ti.naturalWidth) ctx.drawImage(ti, 0, 0, ti.width, ti.height, 384 - 64 + slide + b.trainerOffset, 70, 128, 128);
+    const trainers = multi ? [[b.start.trainer.sprite, place('foe').x], [multi.second.sprite, place('foe2').x]] as const : [[b.start.trainer.sprite, 384]] as const;
+    const size = multi ? 112 : 128;
+    for (const [sprite, x] of trainers) {
+      const ti = packImg(sprite);
+      if (ti.naturalWidth) ctx.drawImage(ti, 0, 0, ti.width, ti.height, x - size / 2 + slide + b.trainerOffset, 70 + (128 - size), size, size);
+    }
   }
-  if (b.foe && b.foeShown) drawMonSprite(b.foe.key, 'front', 384 + slide, 180, 1, true, sideFx('foe'));
-  if (b.ballFx) ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, b.ballFx.x - 16, b.ballFx.y - 16 + (b.ballFx.dy || 0), 32, 32);
-  if (b.playerBackShown) {
-    const im = packImg(G.world?.look === 'girl' ? 'tr/player_back_girl' : 'tr/player_back'), fw = im.width / 5;
-    if (im.naturalWidth) ctx.drawImage(im, 0, 0, fw, im.height, 70 - slide + b.playerOffset, 292 - im.height * 0.62, fw * 0.62, im.height * 0.62);
+  for (const s of SPOTS) {
+    const st = b.spots[s];
+    if (s === 'ally' && b.playerBackShown) {
+      const im = packImg(G.world?.look === 'girl' ? 'tr/player_back_girl' : 'tr/player_back'), fw = im.width / 5;
+      if (im.naturalWidth) ctx.drawImage(im, 0, 0, fw, im.height, 70 - slide + b.playerOffset, 292 - im.height * 0.62, fw * 0.62, im.height * 0.62);
+    }
+    if (!st.mon || !st.shown) continue;
+    const p = place(s), foe = s.startsWith('foe');
+    drawMonSprite(st.mon.key, foe ? 'front' : 'back', p.x + (foe ? slide : -slide), p.foot, p.scale, true, spotFx(s));
+    if (s === 'foe' && b.ballFx) ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, b.ballFx.x - 16, b.ballFx.y - 16 + (b.ballFx.dy || 0), 32, 32);
   }
-  if (b.ally && b.allyShown) drawMonSprite(b.ally.key, 'back', 128 - slide, 286, 1, true, sideFx('ally'));
+  if (b.ballFx && !b.spots.foe.shown) ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, b.ballFx.x - 16, b.ballFx.y - 16 + (b.ballFx.dy || 0), 32, 32);
   anim.draw(ctx);
   ctx.restore();
   if (b.arc) drawArc(b.arc.side, b.arc.t);
-  if (b.foe && b.foeShown) databox(b.foe, 16, 20, false, b.foeHp);
-  if (b.ally && b.allyShown) databox(b.ally, VW - 246, 196, true, b.allyHp);
-  if (b.coil.foe && !b.trainerShown) drawCoil(b.coil.foe, 16, 78);
-  if (b.coil.ally && b.allyShown) drawCoil(b.coil.ally, VW - 42 - b.coil.ally.max * 18, 174);
-  if (b.start.trainer && b.trainerShown) { // the trainer's team, one ball per Pokémon
-    ctx.fillStyle = 'rgba(29,43,69,0.85)'; roundRect(16, 20, b.start.foeCount * 26 + 14, 34, 10); ctx.fill();
-    for (let i = 0; i < b.start.foeCount; i++) {
-      ctx.globalAlpha = i < b.foeLeft ? 1 : 0.35;
-      ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, 21 + i * 26, 21, 32, 32);
-      ctx.globalAlpha = 1;
-    }
+  const box = (s: Spot, x: number, y: number, nums: boolean) => { const st = b.spots[s]; if (st.mon && st.shown) databox(st.mon, x, y, nums, st.hp); };
+  if (multi) {
+    box('foe', 16, 12, false); box('foe2', 16, 70, false);
+    box('ally2', VW - 246, 146, false); box('ally', VW - 246, 206, true);
+    if (b.coil.foe && !b.trainerShown) drawCoil(b.coil.foe, 16, 128);
+    if (b.coil.ally && b.spots.ally.shown) drawCoil(b.coil.ally, VW - 42 - b.coil.ally.max * 18, 126);
+  } else {
+    box('foe', 16, 20, false); box('ally', VW - 246, 196, true);
+    if (b.coil.foe && !b.trainerShown) drawCoil(b.coil.foe, 16, 78);
+    if (b.coil.ally && b.spots.ally.shown) drawCoil(b.coil.ally, VW - 42 - b.coil.ally.max * 18, 174);
+  }
+  if (b.start.trainer && b.trainerShown) {
+    teamBalls(b.start.foeCount, b.foeLeft, 16, 20);
+    if (multi) teamBalls(multi.foeCount2, b.foeLeft2, 16, 60);
   }
   if (!G.ui.text) { ctx.fillStyle = '#1d2b45'; ctx.fillRect(0, 288, VW, 96); }
 }
@@ -1068,9 +1106,9 @@ async function gridChoose(items: GridState['items'], rect: { x: number; y: numbe
 
 async function battleStart(start: BattleStart) {
   B = {
-    start, intro: 300, foe: null, ally: null, foeHp: 0, allyHp: 0, foeShown: false, allyShown: false,
-    trainerShown: !!start.trainer, trainerOffset: 0, playerBackShown: true, playerOffset: 0, foeFx: {}, allyFx: {},
-    ballFx: null, grid: null, lastIdx: {}, foeLeft: start.foeCount, savedBgm: Sound.bgmName,
+    start, intro: 300, spots: { ally: emptySpot(), foe: emptySpot(), ally2: emptySpot(), foe2: emptySpot() },
+    trainerShown: !!start.trainer, trainerOffset: 0, playerBackShown: true, playerOffset: 0,
+    ballFx: null, grid: null, lastIdx: {}, foeLeft: start.foeCount, foeLeft2: start.multi?.foeCount2 ?? 0, savedBgm: Sound.bgmName,
     coil: { ...start.coil }, patina: new Set(), overcharged: new Set(), arc: null
   };
   Sound.bgm(start.bgm);
@@ -1081,24 +1119,26 @@ async function battleStart(start: BattleStart) {
   for (let i = 0; i <= 30; i++) { B.intro = 300 * (1 - i / 30); await nextFrame(); }
 }
 
-async function animateHp(side: BattleSide, target: number) {
-  const b = B!, key = side === 'foe' ? 'foeHp' : 'allyHp';
-  const start = b[key], frames = Math.max(8, Math.min(40, Math.abs(start - target) * 2));
-  for (let i = 1; i <= frames; i++) { b[key] = start + (target - start) * i / frames; await nextFrame(); }
+async function animateHp(s: Spot, target: number) {
+  const st = B!.spots[s];
+  const start = st.hp, frames = Math.max(8, Math.min(40, Math.abs(start - target) * 2));
+  for (let i = 1; i <= frames; i++) { st.hp = start + (target - start) * i / frames; await nextFrame(); }
 }
-async function flash(side: BattleSide) {
-  const b = B!, k = side === 'foe' ? 'foeFx' : 'allyFx';
-  for (let i = 0; i < 8; i++) { b[k] = { flash: i % 2 === 0 }; await wait(3); }
-  b[k] = {};
+async function flash(s: Spot) {
+  const st = B!.spots[s];
+  for (let i = 0; i < 8; i++) { st.fx = { flash: i % 2 === 0 }; await wait(3); }
+  st.fx = {};
 }
-async function grow(side: BattleSide) {
-  const b = B!, k = side === 'foe' ? 'foeFx' : 'allyFx';
-  for (let i = 0; i <= 10; i++) { b[k] = { shrink: i / 10 }; await nextFrame(); }
-  b[k] = {};
+async function grow(s: Spot) {
+  const st = B!.spots[s];
+  for (let i = 0; i <= 10; i++) { st.fx = { shrink: i / 10 }; await nextFrame(); }
+  st.fx = {};
 }
 
 async function battleEvent(e: BattleEvent) {
   const b = B!;
+  const at = 'side' in e ? spotOf(e.side, 'slot' in e ? e.slot : 0) : 'ally';
+  const st = b.spots[at];
   switch (e.b) {
     case 'text': await say(e.text); break;
     case 'trainerOut': await say(e.text); break;
@@ -1108,98 +1148,99 @@ async function battleEvent(e: BattleEvent) {
           for (let i = 0; i <= 16; i++) { b.trainerOffset = i * 12; await nextFrame(); }
           b.trainerShown = false;
         }
-        b.foe = e.mon; b.foeHp = e.mon.hp; b.foeShown = true;
+        st.mon = e.mon; st.hp = e.mon.hp; st.shown = true;
         if (b.start.kind === 'wild') { Sound.cry(e.mon.key); await say(e.text); }
-        else { await say(e.text); Sound.cry(e.mon.key); await Promise.all([grow('foe'), playAnim(SEND_OUT, 'foe')]); }
+        else { await say(e.text); Sound.cry(e.mon.key); await Promise.all([grow(at), playAnim(SEND_OUT, at)]); }
       } else {
-        if (b.ally && b.allyShown) {
-          await say(`${b.ally.name}, come back!`); Sound.se('recall');
-          b.allyShown = false; await wait(10);
+        if (st.mon && st.shown && at === 'ally') {
+          await say(`${st.mon.name}, come back!`); Sound.se('recall');
+          st.shown = false; await wait(10);
         }
-        if (b.playerBackShown) { for (let i = 0; i <= 12; i++) { b.playerOffset = -i * 16; await nextFrame(); } b.playerBackShown = false; }
-        b.ally = e.mon; b.allyHp = e.mon.hp;
+        if (at === 'ally' && b.playerBackShown) { for (let i = 0; i <= 12; i++) { b.playerOffset = -i * 16; await nextFrame(); } b.playerBackShown = false; }
+        st.mon = e.mon; st.hp = e.mon.hp;
         await say(e.text);
-        b.allyShown = true; Sound.cry(e.mon.key);
-        await Promise.all([grow('ally'), playAnim(SEND_OUT, 'ally')]);
+        st.shown = true; Sound.cry(e.mon.key);
+        await Promise.all([grow(at), playAnim(SEND_OUT, at)]);
       }
       break;
     }
-    case 'recall': await say(e.text); if (e.side === 'ally') b.allyShown = false; else b.foeShown = false; break;
+    case 'recall': await say(e.text); st.shown = false; break;
     case 'move': {
       if (animMode === 'off') { await say(e.text); break; }
       // Like the main games: the line appears, the move plays under it, and the battle moves on.
       await showText(e.text);
       if (!e.still) {
-        const target = e.target ?? other(e.side);
-        const tl = moveAnim(e.id, e.type, e.category, target === e.side);
-        await playAnim(e.miss ? userPart(tl) : tl, e.side, target);
+        const target = e.target ? spotOf(e.target, e.targetSlot) : opp(at);
+        const tl = moveAnim(e.id, e.type, e.category, target === at);
+        await playAnim(e.miss ? userPart(tl) : tl, at, target);
       }
       await wait(Math.round(20 / anim.speed));
       break;
     }
-    case 'boost': await playAnim(e.up ? STAT_UP : STAT_DOWN, e.side); break;
+    case 'boost': await playAnim(e.up ? STAT_UP : STAT_DOWN, at); break;
     case 'weather': if (e.weather !== 'none') await playAnim(WEATHER_ANIM[e.weather], 'ally'); break;
     case 'hp': {
-      const mon = e.side === 'foe' ? b.foe : b.ally;
+      const mon = st.mon;
       if (!mon) break;
-      const dropped = e.hp < (e.side === 'foe' ? b.foeHp : b.allyHp);
+      const dropped = e.hp < st.hp;
       if (dropped && e.effect !== 'residual') {
         Sound.se(e.effect === 'super' ? 'hit_super' : e.effect === 'weak' ? 'hit_weak' : 'hit');
-        if (e.crit) await playAnim(CRIT, e.side);
-        await flash(e.side);
+        if (e.crit) await playAnim(CRIT, at);
+        await flash(at);
       } else if (dropped && e.cause) {
-        const st = STATUS_ANIM[e.cause as keyof typeof STATUS_ANIM];
-        if (st) await playAnim(st, e.side);
-        else if (RESIDUAL[e.cause]) await playAnim(RESIDUAL[e.cause], e.side, other(e.side));
-      } else if (e.effect === 'heal' && e.cause !== 'drain' && e.hp > (e.side === 'foe' ? b.foeHp : b.allyHp)) await playAnim(HEAL, e.side);
+        const sa = STATUS_ANIM[e.cause as keyof typeof STATUS_ANIM];
+        if (sa) await playAnim(sa, at);
+        else if (RESIDUAL[e.cause]) await playAnim(RESIDUAL[e.cause], at, opp(at));
+      } else if (e.effect === 'heal' && e.cause !== 'drain' && e.hp > st.hp) await playAnim(HEAL, at);
       mon.hp = e.hp; mon.maxhp = e.maxhp;
-      await animateHp(e.side, e.hp);
+      await animateHp(at, e.hp);
       break;
     }
     case 'status': {
-      const mon = e.side === 'foe' ? b.foe : b.ally; if (mon) mon.status = e.status;
-      if (e.status) await playAnim(STATUS_ANIM[e.status], e.side);
+      if (st.mon) st.mon.status = e.status;
+      if (e.status) await playAnim(STATUS_ANIM[e.status], at);
       break;
     }
     case 'faint': {
-      const k = e.side === 'foe' ? 'foeFx' : 'allyFx', mon = e.side === 'foe' ? b.foe : b.ally;
-      if (mon) Sound.cry(mon.key);
-      for (let i = 0; i <= 16; i++) { b[k] = { dy: i * 6, shrink: 1 - i / 20 }; await nextFrame(); }
-      if (e.side === 'foe') { b.foeShown = false; b.foeLeft--; } else b.allyShown = false;
-      b[k] = {};
+      if (st.mon) Sound.cry(st.mon.key);
+      for (let i = 0; i <= 16; i++) { st.fx = { dy: i * 6, shrink: 1 - i / 20 }; await nextFrame(); }
+      st.shown = false;
+      if (at === 'foe') b.foeLeft--; else if (at === 'foe2') b.foeLeft2--;
+      st.fx = {};
       await say(e.text);
       break;
     }
     case 'exp': {
-      const a = b.ally; if (!a) break;
+      const a = b.spots.ally.mon; if (!a) break;
       const from = a.exp ?? e.exp;
       a.level = e.level; a.maxhp = e.maxhp; a.hp = e.hp; a.expLo = e.expLo; a.expHi = e.expHi;
       for (let i = 1; i <= 20; i++) { a.exp = from + (e.exp - from) * i / 20; await nextFrame(); }
-      b.allyHp = e.hp;
+      b.spots.ally.hp = e.hp;
       break;
     }
     case 'throw': {
+      const foe = b.spots.foe, to = place('foe');
       Sound.se('throw');
       for (let i = 0; i <= 24; i++) {
-        const t = i / 24; b.ballFx = { x: 120 + (384 - 120) * t, y: 260 - 200 * t + 260 * t * t - 60 * t };
+        const t = i / 24; b.ballFx = { x: 120 + (to.x - 120) * t, y: 260 - 200 * t + 260 * t * t - 60 * t };
         await nextFrame();
       }
-      for (let i = 0; i <= 10; i++) { b.foeFx = { shrink: 1 - i / 10 }; await nextFrame(); }
-      b.foeShown = false; b.foeFx = {};
+      for (let i = 0; i <= 10; i++) { foe.fx = { shrink: 1 - i / 10 }; await nextFrame(); }
+      foe.shown = false; foe.fx = {};
       for (let i = 0; i <= 10; i++) { b.ballFx!.y += 3; await nextFrame(); }
       for (let s = 0; s < e.shakes; s++) {
         await wait(18); Sound.se('shake');
         for (const d of [-4, -8, -4, 0, 4, 8, 4, 0]) { b.ballFx!.x += d / 2; await nextFrame(); }
       }
       await wait(20);
-      if (!e.caught) { b.ballFx = null; b.foeShown = true; }
+      if (!e.caught) { b.ballFx = null; foe.shown = true; }
       else b.ballFx = { ...b.ballFx!, dy: 0 };
       break;
     }
     case 'flee': Sound.se('flee'); break;
     case 'coil': b.coil[e.side] = e.coil; break;
     case 'copper': {
-      const mon = e.side === 'foe' ? b.foe : b.ally;
+      const mon = st.mon;
       Sound.se('recall');
       for (let i = 0; i < 12; i++) { if (mon?.uid) { if (i % 2) b.patina.add(mon.uid); else b.patina.delete(mon.uid); } await wait(3); }
       if (mon?.uid) b.patina.add(mon.uid);
@@ -1211,7 +1252,7 @@ async function battleEvent(e: BattleEvent) {
       Sound.se('hit_super', 0.4);
       for (let t = 0; t < 30; t++) { b.arc = { side: e.side, t }; await nextFrame(); }
       b.arc = null;
-      const mon = e.side === 'foe' ? b.foe : b.ally;
+      const mon = st.mon;
       if (e.b === 'overcharge' && mon?.uid) { b.patina.add(mon.uid); b.overcharged.add(mon.uid); }
       await say(e.text);
       break;
@@ -1250,7 +1291,13 @@ async function fightMenu(req: BattleRequest): Promise<BattleAction | null> {
     if (!m) continue;
     if (m.disabled) { await say(m.pp === 0 ? 'There\'s no PP left for this move!' : 'That move can\'t be used right now!'); continue; }
     if (mode === 'current' && m.category === 'Status') { await say('Status moves can\'t carry Current.'); continue; }
-    return { kind: 'move', index: mi, ...(mode ? { mode } : {}) };
+    let target: Slot | undefined;
+    if (m.aim && req.targets && req.targets.length > 1) {
+      const ti = await gridChoose(req.targets.map(t => ({ label: t.name, sub: t.slot ? 'right' : 'left' })), { x: 0, y: VH - 74, w: 512, h: 74, key: 'target' }, 2, true);
+      if (ti < 0) continue;
+      target = req.targets[ti].slot;
+    }
+    return { kind: 'move', index: mi, ...(mode ? { mode } : {}), ...(target !== undefined ? { target } : {}) };
   }
 }
 
@@ -1261,7 +1308,7 @@ async function battleMenu(req: BattleRequest): Promise<BattleAction> {
     return { kind: 'switch', uid: req.party[i].uid };
   }
   for (;;) {
-    const name = b.ally?.name ?? 'your Pokémon';
+    const name = b.spots.ally.mon?.name ?? 'your Pokémon';
     G.ui.text = { full: `What will ${name} do?`, shown: 999, w: 268 };
     const c = await gridChoose([{ label: 'Fight' }, { label: 'Bag' }, { label: 'Pokémon' }, { label: 'Run', dim: !req.canRun }],
       { x: 272, y: 288, w: 240, h: 96, key: 'cmd' }, 2, false);
@@ -1382,8 +1429,9 @@ async function animPreview(exitable = false) {
   const mon = (key: string, name: string): BattleMonView => ({ species: key.toLowerCase(), key, name, level: 12, hp: 40, maxhp: 40, status: '', gender: '', shiny: false });
   await battleStart({ kind: 'wild', bg: 'field', bgm: 'battle_wild', foeCount: 1 });
   const b = B!;
-  b.foe = mon('PONYTA', 'Ponyta'); b.ally = mon('SPRIGATITO', 'Sprigatito');
-  b.foeHp = b.allyHp = 40; b.foeShown = b.allyShown = true; b.playerBackShown = false;
+  b.spots.foe = { mon: mon('PONYTA', 'Ponyta'), hp: 40, shown: true, fx: {} };
+  b.spots.ally = { mon: mon('SPRIGATITO', 'Sprigatito'), hp: 40, shown: true, fx: {} };
+  b.playerBackShown = false;
   let idx = 0, user: BattleSide = 'ally';
   for (;;) {
     G.ui.text = { full: `${idx + 1}/${entries.length}  ${entries[idx].label}\n◀ ▶ pick · A play · B swap${exitable ? ' · Menu exit' : ''}`, shown: 999 };

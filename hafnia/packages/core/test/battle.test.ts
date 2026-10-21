@@ -203,3 +203,45 @@ describe('animation events', () => {
     expect(evs).toContainEqual(expect.objectContaining({ b: 'move', id: 'sunnyday', target: 'ally' }));
   });
 });
+
+describe('Multi battles', () => {
+  const multi = (seed = 1) => battle({
+    seed, party: [['pikachu', 30, ['thundershock', 'growl']], ['eevee', 28, ['tackle']]],
+    foes: [{ species: 'magikarp', level: 10, moves: ['splash'] }, { species: 'wingull', level: 10, moves: ['watergun'] }],
+    opts: { multi: {
+      partner: { name: 'Maja', sprite: '', foes: [{ species: 'popplio', level: 30, moves: ['watergun'] }] },
+      second: { name: 'Bo', title: 'Deckhand', sprite: '', foes: [{ species: 'croagunk', level: 10, moves: ['poisonsting'] }] }
+    } }
+  });
+
+  it('puts the partner and the second trainer in the second place and lets the player aim', () => {
+    const t = multi();
+    const start = t.events.find(e => e.t === 'battleStart') as Extract<ServerEvent, { t: 'battleStart' }>;
+    expect(start.battle.multi).toMatchObject({ partner: { name: 'Maja' }, second: { name: 'Bo' }, foeCount2: 1 });
+    const switches = t.battleEvents().filter(e => e.b === 'switch') as Extract<BattleEvent, { b: 'switch' }>[];
+    expect(switches.map(e => [e.side, e.slot ?? 0])).toEqual(expect.arrayContaining([['ally', 0], ['ally', 1], ['foe', 0], ['foe', 1]]));
+    expect(switches.map(e => e.text)).toContain('Maja sent out Popplio!');
+    const req = t.lastRequest()!;
+    expect(req.targets).toEqual([{ slot: 0, name: 'Magikarp' }, { slot: 1, name: 'Croagunk' }]);
+    expect(req.moves[0].aim).toBe(true);
+    expect(req.moves[1].aim).toBeUndefined(); // Growl hits both foes
+    t.act({ kind: 'move', index: 0, target: 1 });
+    const hit = t.battleEvents().find(e => e.b === 'move' && e.side === 'ally' && !e.slot) as Extract<BattleEvent, { b: 'move' }>;
+    expect(hit).toMatchObject({ target: 'foe', targetSlot: 1 });
+  });
+
+  it('is won when both opposing trainers are out of Pokémon, and pays both prizes', () => {
+    let money = 0;
+    const t = multi(3);
+    t.host.giveMoney = n => { money += n; };
+    for (let i = 0; i < 30 && !t.b.result; i++) {
+      const req = t.lastRequest()!;
+      if (req.forceSwitch) t.act({ kind: 'switch', uid: req.party.find(m => m.hp > 0 && m.uid !== req.activeUid)!.uid });
+      else t.act({ kind: 'move', index: 0, target: req.targets?.[0]?.slot ?? 0 });
+    }
+    expect(t.b.result).toBe('win');
+    const base = (title: string) => DEFAULT_RULES.prizeBase[title] ?? DEFAULT_RULES.prizeDefault;
+    expect(money).toBe(10 * base('Youngster') + 10 * base('Deckhand'));
+    expect(t.texts().some(x => /You defeated Youngster Foe\nand Deckhand Bo!/.test(x))).toBe(true);
+  });
+});

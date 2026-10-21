@@ -480,6 +480,18 @@ export class Game {
         const off = !s.flags['debug:noEncounters']; s.flags['debug:noEncounters'] = off;
         say(off ? 'Debug: wild encounters off.' : 'Debug: wild encounters on.'); break;
       }
+      case 'multiBattle': // a multi battle to try out: you and a partner against two trainers
+        this.run(function* (api) {
+          yield api.battle({
+            kind: 'trainer', bg: 'city', trainer: { name: 'Sander', title: 'Deckhand', sprite: 'tr/deckhand' },
+            foes: [{ species: 'mareanie', level: 14 }, { species: 'stunky', level: 15 }],
+            multi: {
+              partner: { name: 'Maja', sprite: 'tr/maja', foes: [{ species: 'popplio', level: 15 }, { species: 'skwovet', level: 14 }] },
+              second: { name: 'Bo', title: 'Deckhand', sprite: 'tr/deckhand', foes: [{ species: 'croagunk', level: 14 }, { species: 'shellos', level: 15 }] }
+            }
+          });
+        }, this.map.pack);
+        break;
       case 'time': {
         s.clock = Math.floor(s.clock + 6 * 60) % (24 * 60);
         say(`Debug: it is now ${String(Math.floor(s.clock / 60)).padStart(2, '0')}:${String(s.clock % 60).padStart(2, '0')}.`); break;
