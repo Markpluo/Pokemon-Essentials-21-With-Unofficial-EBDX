@@ -713,8 +713,9 @@ async function debugMenu() {
     ['Unlock Copper & Current', 'unlockCoil'], ['Toggle wild encounters', 'encounters'], ['Add a badge', 'badge'],
     ['Warp: Nørrebro', 'warp', 'hafnia:norrebro'], ['Warp: Route 1', 'warp', 'hafnia:route1'], ['Warp: Botanical Garden', 'warp', 'hafnia:garden']
   ];
-  const c = await choose([...cmds.map(x => x[0]), 'Back'], cmds.length, { x: 8, y: 8, w: 300 });
-  if (c < cmds.length) await send({ t: 'debug', cmd: cmds[c][1], ...(cmds[c][2] !== undefined ? { arg: cmds[c][2] } : {}) });
+  const c = await choose([...cmds.map(x => x[0]), 'Animation viewer', 'Back'], cmds.length + 1, { x: 8, y: 8, w: 300 });
+  if (c === cmds.length) await animPreview(true);
+  else if (c < cmds.length) await send({ t: 'debug', cmd: cmds[c][1], ...(cmds[c][2] !== undefined ? { arg: cmds[c][2] } : {}) });
 }
 
 async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced', party: MonView[]): Promise<number> {
@@ -1222,9 +1223,8 @@ async function titleFlow() {
   const slots = title && title.t === 'title' ? title.slots ?? [] : [];
   await waitKey('A');
   Sound.se('select');
-  const opts = [...(hasSave ? ['Continue', 'New game'] : ['New game']), 'Animations'];
-  const c = await choose(opts, -1, { x: VW / 2 - 90, y: 220, w: 180 });
-  if (opts[c] === 'Animations') { await fadeTo(1, 10); G.fade = 0; return animPreview(); }
+  const opts = hasSave ? ['Continue', 'New game'] : ['New game'];
+  const c = await choose(opts, -1, { x: VW / 2 - 90, y: 250, w: 180 });
   let slot: SaveSlot | undefined;
   if (hasSave && c === 0 && slots.filter(s => s.summary).length > 1) {
     const picked = await pickSlot(slots, false);
@@ -1243,10 +1243,10 @@ async function titleFlow() {
   await send({ t: 'newGame' });
 }
 
-// ---------- animation preview (open the game with ?anims) ----------
-// Also on the title menu. Every bespoke move, the generic animation for each type and category, and the shared effects,
-// on a battle screen. Left/right picks, A plays, B swaps which side attacks.
-async function animPreview(): Promise<never> {
+// ---------- animation preview (Debug menu, or open the game with ?anims) ----------
+// Every bespoke move, the generic animation for each type and category, and the shared effects,
+// on a battle screen. Left/right picks, A plays, B swaps which side attacks, Menu leaves (from the Debug menu).
+async function animPreview(exitable = false) {
   type Entry = { label: string; run: (user: BattleSide) => Promise<unknown> };
   const moveEntry = (id: string, type: string, category: 'Physical' | 'Special' | 'Status', label: string): Entry => ({
     label, run: user => battleEvent({ b: 'move', side: user, id, type, category, text: `${label}`, ...(category === 'Status' && /self/.test(label) ? { target: user } : { target: other(user) }) })
@@ -1271,8 +1271,9 @@ async function animPreview(): Promise<never> {
   b.foeHp = b.allyHp = 40; b.foeShown = b.allyShown = true; b.playerBackShown = false;
   let idx = 0, user: BattleSide = 'ally';
   for (;;) {
-    G.ui.text = { full: `${idx + 1}/${entries.length}  ${entries[idx].label}\n◀ ▶ pick · A play · B swap (${user === 'ally' ? 'yours attacks' : 'foe attacks'})`, shown: 999 };
-    const k = await waitKey('left', 'right', 'up', 'down', 'A', 'B');
+    G.ui.text = { full: `${idx + 1}/${entries.length}  ${entries[idx].label}\n◀ ▶ pick · A play · B swap${exitable ? ' · Menu exit' : ''}`, shown: 999 };
+    const k = await waitKey('left', 'right', 'up', 'down', 'A', 'B', 'MENU');
+    if (k === 'MENU') { if (exitable) { G.ui.text = null; await battleEnd(); return; } continue; }
     if (k === 'left' || k === 'up') idx = (idx + entries.length - 1) % entries.length;
     else if (k === 'right' || k === 'down') idx = (idx + 1) % entries.length;
     else if (k === 'B') user = other(user);
