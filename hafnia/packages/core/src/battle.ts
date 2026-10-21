@@ -91,7 +91,7 @@ export class BattleSession {
         unlocks: opts.overcharge ? { copper: true, current: true } : opts.foeCoil ?? {}, overcharge: !!opts.overcharge, seTurn: -1
       }
     };
-    this.foes = opts.foes.map(f => makeMon(f.species, f.level, rng, { moves: f.moves }));
+    this.foes = opts.foes.map(f => makeMon(f.species, f.level, rng, { moves: f.moves, item: f.item, ability: f.ability }));
     this.sim = new Battle({ formatid: 'gen9customgame' as any, seed: rng.simSeed() as any });
 
     const party = host.party;
@@ -99,11 +99,11 @@ export class BattleSession {
     const order = [party[lead], ...party.filter((_, i) => i !== lead)];
     this.sim.setPlayer('p1', { name: host.playerName, team: order.map(m => this.toSet(m, true)) as any });
     this.sim.setPlayer('p2', { name: opts.trainer?.name ?? 'Wild', team: this.foes.map(m => this.toSet(m, false)) as any });
-    for (const p of this.sim.p1.pokemon) this.restore(p, this.monOf(p)!);
+    for (const p of this.sim.p1.pokemon) { this.restore(p, this.monOf(p)!); if (opts.tutorial) (p as any).m.guarded = true; }
     this.logIndex = this.sim.log.length;
   }
 
-  private ai() { return this.opts.ai ?? (this.opts.kind === 'wild' ? 0 : this.opts.leader || this.opts.soft ? 2 : 1); }
+  private ai() { return this.opts.tutorial ? 0 : this.opts.ai ?? (this.opts.kind === 'wild' ? 0 : this.opts.leader || this.opts.soft ? 2 : 1); }
 
   private coilView(side: BattleSide): CoilView {
     const c = this.coil[side], r = this.host.rules.coil;
@@ -141,7 +141,7 @@ export class BattleSession {
   private toSet(m: Mon, player: boolean) {
     return {
       uid: m.uid, name: monName(m), species: speciesName(m.species), level: m.level, gender: m.gender,
-      shiny: m.shiny, ability: m.ability, nature: m.nature, item: '', ivs: m.ivs, evs: m.evs,
+      shiny: m.shiny, ability: m.ability, nature: m.nature, item: m.item ?? '', ivs: m.ivs, evs: m.evs,
       moves: [...m.moves.map(mv => mv.id), ...(player ? [WAIT] : [])]
     };
   }
@@ -181,6 +181,7 @@ export class BattleSession {
     this.sim.choose('p1', 'default');
     this.sim.choose('p2', 'default');
     for (const side of [this.sim.p1, this.sim.p2]) side.addSideCondition('hafniacoil', side.active[0]);
+    if (o.tutorial) this.sim.p1.active[0].addVolatile('hafniaguard');
     this.advance();
   }
 
@@ -242,7 +243,9 @@ export class BattleSession {
         if (!ball?.ball || !this.host.bag[action.item]) return this.request();
         this.host.bag[action.item]--;
         this.ev({ b: 'text', text: `${this.host.playerName} threw a ${ball.name}!` });
-        if (this.throwBall(ball.ball)) return this.advance();
+        const foeTypes = this.sim.p2.active[0]?.getTypes() ?? [];
+        const rate = action.item === 'netball' ? (foeTypes.some(t => t === 'Water' || t === 'Bug') ? 3.5 : 1) : ball.ball;
+        if (this.throwBall(rate)) return this.advance();
         this.waitTurn();
         break;
       }

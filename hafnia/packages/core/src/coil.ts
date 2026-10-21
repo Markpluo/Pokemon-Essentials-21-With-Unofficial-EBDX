@@ -102,6 +102,17 @@ export function installCoil(r: CoilRules = COIL_DEFAULTS) {
       const m = (pokemon as any).m;
       if (m?.patinated) pokemon.addVolatile('hafniapatina');
       if (m?.overcharged) pokemon.addVolatile('hafniaovercharge');
+      if (m?.guarded) pokemon.addVolatile('hafniaguard');
+    }
+  };
+
+  // The very first rival battle: the player's Pokémon take half damage and can't be knocked out.
+  conditions.hafniaguard = {
+    name: 'Hafnia Guard', effectType: 'Condition',
+    onSourceModifyDamage(this: any) { return this.chainModify(0.5); },
+    onDamagePriority: -100,
+    onDamage(damage: number, target: Pokemon) {
+      if (damage >= target.hp) return target.hp - 1;
     }
   };
 }

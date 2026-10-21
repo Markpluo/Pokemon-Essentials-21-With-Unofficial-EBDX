@@ -3,13 +3,13 @@
 // for solo play; the online server will run the very same class.
 import { BattleSession } from './battle';
 import type { CoilUnlocks } from './coil';
-import { Content, GRASS_TILE, SOLID_TILES, ns, type MapDef, type NpcDef, type Respawn } from './content';
+import { Content, GRASS_TILE, SOLID_TILES, WATER_TILES, ns, type MapDef, type MapEvent, type NpcDef, type Period, type Respawn } from './content';
 import { ITEMS, itemEffect } from './items';
 import {
-  evolveMon, expForLevel, gainExp, healMon, levelEvolution, makeMon, maxHp, monName, monView, moveName, replaceMove,
+  canLearnTM, evolveMon, expForLevel, gainExp, healMon, levelEvolution, makeMon, maxHp, maxPp, monName, monView, moveName, replaceMove,
   speciesExtra, speciesName, speciesTypes, type Mon
 } from './pokemon';
-import type { BattleResult, DebugCommand, Dir, Intent, ServerEvent, WorldView } from './protocol';
+import type { BattleResult, DayPeriod, DebugCommand, Dir, Intent, Look, ServerEvent, WorldView } from './protocol';
 import { Rng } from './rng';
 import type { NpcHandle, Pause, Script, ScriptApi } from './script';
 
@@ -30,7 +30,18 @@ export interface SaveData {
   badges: string[];                // "pack:badge" ids, in the order earned
   coil: CoilUnlocks;               // Copper & Current modes the player has unlocked
   repel: number;                   // steps left
+  look: Look;                      // the player's character
+  clock: number;                   // in-game minutes since midnight (1 day = 48 real minutes in the overworld)
 }
+
+/** Start minute of each period of the day (progression-quests-time.md §3.6). */
+const PERIOD_START: Record<DayPeriod, number> = { morning: 4 * 60, day: 10 * 60, evening: 17 * 60, night: 20 * 60 };
+export function periodOf(clock: number): DayPeriod {
+  const h = clock / 60;
+  return h >= 4 && h < 10 ? 'morning' : h >= 10 && h < 17 ? 'day' : h >= 17 && h < 20 ? 'evening' : 'night';
+}
+const GAME_MINUTES_PER_SECOND = 1440 / (48 * 60);
+const NAME_MAX = 10;
 
 const DIRS: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const PARTY_MAX = 6;
@@ -53,6 +64,8 @@ export class Game {
   private battle: BattleSession | null = null;
   private battleSoft = false;
   private doorCache = new Map<string, Map<string, string>>();
+  /** A map the player just arrived on whose onEnter hook still has to run. */
+  private pendingEnter: string | null = null;
 
   private constructor(readonly content: Content, readonly state: SaveData) {
     this.rng = new Rng(state.rng);
@@ -66,7 +79,7 @@ export class Game {
       v: SAVE_VERSION, packs: [...content.packs.keys()], name: 'Player', map, x: start.x, y: start.y, dir: start.dir,
       party: [], box: [], bag: {}, money: 3000, flags: {}, npcs: {},
       respawn: { ...start.respawn, map: ns(base.manifest.id, start.respawn.map) }, rng: seed >>> 0,
-      badges: [], coil: {}, repel: 0
+      badges: [], coil: {}, repel: 0, look: 'boy', clock: PERIOD_START.morning + 4 * 60
     });
     game.emitMap();
     game.run(start.intro, base.manifest.id);
@@ -105,9 +118,10 @@ export class Game {
         if (intent.t === 'battle') this.battleAct(intent.action);
         else if (intent.t === 'answer' && this.battle.waitingForAnswer) { this.battle.answer(intent.index); this.afterBattleAct(); }
       } else if (this.pause) {
-        if (intent.t === 'answer') this.answer(intent.index);
+        if (intent.t === 'answer') this.answer(intent.index, intent.text);
       } else {
         switch (intent.t) {
+          case 'tick': this.state.clock = (this.state.clock + Math.max(0, Math.min(60, Number(intent.seconds) || 0)) * GAME_MINUTES_PER_SECOND) % 1440; break;
           case 'turn': this.state.dir = intent.dir; break;
           case 'step': this.step(intent.dir); break;
           case 'interact': this.interact(); break;
@@ -156,12 +170,15 @@ export class Game {
   }
 
   private npcVisible(m: MapDef & { key: string; pack: string }, n: NpcDef) {
-    return !this.npcState(m, n).hidden && (!n.when || n.when(name => this.flag(m.pack, name)));
+    return !this.npcState(m, n).hidden && (!n.period || n.period.includes(this.period as Period))
+      && (!n.when || n.when(name => this.flag(m.pack, name)));
   }
 
-  private npcAt(m: MapDef & { key: string; pack: string }, x: number, y: number) {
-    return m.npcs.find(n => { const s = this.npcState(m, n); return s.x === x && s.y === y && this.npcVisible(m, n); });
+  private npcAt(m: MapDef & { key: string; pack: string }, x: number, y: number, floor = false) {
+    return m.npcs.find(n => { const s = this.npcState(m, n); return s.x === x && s.y === y && !!n.floor === floor && this.npcVisible(m, n); });
   }
+
+  get period(): DayPeriod { return periodOf(this.state.clock); }
 
   private buildingAt(m: MapDef & { key: string; pack: string }, x: number, y: number) {
     return m.buildings.some(b => {
@@ -173,7 +190,8 @@ export class Game {
   solid(x: number, y: number, mapKey = this.state.map): boolean {
     const m = this.content.map(mapKey);
     const t = this.tile(m, x, y);
-    if (t === null || SOLID_TILES.has(t)) return true;
+    if (t === null) return true;
+    if (SOLID_TILES.has(t) && !(WATER_TILES.has(t) && this.npcAt(m, x, y, true))) return true; // lily pads make water walkable
     if (this.buildingAt(m, x, y)) return true;
     if (mapKey === this.state.map && this.state.x === x && this.state.y === y) return true;
     return !!this.npcAt(m, x, y);
@@ -192,6 +210,7 @@ export class Game {
         const y = dir === 'left' || dir === 'right' ? s.y + ex.offset : dir === 'up' ? to.h - 1 : 0;
         this.warp(to.key, Math.max(0, Math.min(to.w - 1, x)), Math.max(0, Math.min(to.h - 1, y)), dir);
         this.out.push({ t: 'checkpoint' });
+        this.checkEnter();
       };
       if (ex.guard) this.run(ex.guard, m.pack, ok => { if (ok !== false) go(); });
       else go();
@@ -199,10 +218,62 @@ export class Game {
     }
     const door = this.doors(m).get(`${nx},${ny}`);
     if (door) { this.openDoor(m, door); return; }
-    if (this.solid(nx, ny)) return;
+    if (this.solid(nx, ny)) { this.tickWorld(); return; }
     s.x = nx; s.y = ny;
     this.out.push({ t: 'walk', actor: 'player', dir });
+    const w = m.warps?.find(w => w.x === nx && w.y === ny);
+    if (w) {
+      this.out.push({ t: 'sfx', name: 'door' });
+      this.warp(ns(m.pack, w.to), w.tx, w.ty, w.dir);
+      this.out.push({ t: 'checkpoint' });
+      this.checkEnter();
+      return;
+    }
+    if (this.tickWorld()) return;
+    const ev = this.eventAt(m, nx, ny, 'step');
+    if (ev) { this.run(ev.run, m.pack); return; }
     this.afterStep();
+  }
+
+  private eventAt(m: MapDef & { key: string; pack: string }, x: number, y: number, on: MapEvent['on']) {
+    const t = this.tile(m, x, y);
+    return m.events?.find(e => e.on === on
+      && (e.tile !== undefined ? e.tile === t : x >= e.x! && y >= e.y! && x < e.x! + (e.w ?? 1) && y < e.y! + (e.h ?? 1))
+      && (!e.when || e.when(name => this.flag(m.pack, name))));
+  }
+
+  /** Advances patrolling NPCs (bike traffic) one tile. Returns true if one ran into the player. */
+  private tickWorld(): boolean {
+    const s = this.state, m = this.map;
+    let hit: NpcDef | null = null;
+    for (const n of m.npcs) {
+      if (!n.patrol || !this.npcVisible(m, n)) continue;
+      const st = this.npcState(m, n), [dx, dy] = DIRS[n.patrol.dir];
+      const horiz = dx !== 0, pos = horiz ? st.x : st.y, step = horiz ? dx : dy;
+      const next = pos + step;
+      const key = `${m.key}/${n.id}`;
+      if (next > n.patrol.max || next < n.patrol.min) {
+        const wrap = step > 0 ? n.patrol.min : n.patrol.max;
+        this.state.npcs[key] = { ...st, x: horiz ? wrap : st.x, y: horiz ? st.y : wrap };
+        const c = this.state.npcs[key];
+        this.out.push({ t: 'place', actor: n.id, x: c.x, y: c.y, dir: c.dir, sprite: n.sprite, hidden: false });
+      } else {
+        this.state.npcs[key] = { ...st, x: st.x + dx, y: st.y + dy, dir: n.patrol.dir };
+        this.out.push({ t: 'walk', actor: n.id, dir: n.patrol.dir, frames: 8, async: true });
+      }
+      const c = this.state.npcs[key];
+      if (c.x === s.x && c.y === s.y) hit = n;
+    }
+    if (hit?.bump && !this.script) { this.run(hit.bump, m.pack); return true; }
+    return false;
+  }
+
+  /** Runs the onEnter hook of a map the player just arrived on, once no script is running. */
+  private checkEnter() {
+    if (!this.pendingEnter || this.script || this.battle) return;
+    const m = this.content.map(this.pendingEnter);
+    this.pendingEnter = null;
+    if (m.onEnter && m.key === this.state.map) this.run(m.onEnter, m.pack);
   }
 
   private openDoor(m: MapDef & { key: string; pack: string }, building: string) {
@@ -242,9 +313,9 @@ export class Game {
       return;
     }
     if (this.flag('debug', 'noEncounters')) return;
-    if (this.tile(m, s.x, s.y) === GRASS_TILE && m.encounters?.length && this.partyAlive() && this.rng.chance(this.content.rules.encounterRate)) {
-      let r = this.rng.next() * 100, sp = m.encounters[0][1];
-      for (const [w, id] of m.encounters) { if (r < w) { sp = id; break; } r -= w; }
+    const table = this.period === 'night' && m.encountersNight ? m.encountersNight : m.encounters;
+    if (this.tile(m, s.x, s.y) === (m.encounterTile ?? GRASS_TILE) && table?.length && this.partyAlive() && this.rng.chance(this.content.rules.encounterRate)) {
+      const sp = this.rollTable(table);
       const [lo, hi] = m.levels ?? [2, 4];
       const level = lo + this.rng.int(hi - lo + 1);
       const lead = s.party.find(p => p.hp > 0);
@@ -254,16 +325,39 @@ export class Game {
     }
   }
 
+  private rollTable(table: [number, string][]) {
+    let r = this.rng.next() * 100;
+    for (const [w, id] of table) { if (r < w) return id; r -= w; }
+    return table[0][1];
+  }
+
   private interact() {
-    const s = this.state, m = this.map, [dx, dy] = DIRS[s.dir];
-    const n = this.npcAt(m, s.x + dx, s.y + dy);
+    const s = this.state, m = this.map, [dx, dy] = DIRS[s.dir], fx = s.x + dx, fy = s.y + dy;
+    const n = this.npcAt(m, fx, fy) ?? this.npcAt(m, fx, fy, true);
     if (n?.talk) {
-      if (!n.object) this.setNpc(m.key, n, { dir: faceTo(s.x + dx, s.y + dy, s.x, s.y) });
+      if (!n.object) this.setNpc(m.key, n, { dir: faceTo(fx, fy, s.x, s.y) });
       this.run(n.talk, m.pack);
       return;
     }
-    const door = this.doors(m).get(`${s.x + dx},${s.y + dy}`);
-    if (door) this.openDoor(m, door);
+    const door = this.doors(m).get(`${fx},${fy}`);
+    if (door) { this.openDoor(m, door); return; }
+    const ev = this.eventAt(m, fx, fy, 'interact');
+    if (ev) { this.run(ev.run, m.pack); return; }
+    const t = this.tile(m, fx, fy);
+    if (t && WATER_TILES.has(t) && m.fishing?.length && s.bag.oldrod) { this.fish(m.fishing, m.fishLevels ?? [5, 10], m.battleBg, m.pack); return; }
+    this.tickWorld(); // pressing A at nothing waits a moment
+  }
+
+  private fish(table: [number, string][], [lo, hi]: [number, number], bg: string, pack: string) {
+    const g = this;
+    this.run(function* (api) {
+      api.say(`${api.player.name} cast the Old Rod...`);
+      api.wait(30);
+      if (!g.partyAlive() || !g.rng.chance(0.6)) { api.say('Not even a nibble...'); return; }
+      api.sfx('exclaim');
+      api.say('Oh! A bite!');
+      return yield api.battle({ kind: 'wild', foes: [{ species: g.rollTable(table), level: lo + g.rng.int(hi - lo + 1) }], bg });
+    }, pack);
   }
 
   private setNpc(mapKey: string, n: NpcDef, patch: Partial<{ x: number; y: number; dir: Dir; hidden: boolean }>) {
@@ -279,6 +373,7 @@ export class Game {
   private warp(mapKey: string, x: number, y: number, dir: Dir) {
     this.content.map(mapKey);
     Object.assign(this.state, { map: mapKey, x, y, dir });
+    this.pendingEnter = mapKey;
     this.emitMap();
   }
 
@@ -299,6 +394,7 @@ export class Game {
       return;
     }
     const m = this.state.party.find(p => p.uid === uid);
+    if (m && it.tm) { this.teachTM(m, it.tm, it.name); return; }
     if (!m || it.pocket !== 'medicine') return;
     const fx = itemEffect(it, m.hp, maxHp(m), m.status);
     if (!fx) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
@@ -307,6 +403,19 @@ export class Game {
     this.state.bag[item]--;
     const text = before === 0 ? `${monName(m)} was revived!` : m.hp > before ? `${monName(m)} recovered ${m.hp - before} HP.` : `${monName(m)} is healthy again.`;
     this.out.push({ t: 'sfx', name: 'select' }, { t: 'say', text });
+  }
+
+  /** TMs are reusable (systems.md §5.2): teaching never uses one up. */
+  private teachTM(m: Mon, move: string, tmName: string) {
+    const name = monName(m), mv = moveName(move);
+    if (m.moves.some(x => x.id === move)) { this.out.push({ t: 'say', text: `${name} already knows ${mv}.` }); return; }
+    if (!canLearnTM(m.species, move)) { this.out.push({ t: 'say', text: `${name} can't learn ${mv}.` }); return; }
+    const g = this;
+    this.run(function* (api) {
+      api.say(`${api.player.name} booted up the ${tmName}.\nIt contained ${mv}.`);
+      if (m.moves.length < 4) { m.moves.push({ id: move, pp: maxPp(move) }); api.me('me_item'); api.say(`${name} learned ${mv}!`); return; }
+      yield* g.learnPrompt(m, move);
+    }, this.map.pack);
   }
 
   // ---------- debug (dev builds) ----------
@@ -369,13 +478,20 @@ export class Game {
       const r = sc.stack[sc.stack.length - 1].next(value);
       if (r.done) {
         sc.stack.pop();
-        if (!sc.stack.length) { this.script = null; sc.onDone?.(r.value); return; }
+        if (!sc.stack.length) { this.script = null; sc.onDone?.(r.value); this.checkEnter(); return; }
         value = r.value;
         continue;
       }
       const p = r.value;
       value = undefined;
       if (p.kind === 'ask') { this.pause = p; this.out.push({ t: 'prompt', text: p.text, options: p.options, ...(p.cancel !== undefined ? { cancel: p.cancel } : {}) }); return; }
+      if (p.kind === 'name') { this.pause = p; this.out.push({ t: 'askName', text: this.text(this.map.pack, p.text), suggestions: p.suggestions }); return; }
+      if (p.kind === 'look') {
+        this.pause = p;
+        this.out.push({ t: 'pickLook', text: this.text(this.map.pack, p.text), options: [
+          { look: 'boy', sprite: 'tr/player_boy', label: 'This one' }, { look: 'girl', sprite: 'tr/player_girl', label: 'This one' }] });
+        return;
+      }
       if (p.kind === 'pickSpecies') {
         this.pause = p;
         this.out.push({ t: 'pickSpecies', species: p.species.map(x => ({ species: x.species, key: speciesExtra(x.species).key, name: speciesName(x.species), types: speciesTypes(x.species), blurb: x.blurb })) });
@@ -392,12 +508,28 @@ export class Game {
     }
   }
 
-  private answer(index: number) {
+  private answer(index: number, text?: string) {
     const p = this.pause!;
-    const n = p.kind === 'ask' ? p.options.length : p.kind === 'pickSpecies' ? p.species.length : 0;
+    if (p.kind === 'name') {
+      const name = String(text ?? '').replace(/[^\p{L}\p{N} .'-]/gu, '').trim().slice(0, NAME_MAX);
+      if (!name) { this.out.push({ t: 'error', message: 'Invalid name' }); return; }
+      this.pause = null;
+      this.resume(name);
+      return;
+    }
+    const n = p.kind === 'ask' ? p.options.length : p.kind === 'pickSpecies' ? p.species.length : p.kind === 'look' ? 2 : 0;
     if (!Number.isInteger(index) || index < 0 || index >= n) { this.out.push({ t: 'error', message: 'Invalid answer' }); return; }
     this.pause = null;
-    this.resume(index);
+    this.resume(p.kind === 'look' ? (['boy', 'girl'] as Look[])[index] : index);
+  }
+
+  /** Looks a string key up in the pack's table and fills in {player} and the pack's own variables. */
+  text(pack: string, key: string): string {
+    const p = this.content.packs.get(pack);
+    let str = p?.strings?.[key] ?? key;
+    if (!str.includes('{')) return str;
+    const vars: Record<string, string> = { player: this.state.name, ...(p?.textVars?.(name => this.flag(pack, name)) ?? {}) };
+    return str.replace(/\{(\w+)\}/g, (all, k) => vars[k] ?? all);
   }
 
   private battleAct(action: import('./protocol').BattleAction) {
@@ -497,11 +629,11 @@ export class Game {
         hide() { g.setNpc(m.key, def, { hidden: true }); },
         face(dir) { g.setNpc(m.key, def, { dir }); },
         facePlayer() { const c = cur(); g.setNpc(m.key, def, { dir: faceTo(c.x, c.y, s.x, s.y) }); },
-        walk(dir, steps = 1, frames) {
+        walk(dir, steps = 1, frames, async) {
           for (let i = 0; i < steps; i++) {
             const c = cur(), [dx, dy] = DIRS[dir];
             g.state.npcs[`${m.key}/${id}`] = { ...c, x: c.x + dx, y: c.y + dy, dir };
-            emit({ t: 'walk', actor: id, dir, ...(frames ? { frames } : {}) });
+            emit({ t: 'walk', actor: id, dir, ...(frames ? { frames } : {}), ...(async ? { async: true } : {}) });
           }
         },
         exclaim() { emit({ t: 'sfx', name: 'exclaim' }); emit({ t: 'exclaim', actor: id }); }
@@ -512,16 +644,25 @@ export class Game {
       player: {
         get name() { return s.name; }, get x() { return s.x; }, get y() { return s.y; }, get dir() { return s.dir; },
         face(dir) { s.dir = dir; emit({ t: 'face', actor: 'player', dir }); },
-        faceTo(x, y) { s.dir = faceTo(s.x, s.y, x, y); emit({ t: 'face', actor: 'player', dir: s.dir }); }
+        faceTo(x, y) { s.dir = faceTo(s.x, s.y, x, y); emit({ t: 'face', actor: 'player', dir: s.dir }); },
+        walk(dir, steps = 1) {
+          for (let i = 0; i < steps; i++) { const [dx, dy] = DIRS[dir]; s.x += dx; s.y += dy; s.dir = dir; emit({ t: 'walk', actor: 'player', dir }); }
+        }
       },
       get party() { return s.party; },
       flag: name => g.flag(pack, name),
       setFlag: (name, v) => { s.flags[ns(pack, name)] = v; },
-      say: text => emit({ t: 'say', text }),
-      ask: (text, options, cancel) => ({ kind: 'ask', text, options, ...(cancel !== undefined ? { cancel } : {}) }),
+      say: text => emit({ t: 'say', text: g.text(pack, text) }),
+      t: key => g.text(pack, key),
+      ask: (text, options, cancel) => ({ kind: 'ask', text: g.text(pack, text), options: options.map(o => g.text(pack, o)), ...(cancel !== undefined ? { cancel } : {}) }),
+      askName: (text, suggestions) => ({ kind: 'name', text, suggestions }),
+      pickLook: text => ({ kind: 'look', text }),
       pickSpecies: species => ({ kind: 'pickSpecies', species }),
       battle: opts => ({ kind: 'battle', opts }),
       setName: name => { s.name = name; },
+      setLook: look => { s.look = look; },
+      get period() { return g.period; },
+      setTime: period => { s.clock = PERIOD_START[period]; },
       givePokemon: (species, level) => {
         const m = makeMon(species, level, g.rng, { ot: s.name });
         g.addMon(m);
@@ -529,6 +670,7 @@ export class Game {
       },
       giveItem: (item, qty = 1) => { s.bag[item] = (s.bag[item] ?? 0) + qty; },
       hasItem: item => s.bag[item] ?? 0,
+      takeItem: (item, qty = 1) => { if ((s.bag[item] ?? 0) < qty) return false; s.bag[item] -= qty; return true; },
       giveMoney: n => { s.money += n; },
       get money() { return s.money; },
       takeMoney: n => { if (s.money < n) return false; s.money -= n; return true; },
@@ -602,9 +744,10 @@ export class Game {
       name: s.name, map: m.key, x: s.x, y: s.y, dir: s.dir,
       npcs: m.npcs.filter(n => this.npcVisible(m, n)).map(n => {
         const st = this.npcState(m, n);
-        return { id: n.id, sprite: n.sprite, x: st.x, y: st.y, dir: st.dir, ...(n.object ? { object: true } : {}) };
+        return { id: n.id, sprite: n.sprite, x: st.x, y: st.y, dir: st.dir, ...(n.object ? { object: true } : {}), ...(n.floor ? { floor: true } : {}) };
       }),
       party: s.party.map(monView), bag: { ...s.bag }, money: s.money, badges: s.badges.length,
+      look: s.look, period: this.period, clock: Math.floor(s.clock),
       ...(this.debug ? { debug: true } : {})
     };
   }
@@ -621,6 +764,7 @@ export function migrate(save: SaveData): SaveData {
   const s = structuredClone(save);
   s.box ??= []; s.npcs ??= {}; s.flags ??= {};
   s.badges ??= []; s.coil ??= {}; s.repel ??= 0;   // v2: badges, Coil unlocks, Repel
+  s.look ??= 'boy'; s.clock ??= 8 * 60;              // character look and world clock (no version bump: defaults are safe)
   s.v = SAVE_VERSION;
   return s;
 }

@@ -11,8 +11,10 @@ const content = new Content([hafnia]);
 
 function game(seed = 3) {
   const { game } = Game.newGame(content, seed);
-  game.handle({ t: 'answer', index: 0 }); // the intro asks for a name
+  game.handle({ t: 'answer', index: 0, text: 'Mark' }); // the intro asks for a name
+  game.handle({ t: 'answer', index: 0 });               // and a look
   game.state.party.push(makeMon('sprigatito', 10, game.rng, { ot: 'Mark' }));
+  game.state.flags['hafnia:starter'] = 'sprigatito';
   return game;
 }
 
@@ -22,10 +24,11 @@ function play(g: Game, script: Script, answers: number[] = []): ServerEvent[] {
   let evs = (() => { (g as any).run(script, 'hafnia'); return (g as any).flush() as ServerEvent[]; })();
   for (let guard = 0; guard < 200; guard++) {
     log.push(...evs);
-    const last = [...evs].reverse().find(e => e.t === 'prompt' || e.t === 'pickSpecies' || e.t === 'battleRequest');
+    const last = [...evs].reverse().find(e => e.t === 'prompt' || e.t === 'pickSpecies' || e.t === 'askName' || e.t === 'battleRequest');
     if (!last) break;
     let intent: Intent;
     if (last.t === 'prompt' || last.t === 'pickSpecies') intent = { t: 'answer', index: answers.shift() ?? 0 };
+    else if (last.t === 'askName') intent = { t: 'answer', index: 0, text: 'Pip' };
     else if (last.request.forceSwitch) intent = { t: 'battle', action: { kind: 'switch', uid: last.request.party.find(p => p.hp > 0 && p.uid !== last.request.activeUid)!.uid } };
     else {
       const best = last.request.moves.map((m, i) => ({ m, i })).filter(x => !x.m.disabled).sort((a, b) => b.m.power - a.m.power)[0];
@@ -112,6 +115,7 @@ describe('game systems', () => {
     const saves = new Map<SaveSlot, SaveData>();
     const server = new LocalServer(content, { load: async s => saves.get(s) ?? null, save: async (s, d) => { saves.set(s, structuredClone(d)); } }, () => 9);
     await server.handle({ t: 'newGame' });
+    await server.handle({ t: 'answer', index: 0, text: 'Asta' });
     await server.handle({ t: 'answer', index: 0 });
     expect(await server.handle({ t: 'save', slot: 2 })).toEqual([{ t: 'say', text: 'There is nothing to save yet.' }]);
     (server as any).game.state.party.push(makeMon('ponyta', 5, (server as any).game.rng));
@@ -127,8 +131,9 @@ describe('game systems', () => {
   it('unlocks Current (not Copper) when Professor Ørsted hands out the starters', () => {
     const g = game();
     g.state.party.length = 0;
-    Object.assign(g.state, { map: 'hafnia:garden', x: 13, y: 12 });
-    const log = play(g, hafnia.maps.garden.npcs.find(n => n.id === 'prof')!.talk!);
+    delete g.state.flags['hafnia:starter'];
+    Object.assign(g.state, { map: 'hafnia:palmhouse', x: 8, y: 9 });
+    const log = play(g, hafnia.maps.palmhouse.npcs.find(n => n.id === 'prof')!.talk!);
     expect(log.filter(e => e.t === 'error')).toEqual([]);
     expect(g.state.coil.current).toBe(true);
     expect(g.state.coil.copper).toBeFalsy();

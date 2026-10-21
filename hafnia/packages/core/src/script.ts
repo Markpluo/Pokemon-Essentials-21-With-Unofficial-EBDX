@@ -1,10 +1,10 @@
 // Story scripts are generator functions. Plain calls (say, sfx, giveItem...) run at once and
 // queue events for the client. `yield` pauses the script until the player answers a prompt
 // or a battle ends, which is what lets the same script run in a Web Worker or on a server.
-import type { Dir, BattleResult } from './protocol';
+import type { Dir, BattleResult, DayPeriod, Look } from './protocol';
 import type { Mon } from './pokemon';
 
-export interface FoeSpec { species: string; level: number; moves?: string[] }
+export interface FoeSpec { species: string; level: number; moves?: string[]; item?: string; ability?: string }
 
 export interface BattleOptions {
   kind: 'wild' | 'trainer';
@@ -24,11 +24,19 @@ export interface BattleOptions {
   foeCoil?: { copper?: boolean; current?: boolean };
   /** Villain teams: the Coil refills and each activation is Copper and Current at once, with HP drain. */
   overcharge?: boolean;
+  /** First battle of the game: the foe picks moves at random, deals half damage and can't knock the player's Pokémon out. */
+  tutorial?: boolean;
+  /** Multi battle: a partner fights beside the player (their own team, AI-controlled). */
+  ally?: { name: string; sprite: string; foes: FoeSpec[] };
+  /** Multi battle: a second opposing trainer beside the first. */
+  foes2?: { name: string; sprite: string; foes: FoeSpec[] };
 }
 
 export type Pause =
   | { kind: 'ask'; text: string; options: string[]; cancel?: number }
   | { kind: 'pickSpecies'; species: { species: string; blurb: string }[] }
+  | { kind: 'name'; text: string; suggestions: string[] }
+  | { kind: 'look'; text: string }
   | { kind: 'battle'; opts: BattleOptions };
 
 export type Script = (s: ScriptApi) => Generator<Pause, unknown, any>;
@@ -40,28 +48,45 @@ export interface NpcHandle {
   hide(): void;
   face(dir: Dir): void;
   facePlayer(): void;
-  walk(dir: Dir, steps?: number, frames?: number): void;
+  /** async: the client animates it alongside whatever comes next instead of waiting. */
+  walk(dir: Dir, steps?: number, frames?: number, async?: boolean): void;
   exclaim(): void;
 }
 
 export interface ScriptApi {
   readonly pack: string;
-  readonly player: { readonly name: string; readonly x: number; readonly y: number; readonly dir: Dir; face(dir: Dir): void; faceTo(x: number, y: number): void };
+  readonly player: {
+    readonly name: string; readonly x: number; readonly y: number; readonly dir: Dir;
+    face(dir: Dir): void; faceTo(x: number, y: number): void;
+    /** Cutscene movement: no collision checks, no encounters. */
+    walk(dir: Dir, steps?: number): void;
+  };
   readonly party: readonly Mon[];
 
   // flags are namespaced to the script's pack unless given as "pack:name"
   flag(name: string): any;
   setFlag(name: string, value: unknown): void;
 
+  /** Text can be a string key from the pack's string table ("p.mum.1") or literal text. */
   say(text: string): void;
+  t(key: string): string;
   ask(text: string, options: string[], cancel?: number): Pause;
+  /** The player types a name (or picks a suggestion). Resumes with the name. */
+  askName(text: string, suggestions: string[]): Pause;
+  /** Character creation: resumes with the chosen look. */
+  pickLook(text: string): Pause;
   pickSpecies(species: { species: string; blurb: string }[]): Pause;
   battle(opts: BattleOptions): Pause;
 
   setName(name: string): void;
+  setLook(look: Look): void;
+  readonly period: DayPeriod;
+  /** Moves the clock forward to the start of a period (sleeping, waiting). */
+  setTime(period: DayPeriod): void;
   givePokemon(species: string, level: number): Mon;
   giveItem(item: string, qty?: number): void;
   hasItem(item: string): number;
+  takeItem(item: string, qty?: number): boolean;
   giveMoney(amount: number): void;
   readonly money: number;
   takeMoney(amount: number): boolean;

@@ -20,7 +20,29 @@ export interface NpcDef {
   when?: (flags: FlagReader) => boolean;
   talk?: Script;
   trainer?: { sight: number; flag: string };
+  /** Only shown in these periods of the day (night trainers etc.). */
+  period?: Period[];
+  /** Walkable object drawn under the player (lily pads, floor switches). */
+  floor?: boolean;
+  /** Moves one tile along `dir` every world tick (each step, bump or wait), wrapping from max back to min. */
+  patrol?: { dir: Dir; min: number; max: number };
+  /** Runs when a patrolling NPC runs into the player. */
+  bump?: Script;
 }
+
+export type Period = 'morning' | 'day' | 'evening' | 'night';
+
+/** A tile event: `step` runs when the player walks onto it, `interact` when the player faces it and presses A.
+ *  Matches a rectangle (x, y, w, h) or every tile of a kind (`tile`). */
+export interface MapEvent {
+  x?: number; y?: number; w?: number; h?: number; tile?: string;
+  on: 'step' | 'interact';
+  when?: (flags: FlagReader) => boolean;
+  run: Script;
+}
+
+/** Stepping on (x, y) moves the player to (tx, ty) on map `to` (doormats, ladders, stairs). */
+export interface Warp { x: number; y: number; to: string; tx: number; ty: number; dir: Dir }
 
 export interface MapDef {
   id: string;                  // local id; the engine uses `${pack}:${id}`
@@ -33,6 +55,18 @@ export interface MapDef {
   npcs: NpcDef[];
   encounters?: [number, string][];  // [weight %, species]
   levels?: [number, number];
+  encountersNight?: [number, string][];
+  /** Tile that triggers wild encounters (default tall grass). */
+  encounterTile?: string;
+  /** Old Rod table, used when the player faces water. */
+  fishing?: [number, string][];
+  fishLevels?: [number, number];
+  warps?: Warp[];
+  events?: MapEvent[];
+  /** Runs once the player arrives on the map (after any running script ends). */
+  onEnter?: Script;
+  indoor?: boolean;            // no day-night tint
+  dark?: boolean;              // tunnels: lit only around the player
   battleBg: string;
   bgm: string;
 }
@@ -72,6 +106,9 @@ export interface Pack {
   speciesExtra?: Record<string, SpeciesExtra>;
   /** Raw Showdown data merged into the simulator's dex: { Pokedex, Moves, Learnsets, ... }. */
   simData?: Record<string, Record<string, unknown>>;
+  /** Text by key ("p.mum.1"). say() and ask() look keys up here; `{player}` and textVars are filled in. */
+  strings?: Record<string, string>;
+  textVars?: (flags: FlagReader) => Record<string, string>;
   /** Balance overrides; only the base pack's are used. */
   rules?: Partial<Rules>;
   /** Only the base game sets this: where a new game begins. */
@@ -81,7 +118,10 @@ export interface Pack {
 export interface Respawn { map: string; x: number; y: number; dir: Dir; text: string }
 export type FlagReader = (name: string) => any;
 
-export const SOLID_TILES = new Set(['T', '~', 'o']);
+// Outdoor: T trees, ~ sea, o still water, H house fronts, x containers, n railings.
+// Indoor and tunnels: w walls, K furniture, R rock, p pipes, P palm planters.
+export const SOLID_TILES = new Set(['T', '~', 'o', 'H', 'x', 'n', 'w', 'K', 'R', 'p', 'P']);
+export const WATER_TILES = new Set(['~', 'o']);
 export const GRASS_TILE = 'g';
 
 export const ns = (pack: string, id: string) => (id.includes(':') ? id : `${pack}:${id}`);

@@ -10,6 +10,8 @@ const DIRS: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [
 class Driver {
   log: ServerEvent[] = [];
   battles: string[] = [];
+  /** Prompt answers to use before falling back to the first option. */
+  answers: number[] = [];
   constructor(public game: Game, first: ServerEvent[]) { this.take(first); }
 
   /** Sends an intent, then answers every prompt and battle request that follows (always the first option). */
@@ -19,9 +21,11 @@ class Driver {
     this.log.push(...evs);
     for (const e of evs) if (e.t === 'error') throw new Error(e.message);
     for (const e of evs) if (e.t === 'battleEnd') this.battles.push(e.result);
-    const last = [...evs].reverse().find(e => e.t === 'prompt' || e.t === 'pickSpecies' || e.t === 'battleRequest');
+    const last = [...evs].reverse().find(e => ['prompt', 'pickSpecies', 'battleRequest', 'askName', 'pickLook'].includes(e.t));
     if (!last) return;
-    if (last.t === 'prompt' || last.t === 'pickSpecies') this.send({ t: 'answer', index: 0 });
+    if (last.t === 'askName') this.send({ t: 'answer', index: 0, text: last.suggestions[0] });
+    else if (last.t === 'pickLook') this.send({ t: 'answer', index: 0 });
+    else if (last.t === 'prompt' || last.t === 'pickSpecies') this.send({ t: 'answer', index: this.answers.shift() ?? 0 });
     else if (last.t === 'battleRequest') {
       const r = last.request;
       if (r.forceSwitch) {
@@ -37,18 +41,20 @@ class Driver {
   }
 
   get s() { return this.game.state; }
+  where() { return `${this.s.map} @${this.s.x},${this.s.y}; battles ${this.battles}; last said: ${this.said.slice(-4).join(' | ')}`; }
   get said() { return this.log.filter(e => e.t === 'say').map(e => (e as { text: string }).text); }
 
   /** Breadth-first walk to (tx, ty) on the current map, avoiding tall grass when it can. */
   walkTo(tx: number, ty: number) {
-    for (let guard = 0; guard < 200 && (this.s.x !== tx || this.s.y !== ty); guard++) {
+    for (let guard = 0; guard < 400 && (this.s.x !== tx || this.s.y !== ty); guard++) {
       const path = this.path(tx, ty);
-      if (!path) throw new Error(`No path to ${tx},${ty} on ${this.s.map} from ${this.s.x},${this.s.y}`);
+      if (!path) throw new Error(`No path to ${tx},${ty}: ${this.where()}`);
       const map = this.s.map;
       const before = [this.s.x, this.s.y];
       this.send({ t: 'step', dir: path[0] });
-      if (this.s.map !== map) return; // a script warped us (whiteout)
+      if (this.s.map !== map) return; // a warp, or a script moved us (whiteout)
       if (before[0] === this.s.x && before[1] === this.s.y) this.send({ t: 'step', dir: path[0] });
+      if (this.s.map !== map) return;
     }
   }
 
@@ -69,7 +75,7 @@ class Driver {
       for (const [d, [dx, dy]] of Object.entries(DIRS) as [Dir, [number, number]][]) {
         const nx = x + dx, ny = y + dy;
         if (prev.has(key(nx, ny))) continue;
-        if (!(nx === tx && ny === ty) && this.game.solid(nx, ny)) continue;
+        if (!(nx === tx && ny === ty) && (this.game.solid(nx, ny) || m.warps?.some(w => w.x === nx && w.y === ny))) continue;
         if (nx < 0 || ny < 0 || nx >= m.w || ny >= m.h) continue;
         prev.set(key(nx, ny), [key(x, y), d]);
         q.push([nx, ny]);
@@ -101,58 +107,123 @@ function newGame(seed = 7) {
   return new Driver(game, events);
 }
 
-describe('Hafnia prologue', () => {
-  it('starts in Nørrebro after the intro', () => {
+describe('Hafnia demo', () => {
+  it('starts in the flat after naming and character creation', () => {
     const d = newGame();
-    expect(d.s.map).toBe('hafnia:norrebro');
+    expect(d.s.map).toBe('hafnia:flat');
     expect(d.s.name).toBe('Mark');
-    expect(d.s.flags['hafnia:mumLeft']).toBe(true);
+    expect(d.s.look).toBe('boy');
+    expect(d.s.flags['hafnia:mumTalked']).toBe(true);
     expect(d.said[0]).toContain('Welcome to Hafnia');
   });
 
-  it('plays from the first step to the Spray Badge', () => {
+  it('plays from the first step to the end of Chapter 2', () => {
     const d = newGame(11);
-    // Nørrebro -> Route 1 -> Botanical Garden
-    d.exit('down', 13, 21);
-    expect(d.s.map).toBe('hafnia:route1');
-    d.exit('down', 11, 31);
-    expect(d.s.map).toBe('hafnia:garden');
+    d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
+    const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
+    const flag = (f: string) => d.s.flags[`hafnia:${f}`];
 
-    d.talkTo(13, 11); // Professor Ørsted: starter + Lukas
-    expect(d.s.flags['hafnia:starter']).toBe('sprigatito');
-    expect(d.s.party[0].species).toBe('sprigatito');
-    expect(d.battles.length).toBe(1);
-    expect(d.s.flags['hafnia:beatLukas']).toBe(true);
-    expect(d.s.party[0].hp).toBeGreaterThan(0);
-
-    // This test is about the story flow, not balance: make the starter strong enough to win.
-    const lead = d.s.party[0];
-    lead.level = 30; lead.exp = 30 ** 3 + 10; healMon(lead);
-
-    // Back north: Mads and Maja spot us on Route 1
-
-    d.exit('up', 13, 0);
-    expect(d.s.map).toBe('hafnia:route1');
-    d.walkTo(11, 26); // past Maja, who watches both lanes
-    expect(d.s.flags['hafnia:beatMaja']).toBe(true);
-    d.walkTo(10, 23);  // into Mads's line of sight
-    expect(d.s.flags['hafnia:beatMaja']).toBe(true);
-    expect(d.s.flags['hafnia:beatMads']).toBe(true);
-
-    d.exit('up', 11, 0);
-    expect(d.s.map).toBe('hafnia:norrebro');
-    d.talkTo(22, 7); // Pokémon Center door is at (22, 7)
-    d.talkTo(21, 14); // Tariq sends us to Noor first
-    expect(d.s.flags['hafnia:badge']).toBeFalsy();
-    expect(d.said.at(-1)).toContain('Get past Noor first');
-    d.walkTo(20, 14); // Noor guards the gym door
-    expect(d.s.flags['hafnia:beatSkater']).toBe(true);
-    d.talkTo(21, 14);
-    expect(d.s.flags['hafnia:badge'], d.battles + ' / ' + d.said.slice(-8).join(' | ') + ' @' + d.s.x + ',' + d.s.y).toBe(true);
-    expect(d.log.some(e => e.t === 'chapterEnd')).toBe(true);
-    expect(d.said).toContain('Mark received the Spray Badge!');
-    expect(d.s.badges).toEqual(['hafnia:spray']);
+    // Prologue: flat -> courtyard -> bridge -> Route 1 -> Palm House
+    d.walkTo(6, 6); at('norrebro');
+    expect(flag('yard')).toBe(true);
+    d.exit('down', 12, 21); at('bridge');
+    d.exit('down', 9, 15); at('route1');
+    d.exit('down', 11, 31); at('garden');
+    d.answers.push(0, 0, 1); // first starter, yes, no nickname
+    d.exit('up', 14, 11); at('palmhouse');
+    expect(flag('starter')).toBe('sprigatito');
+    expect(flag('lukasStarter')).toBe('charmander');
+    expect(d.battles.slice(0, 1)).toEqual(['win']);  // the first rival battle can't be lost
     expect(d.s.coil.current).toBe(true);
+    expect(d.s.bag.bike).toBe(1);
+    const lead = d.s.party[0];
+    lead.level = 60; lead.exp = 60 ** 3 + 10; healMon(lead);
+
+    d.walkTo(8, 10); at('garden');
+    d.exit('up', 13, 0); at('route1');
+    d.exit('up', 10, 0); at('bridge');
+    expect(flag('beatMaja')).toBe(true);
+    d.exit('up', 9, 0); at('norrebro');
+    d.exit('up', 4, 8); at('flat');
+    expect(flag('hook')).toBe(true);
+    expect(flag('ch1')).toBe(true);
+
+    // Chapter 1
+    d.walkTo(6, 6); at('norrebro');
+    d.walkTo(5, 15);
+    expect(flag('kaas')).toBe(true);
+    const toPalmHouse = () => { d.exit('down', 12, 21); d.exit('down', 9, 15); d.exit('down', 11, 31); d.exit('up', 14, 11); at('palmhouse'); };
+    const toNorrebro = () => { d.walkTo(8, 10); d.exit('up', 13, 0); d.exit('up', 10, 0); d.exit('up', 9, 0); at('norrebro'); };
+    toPalmHouse();
+    d.talkTo(8, 7);
+    expect(flag('tunnelQuest')).toBe(true);
+    d.walkTo(8, 10); at('garden');
+    d.talkTo(23, 10); at('tunnels');
+    d.talkTo(20, 13);
+    expect(flag('valve')).toBe(true);
+    d.walkTo(2, 1); d.walkTo(1, 1); at('garden');
+    expect(flag('swarm')).toBe(true);
+    d.exit('up', 14, 11); d.talkTo(8, 7);
+    expect(flag('tunnelsDone')).toBe(true);
+    expect(d.s.bag.tmbulletseed).toBe(1);
+    toNorrebro();
+    d.talkTo(6, 13);
+    expect(flag('muralQuest')).toBe(true);
+    d.talkTo(3, 9); d.talkTo(16, 9); d.talkTo(19, 15); d.talkTo(2, 5); d.talkTo(25, 6);
+    expect(['paintGreen', 'paintGold', 'paintSilver', 'paintPurple'].map(flag)).toEqual([true, true, true, true]);
+    d.talkTo(6, 13);
+    expect(flag('mural')).toBe(true);
+    d.exit('up', 20, 14); at('gym1');
+    for (const x of [4, 10, 12, 2]) d.talkTo(x, 5);
+    expect(flag('vents')).toBe(true);
+    d.talkTo(7, 2);
+    expect(d.s.badges).toEqual(['hafnia:spray']);
+    d.walkTo(7, 12);
+    expect(flag('lukas1')).toBe(true);
+    expect(flag('c1done')).toBe(true);
+    at('flat');
+
+    // Chapter 2
+    d.walkTo(6, 6);
+    d.exit('down', 12, 21); d.exit('down', 9, 15); d.exit('down', 11, 31);
+    d.exit('right', 27, 11); at('indreby');
+    expect(flag('c2')).toBe(true);
+    d.exit('right', 29, 10); at('nyhavn');
+    expect(flag('nyAttack')).toBe(true);
+    d.talkTo(22, 11); at('drydock');
+    d.answers.push(2);
+    d.talkTo(20, 9);
+    expect(flag('crane')).toBe(true);
+    d.talkTo(24, 6);
+    expect(flag('copper')).toBe(true);
+    expect(d.s.coil.copper).toBe(true);
+    d.talkTo(1, 2); at('nyhavn');
+    d.exit('left', 0, 9); at('indreby');
+    d.exit('down', 14, 15); at('route4');
+    d.talkTo(8, 14);
+    expect(flag('enforcer')).toBe(true);
+    d.exit('down', 7, 15); at('christianshavn');
+    d.talkTo(9, 9);
+    expect(d.s.bag.oldrod).toBe(1);
+    d.walkTo(17, 9);
+    expect(flag('overhear')).toBe(true);
+    d.exit('right', 27, 9); at('stadsgraven');
+    d.talkTo(10, 5); d.talkTo(14, 4); d.talkTo(21, 6); d.talkTo(18, 8); d.talkTo(10, 5);
+    expect(flag('boomsDone')).toBe(true);
+    d.exit('up', 17, 6); at('gym2');
+    d.talkTo(5, 8);
+    expect(flag('mirror1'), d.where()).toBe(true);
+    d.talkTo(1, 5);
+    d.talkTo(8, 1);
+    expect(d.s.badges).toEqual(['hafnia:spray', 'hafnia:lily']);
+
+    // 2.8: back to the bridge at dusk
+    d.walkTo(8, 9); at('stadsgraven');
+    d.exit('left', 0, 9); d.exit('up', 13, 0); d.exit('up', 8, 0); at('indreby');
+    d.exit('left', 0, 10); at('garden');
+    d.exit('up', 13, 0); d.exit('up', 10, 0); at('bridge');
+    expect(flag('demoEnd')).toBe(true);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Copper & Current');
   });
 
   it('saves and loads through the LocalServer', async () => {
@@ -160,18 +231,19 @@ describe('Hafnia prologue', () => {
     const server = new LocalServer(content, { load: async slot => (slot === 'auto' ? stored : null), save: async (slot, s) => { if (slot === 'auto') stored = structuredClone(s); } }, () => 5);
     expect((await server.handle({ t: 'title' }))[0]).toMatchObject({ t: 'title', hasSave: false });
     await server.handle({ t: 'newGame' });
-    await server.handle({ t: 'answer', index: 1 }); // name: Asta
+    await server.handle({ t: 'answer', index: 0, text: 'Asta' });
+    await server.handle({ t: 'answer', index: 0 }); // look
     expect(stored).toBeNull(); // nothing to save before the first Pokémon
     const g = Game.newGame(content, 5).game;
     void g;
     // Force a save by playing to the starter.
     const d = newGame(5);
-    d.exit('down', 13, 21); d.exit('down', 11, 31); d.talkTo(13, 11);
+    d.walkTo(6, 6); d.exit('down', 12, 21); d.exit('down', 9, 15); d.exit('down', 11, 31); d.exit('up', 14, 11);
     stored = d.game.toSave();
     const title = await server.handle({ t: 'title' });
     expect(title[0]).toMatchObject({ t: 'title', hasSave: true });
     const evs = await server.handle({ t: 'continue' });
-    expect(evs.find(e => e.t === 'map')).toMatchObject({ map: 'hafnia:garden' });
+    expect(evs.find(e => e.t === 'map')).toMatchObject({ map: 'hafnia:palmhouse' });
     const view = evs.find(e => e.t === 'view');
     expect(view && view.t === 'view' && view.view.party.length).toBe(1);
   });

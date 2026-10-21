@@ -23,6 +23,7 @@ export interface Mon {
   moves: { id: string; pp: number }[];
   ot?: string;
   nickname?: string;
+  item?: string;   // held item (Showdown id)
 }
 export interface Stats { hp: number; atk: number; def: number; spa: number; spd: number; spe: number }
 const STAT_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as const;
@@ -88,7 +89,7 @@ export const expRange = (m: Mon) => {
 let uidCounter = 0;
 export function newUid(rng: Rng) { return (Date.now() % 1e9).toString(36) + (uidCounter++).toString(36) + rng.int(1e9).toString(36); }
 
-export interface MakeMonOptions { moves?: string[]; nature?: string; ot?: string; ivs?: Partial<Stats> }
+export interface MakeMonOptions { moves?: string[]; nature?: string; ot?: string; ivs?: Partial<Stats>; item?: string; ability?: string }
 
 export function makeMon(species: string, level: number, rng: Rng, opts: MakeMonOptions = {}): Mon {
   const sp = Dex.species.get(species);
@@ -102,12 +103,23 @@ export function makeMon(species: string, level: number, rng: Rng, opts: MakeMonO
     : rng.next() < (sp.genderRatio?.M ?? 0.5) ? 'M' : 'F';
   const m: Mon = {
     uid: newUid(rng), species: sp.id, level, exp: expForLevel(speciesExtra(sp.id).growth, level), hp: 0, status: '',
-    nature: opts.nature ?? rng.pick(natures).name, ability: sp.abilities[0], gender: gender as Mon['gender'],
+    nature: opts.nature ?? rng.pick(natures).name, ability: opts.ability ?? sp.abilities[0], gender: gender as Mon['gender'],
     shiny: rng.int(4096) === 0, ivs, evs: { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 },
-    moves: learned.map(id => ({ id, pp: maxPp(id) })), ...(opts.ot ? { ot: opts.ot } : {})
+    moves: learned.map(id => ({ id, pp: maxPp(id) })), ...(opts.ot ? { ot: opts.ot } : {}), ...(opts.item ? { item: opts.item } : {})
   };
   m.hp = maxHp(m);
   return m;
+}
+
+/** Whether a species (or one of its earlier stages) learns a move by TM. */
+export function canLearnTM(species: string, move: string): boolean {
+  const learnsets = Dex.data.Learnsets as Record<string, { learnset?: Record<string, string[]> }>;
+  for (let sp = Dex.species.get(species); sp?.exists; sp = sp.prevo ? Dex.species.get(sp.prevo) : (null as any)) {
+    const base = sp.changesFrom ? Dex.species.get(sp.changesFrom).id : sp.id;
+    const sources = learnsets[sp.id]?.learnset?.[move] ?? learnsets[base]?.learnset?.[move];
+    if (sources?.some(src => /^\d+M/.test(src))) return true;
+  }
+  return false;
 }
 
 export function healMon(m: Mon) {

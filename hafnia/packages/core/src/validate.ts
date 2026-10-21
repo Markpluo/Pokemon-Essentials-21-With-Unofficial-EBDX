@@ -1,10 +1,12 @@
 // Content checks run by the test suite (systems.md §12): every map, exit, building, NPC sprite and
 // encounter must point at something that exists, so a broken reference fails CI, not a playtest.
 import { Dex } from '@pkmn/sim';
-import { GRASS_TILE, SOLID_TILES, ns, type Content } from './content';
+import { GRASS_TILE, SOLID_TILES, WATER_TILES, ns, type Content } from './content';
 import { speciesExtra } from './pokemon';
 
-const KNOWN_TILES = new Set(['.', '=', 'f', 'r', 'k', GRASS_TILE, ...SOLID_TILES]);
+const KNOWN_TILES = new Set(['.', '=', 'f', 'r', 'k', 'q', 'a', 'l', 'd', '_', 'm', 'c', GRASS_TILE, ...SOLID_TILES]);
+/** Objects the client draws itself (switches, valves, lily pads...). */
+const DRAWN = /^obj:/;
 
 export function validateContent(content: Content): string[] {
   const errors: string[] = [];
@@ -33,17 +35,28 @@ export function validateContent(content: Content): string[] {
         if (!content.maps.has(ns(id, ex.to))) err(where, `exit ${dir} leads to unknown map "${ex.to}"`);
       }
       for (const n of m.npcs) {
-        if (!images[n.sprite]) err(where, `NPC "${n.id}" uses sprite "${n.sprite}" missing from pack.json`);
+        if (!images[n.sprite] && !DRAWN.test(n.sprite)) err(where, `NPC "${n.id}" uses sprite "${n.sprite}" missing from pack.json`);
         if (n.x < 0 || n.y < 0 || n.x >= m.w || n.y >= m.h) err(where, `NPC "${n.id}" is off the map`);
-        else if (!n.hidden && SOLID_TILES.has(m.grid[n.y][n.x])) err(where, `NPC "${n.id}" stands on a solid tile`);
+        else if (!n.hidden && SOLID_TILES.has(m.grid[n.y][n.x]) && !(n.object && WATER_TILES.has(m.grid[n.y][n.x]))) err(where, `NPC "${n.id}" stands on a solid tile`);
+        if (n.floor && !n.object) err(where, `NPC "${n.id}" is a floor object but not an object`);
       }
-      let total = 0;
-      for (const [w, sp] of m.encounters ?? []) {
-        total += w;
-        if (!pack.manifest.species.includes(sp)) err(where, `encounter species "${sp}" is not listed in pack.json`);
+      const ids = new Set<string>();
+      for (const n of m.npcs) { if (ids.has(n.id)) err(where, `two NPCs are called "${n.id}"`); ids.add(n.id); }
+      for (const w of m.warps ?? []) {
+        const to = content.maps.get(ns(id, w.to));
+        if (!to) { err(where, `warp leads to unknown map "${w.to}"`); continue; }
+        if (SOLID_TILES.has(to.grid[w.ty]?.[w.tx] ?? 'T')) err(where, `warp to ${w.to} lands on a solid tile (${w.tx},${w.ty})`);
       }
-      if (m.encounters?.length && total !== 100) err(where, `encounter weights add up to ${total}, not 100`);
-      if (m.encounters?.length && !m.grid.some(r => r.includes(GRASS_TILE))) err(where, 'has encounters but no tall grass');
+      for (const [name, table] of [['encounters', m.encounters], ['night encounters', m.encountersNight], ['fishing', m.fishing]] as const) {
+        let total = 0;
+        for (const [w, sp] of table ?? []) {
+          total += w;
+          if (!pack.manifest.species.includes(sp)) err(where, `${name} species "${sp}" is not listed in pack.json`);
+        }
+        if (table?.length && total !== 100) err(where, `${name} weights add up to ${total}, not 100`);
+      }
+      const tile = m.encounterTile ?? GRASS_TILE;
+      if (m.encounters?.length && !m.grid.some(r => r.includes(tile))) err(where, `has encounters but no "${tile}" tiles`);
     }
   }
   return errors;

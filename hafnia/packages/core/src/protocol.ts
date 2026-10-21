@@ -21,7 +21,8 @@ export type Intent =
   | { t: 'turn'; dir: Dir }
   | { t: 'step'; dir: Dir }
   | { t: 'interact' }
-  | { t: 'answer'; index: number }
+  | { t: 'answer'; index: number; text?: string }
+  | { t: 'tick'; seconds: number }
   | { t: 'battle'; action: BattleAction }
   | { t: 'useItem'; item: string; uid: string }
   | { t: 'lead'; uid: string }
@@ -41,11 +42,14 @@ export interface MonView {
   hp: number; maxhp: number; status: StatusId; moves: MoveView[];
   exp: number; expLo: number; expHi: number; gender: '' | 'M' | 'F'; shiny: boolean;
 }
-export interface NpcView { id: string; sprite: string; x: number; y: number; dir: Dir; object?: boolean }
+export interface NpcView { id: string; sprite: string; x: number; y: number; dir: Dir; object?: boolean; floor?: boolean }
+export type Look = 'boy' | 'girl';
+export type DayPeriod = 'morning' | 'day' | 'evening' | 'night';
 export interface WorldView {
   name: string; map: string; x: number; y: number; dir: Dir;
   npcs: NpcView[]; party: MonView[]; bag: Record<string, number>; money: number;
   badges: number; debug?: boolean;
+  look: Look; period: DayPeriod; clock: number;   // clock: minutes since midnight, in game time
 }
 
 export type BattleSide = 'ally' | 'foe';
@@ -101,13 +105,15 @@ export type ServerEvent =
   | { t: 'view'; view: WorldView }
   | { t: 'say'; text: string }
   | { t: 'prompt'; text: string; options: string[]; cancel?: number }
+  | { t: 'askName'; text: string; suggestions: string[] }
+  | { t: 'pickLook'; text: string; options: { look: Look; sprite: string; label: string }[] }
   | { t: 'pickSpecies'; species: { species: string; key: string; name: string; types: string[]; blurb: string }[] }
   | { t: 'sfx'; name: string }
   | { t: 'me'; name: string }
   | { t: 'bgm'; name: string | null }
   | { t: 'cry'; key: string }
   | { t: 'face'; actor: string; dir: Dir }
-  | { t: 'walk'; actor: string; dir: Dir; frames?: number }
+  | { t: 'walk'; actor: string; dir: Dir; frames?: number; async?: boolean }
   | { t: 'place'; actor: string; x: number; y: number; dir: Dir; sprite?: string; hidden?: boolean }
   | { t: 'exclaim'; actor: string }
   | { t: 'map'; map: string; name: string; x: number; y: number; dir: Dir; bgm: string }
