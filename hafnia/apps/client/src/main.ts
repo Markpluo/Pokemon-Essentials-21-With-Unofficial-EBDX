@@ -1222,8 +1222,9 @@ async function titleFlow() {
   const slots = title && title.t === 'title' ? title.slots ?? [] : [];
   await waitKey('A');
   Sound.se('select');
-  const opts = hasSave ? ['Continue', 'New game'] : ['New game'];
-  const c = await choose(opts, -1, { x: VW / 2 - 90, y: 250, w: 180 });
+  const opts = [...(hasSave ? ['Continue', 'New game'] : ['New game']), 'Animations'];
+  const c = await choose(opts, -1, { x: VW / 2 - 90, y: 220, w: 180 });
+  if (opts[c] === 'Animations') { await fadeTo(1, 10); G.fade = 0; return animPreview(); }
   let slot: SaveSlot | undefined;
   if (hasSave && c === 0 && slots.filter(s => s.summary).length > 1) {
     const picked = await pickSlot(slots, false);
@@ -1243,9 +1244,9 @@ async function titleFlow() {
 }
 
 // ---------- animation preview (open the game with ?anims) ----------
-// Every bespoke move, the generic animation for each type and category, and the shared effects,
+// Also on the title menu. Every bespoke move, the generic animation for each type and category, and the shared effects,
 // on a battle screen. Left/right picks, A plays, B swaps which side attacks.
-async function animPreview() {
+async function animPreview(): Promise<never> {
   type Entry = { label: string; run: (user: BattleSide) => Promise<unknown> };
   const moveEntry = (id: string, type: string, category: 'Physical' | 'Special' | 'Status', label: string): Entry => ({
     label, run: user => battleEvent({ b: 'move', side: user, id, type, category, text: `${label}`, ...(category === 'Status' && /self/.test(label) ? { target: user } : { target: other(user) }) })
@@ -1325,7 +1326,7 @@ async function boot() {
   const [c] = await Promise.all([connectSolo(), preload(p => { loadP = p; })]);
   conn = c;
   (window as any).__hafnia = { G, mode: c.mode, send: (i: Intent) => conn.send(i), play, anim }; // for tests and debugging
-  if (new URLSearchParams(location.search).has('anims')) { G.lock = true; return animPreview(); }
+  if (new URLSearchParams(location.search).has('anims') || location.hash === '#anims') { G.lock = true; return animPreview(); }
   G.lock = true;
   try { await titleFlow(); } finally { G.lock = false; }
   // Browsers close tabs without warning: autosave every 2 minutes and whenever the tab is hidden (systems.md §8).

@@ -14,7 +14,7 @@ npm test           # plays the whole prologue through game-core, no browser need
 npm run build      # static site in apps/client/dist
 ```
 
-Open the game with `?anims` (for example `http://localhost:5173/?anims`) for the battle
+Pick "Animations" on the title menu, or open the game with `?anims` (for example `http://localhost:5173/?anims`) for the battle
 animation preview: left/right picks an animation, A plays it, B swaps which side attacks.
 
 ## Battle animations
