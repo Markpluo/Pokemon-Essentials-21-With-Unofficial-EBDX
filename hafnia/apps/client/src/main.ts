@@ -284,7 +284,8 @@ async function changeMap(e: Extract<ServerEvent, { t: 'map' }>) {
   if (G.mapKey) Sound.se('door', 0.3);
   await fadeTo(1, first ? 12 : 10);
   G.mapKey = e.map; G.npcs = new Map();
-  if (G.world) applyView({ ...G.world, map: e.map, npcs: G.world.map === e.map ? G.world.npcs : [] });
+  if (G.world) applyView({ ...G.world, map: e.map, x: e.x, y: e.y, dir: e.dir, npcs: e.npcs });
+  else for (const n of e.npcs) G.npcs.set(n.id, { ...n, px: 0, py: 0, moving: false, step: 0, anim: 0 });
   Object.assign(G.player, { x: e.x, y: e.y, dir: e.dir, px: 0, py: 0, moving: false });
   G.scene = 'overworld'; G.mapBanner = 120;
   if (mapOf(e.map).map.indoor) G.biking = false;
@@ -758,7 +759,7 @@ let turnDelay = 0;
 async function overworldTick() {
   const p = G.player;
   const menu = sticky.has('MENU'), a = sticky.has('A');
-  // A quick tap shorter than a frame still turns the player.
+  // A quick tap shorter than a frame still turns the player, or steps if already facing that way.
   const tapped = (['up', 'down', 'left', 'right'] as Dir[]).find(d => sticky.has(d));
   sticky.clear();
   if (menu) { await startMenu(); return; }
@@ -767,6 +768,7 @@ async function overworldTick() {
   if (!dir) {
     turnDelay = 0;
     if (tapped && tapped !== p.dir) { p.dir = tapped; conn.send({ t: 'turn', dir: tapped }); }
+    else if (tapped) await send({ t: 'step', dir: tapped });
     return;
   }
   if (p.dir !== dir && turnDelay === 0) { p.dir = dir; turnDelay = 5; conn.send({ t: 'turn', dir }); return; }
