@@ -1,0 +1,5 @@
+node_modules/
+dist/
+# Copied from the Essentials Graphics/ and Audio/ folders by `npm run assets`
+apps/client/public/game-assets/
+apps/client/public/credits.txt

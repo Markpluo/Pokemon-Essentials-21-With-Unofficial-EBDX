@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Copper &amp; Current</title>
+<meta name="description" content="A non-commercial Pokémon fan game set in Copenhagen. Private demo for invited friends.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&display=swap">
+<style>
+/* Same harbour-at-dusk palette as the game page. Deliberately a single dark theme. */
+:root {
+  --night: #0b1830; --harbour: #16305a; --brick: #d9473a; --lantern: #ffd36b; --paper: #fbf7ee; --mist: #9fb3d9; --copper: #c8743a;
+  --pixel: "Pixelify Sans", "Courier New", monospace; --body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--night); color: var(--paper); font-family: var(--body); line-height: 1.6;
+  background-image: radial-gradient(ellipse at 50% -10%, #2b4f86 0%, var(--night) 55%);
+}
+.wrap { max-width: 960px; margin: 0 auto; padding: 32px 16px 48px; }
+h1, h2, .btn, label { font-family: var(--pixel); }
+h1 { font-size: clamp(36px, 8vw, 64px); line-height: 1; margin: 24px 0 8px; color: var(--lantern); letter-spacing: 0.04em; font-weight: 600; }
+h1 .amp { color: var(--copper); }
+.tag { font-family: var(--pixel); color: var(--mist); font-size: 18px; margin: 0 0 24px; }
+h2 { color: var(--lantern); font-size: 22px; font-weight: 600; margin: 40px 0 12px; letter-spacing: 0.03em; }
+p { max-width: 65ch; }
+a { color: var(--mist); }
+.hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 32px; align-items: center; }
+@media (max-width: 760px) { .hero { grid-template-columns: 1fr; } }
+.hero > *, .grid > * { min-width: 0; }
+.shot { border: 4px solid var(--brick); border-radius: 10px; overflow: hidden; background: #000; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+.shot img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.gate { background: var(--harbour); border: 2px solid #2d5590; border-radius: 12px; padding: 16px; margin-top: 16px; max-width: 420px; }
+.gate label { display: block; font-size: 16px; margin-bottom: 8px; }
+.row { display: flex; gap: 8px; }
+input {
+  flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 10px 12px; border-radius: 8px;
+  border: 2px solid var(--mist); background: var(--night); color: var(--paper); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.btn {
+  font-size: 18px; font-weight: 600; padding: 10px 20px; border-radius: 8px; border: 2px solid #f07a6e;
+  background: var(--brick); color: var(--paper); cursor: pointer;
+}
+input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid var(--lantern); outline-offset: 2px; }
+.msg { min-height: 1.6em; margin: 8px 0 0; color: var(--lantern); font-size: 14px; }
+.small { color: var(--mist); font-size: 14px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.grid figure { margin: 0; }
+.grid figcaption { color: var(--mist); font-size: 14px; margin-top: 6px; }
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; padding: 0; list-style: none; }
+.features li { background: rgba(22,48,90,.6); border-left: 4px solid var(--copper); border-radius: 6px; padding: 12px 14px; }
+.features b { font-family: var(--pixel); color: var(--lantern); font-weight: 600; display: block; font-size: 17px; }
+footer { margin-top: 48px; border-top: 1px solid #2d5590; padding-top: 16px; color: #7286ad; font-size: 13px; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <h1>Copper <span class="amp">&amp;</span> Current</h1>
+      <p class="tag">A Pokémon fan game set in Copenhagen</p>
+      <p>The lights of Copenhagen are flickering, the harbour has gone cold, and a new energy company promises power without price. Grab a starter at the Palm House, ride Professor Ørsted's Rotom cargo bike through Nørrebro, Nyhavn and Christianshavn, and find out who is draining the city.</p>
+      <p class="small">This is a private demo for invited friends. It covers the Prologue and the first two chapters, about four hours, and plays in any modern browser, on a phone too.</p>
+      <form class="gate" id="gate" autocomplete="off">
+        <label for="code">Invite code</label>
+        <div class="row">
+          <input id="code" name="code" required maxlength="40" spellcheck="false" aria-describedby="msg">
+          <button class="btn" type="submit">Play</button>
+        </div>
+        <p class="msg" id="msg" role="status"></p>
+      </form>
+    </div>
+    <div class="shot"><img src="./home/norrebro.png" width="844" height="633" alt="The player standing in a Nørrebro square with the gym and Pokémon Center behind."></div>
+  </section>
+
+  <h2>What's in the demo</h2>
+  <ul class="features">
+    <li><b>Five starters</b>Sprigatito, Charmander, Popplio, Eevee or Pikachu. Your rivals Lukas and Maja pick theirs after you.</li>
+    <li><b>Copper and Current</b>The Rotom coil on your bike lets you armour up or supercharge a move once per battle.</li>
+    <li><b>A real city</b>Dronning Louises Bro at rush hour, the Round Tower, Nyhavn's quay, the Christiania lakes.</li>
+    <li><b>Day and night</b>The clock runs while you explore. Some Pokémon and people only come out after dark.</li>
+  </ul>
+
+  <h2>Screenshots</h2>
+  <div class="grid">
+    <figure class="shot"><img src="./home/battle.png" width="844" height="633" alt="A battle: Sprigatito sends a Current through its next move against a wild Psyduck." loading="lazy"></figure>
+    <figure class="shot"><img src="./home/night.png" width="844" height="633" alt="Nørrebro at night under a blue tint." loading="lazy"></figure>
+    <figure class="shot"><img src="./home/nyhavn.png" width="844" height="633" alt="Nyhavn's colourful houses along the canal." loading="lazy"></figure>
+    <figure class="shot"><img src="./home/stadsgraven.png" width="844" height="633" alt="A houseboat on the Stadsgraven moat." loading="lazy"></figure>
+  </div>
+
+  <h2>Credits</h2>
+  <p>Story and design by Mark, who is also making the game's own art and music. Until then the demo borrows sprites, tiles and sounds from the Pokémon Essentials community (Pokémon Essentials v21.1, Elite Battle: DX by Luka S.J., the Gen 9 Pack, the Smogon sprite projects and many community spriters) and runs its battles on the Pokémon Showdown simulator. <a href="./credits.html">Full credits</a>.</p>
+
+  <footer>
+    Copper &amp; Current is a free, non-commercial fan project and is not affiliated with Nintendo, Game Freak or The Pokémon Company. Pokémon and all related names, characters, sprites and sounds are © Nintendo, Game Freak and The Pokémon Company.
+    <br><a href="./privacy.html">Privacy</a> · <a href="./credits.html">Credits</a>
+  </footer>
+</main>
+<script>
+// The invite check runs on the server (functions/api/invite.js), which sets a cookie the game pages need.
+// In local dev there is no server function, so the form just opens the game.
+const form = document.getElementById('gate'), msg = document.getElementById('msg'), input = document.getElementById('code');
+const params = new URLSearchParams(location.search);
+if (params.has('invite')) msg.textContent = 'The game needs an invite code. Ask Mark for one.';
+if (params.get('code')) input.value = params.get('code');
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  msg.textContent = 'Checking...';
+  try {
+    const r = await fetch('./api/invite', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: input.value.trim() }) });
+    if (r.ok) { location.href = './play.html'; return; }
+    if (r.status === 404 || r.status === 405) { location.href = './play.html'; return; } // local dev: no gate
+    msg.textContent = r.status === 429 ? 'Too many tries. Wait a minute and try again.' : "That code doesn't work. Check it with Mark.";
+  } catch {
+    msg.textContent = 'Could not reach the server. Try again in a moment.';
+  }
+});
+</script>
+</body>
+</html>

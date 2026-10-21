@@ -1,0 +1,19 @@
+{
+  "name": "hafnia",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*", "packs/*", "apps/*"],
+  "scripts": {
+    "pbs": "node tools/pbs-import.mjs",
+    "assets": "node tools/sync-assets.mjs",
+    "dev": "npm run assets && npm -w @hafnia/client run dev",
+    "build": "npm run assets && npm -w @hafnia/client run build",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12",
+    "vitest": "^3.2.4"
+  }
+}

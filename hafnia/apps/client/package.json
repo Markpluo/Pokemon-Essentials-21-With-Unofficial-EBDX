@@ -1,0 +1,16 @@
+{
+  "name": "@hafnia/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@hafnia/core": "*",
+    "@pkmn/sim": "0.10.11",
+    "@hafnia/pack-hafnia": "*"
+  }
+}
