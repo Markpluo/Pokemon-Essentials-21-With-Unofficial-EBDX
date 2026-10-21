@@ -21,9 +21,9 @@ test('lantern walk: wind gust, rhymes, Søren @gym', async ({ bot }) => {
   expect([s.x, s.y]).toEqual([7, 18]);
   await bot.talkTo(8, 14);                     // the first rhyme: west
   expect(bot.said.join('\n')).toMatch(/match girl/);
-  await bot.walkTo(2, 13); await bot.walkTo(2, 11);
-  await bot.walkTo(12, 9); await bot.walkTo(12, 7);
-  await bot.walkTo(7, 5); await bot.walkTo(7, 3);
+  // The wrong gaps blow you back to the start, so the route never touches them.
+  const traps: [number, number][] = [[7, 12], [12, 12], [2, 8], [7, 8], [2, 4], [12, 4]];
+  await bot.walkTo(7, 3, traps);
   await bot.shot('gym4-andersen');
   await bot.talkTo(7, 2);
   expect(bot.said.join('\n')).toMatch(/received the Lantern Badge/);

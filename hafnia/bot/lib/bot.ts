@@ -367,12 +367,12 @@ export class Bot {
   }
 
   /** Walks to (x, y) on the current map, re-planning around NPCs, fighting whatever jumps out.
-   *  Stops early if the map changes. */
-  async walkTo(x: number, y: number) {
+   *  Stops early if the map changes. Never steps on the `avoid` tiles. */
+  async walkTo(x: number, y: number, avoid: [number, number][] = []) {
     for (let guard = 0; guard < 600; guard++) {
       const s = await this.waitFor(Bot.idle, 30_000, 'the overworld to be free');
       if (s.x === x && s.y === y) return s;
-      const path = findPath(s.map, s.x, s.y, x, y, s.world?.npcs ?? []);
+      const path = findPath(s.map, s.x, s.y, x, y, s.world?.npcs ?? [], avoid);
       if (!path) throw new Error(`No path to ${x},${y}.\n${this.describe(s)}`);
       const map = s.map;
       if (!(await this.step(path[0])) && !(await this.step(path[0]))) { // the first press may only turn
