@@ -314,6 +314,10 @@ export class Game {
   private debugCommand(cmd: DebugCommand, arg?: string | number) {
     const s = this.state, say = (text: string) => this.out.push({ t: 'say', text });
     switch (cmd) {
+      case 'givePokemon': {
+        const m = makeMon(String(arg ?? 'sprigatito'), 10, this.rng, { ot: s.name });
+        say(this.addMon(m) === 'party' ? `Debug: ${monName(m)} joined your team.` : `Debug: ${monName(m)} went to the PC.`); break;
+      }
       case 'heal': for (const m of s.party) healMon(m); say('Debug: team healed.'); break;
       case 'levelUp': {
         const m = s.party[0]; if (!m) break;

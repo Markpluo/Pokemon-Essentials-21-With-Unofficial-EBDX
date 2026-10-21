@@ -32,7 +32,7 @@ export type Intent =
 
 export type SaveSlot = 'auto' | 1 | 2 | 3;
 export interface SlotInfo { slot: SaveSlot; summary: string | null }
-export type DebugCommand = 'heal' | 'levelUp' | 'items' | 'money' | 'unlockCoil' | 'encounters' | 'warp' | 'badge';
+export type DebugCommand = 'givePokemon' | 'heal' | 'levelUp' | 'items' | 'money' | 'unlockCoil' | 'encounters' | 'warp' | 'badge';
 
 // ---------- server -> client ----------
 export interface MoveView { id: string; name: string; type: string; category: 'Physical' | 'Special' | 'Status'; power: number; pp: number; maxpp: number; disabled?: boolean }

@@ -2,9 +2,10 @@
 // It holds no game rules. It sends intents to a game server (a Web Worker in solo play)
 // and plays back the events that come back.
 import type {
-  BattleEvent, BattleMonView, BattleRequest, BattleSide, BattleStart, Dir, GameConnection, MapDef, MonView,
-  MoveView, ServerEvent, Stamp, WorldView, Intent
+  BattleAction, BattleEvent, BattleMonView, BattleRequest, BattleSide, BattleStart, CoilMode, CoilView, DebugCommand, Dir,
+  GameConnection, MapDef, MonView, MoveView, SaveSlot, ServerEvent, SlotInfo, Stamp, WorldView, Intent
 } from '@hafnia/core';
+import { ITEMS } from '@hafnia/core/src/items';
 import hafniaManifest from '@hafnia/pack-hafnia/pack.json';
 import { MAPS as HAFNIA_MAPS, STAMPS as HAFNIA_STAMPS } from '@hafnia/pack-hafnia/world';
 import { connectSolo } from './connection';
@@ -30,7 +31,7 @@ const TYPE_COLORS: Record<string, string> = {
 const STATUS_COLORS: Record<string, [string, string]> = {
   brn: ['BRN', '#ee8130'], par: ['PAR', '#d8b21e'], psn: ['PSN', '#a33ea1'], tox: ['TOX', '#7d2a7b'], slp: ['SLP', '#8c8c8c'], frz: ['FRZ', '#66b8d6']
 };
-const ITEM_NAMES: Record<string, string> = { potion: 'Potion', superpotion: 'Super Potion', pokeball: 'Poké Ball', greatball: 'Great Ball' };
+const COPPER = '#c8743a', PATINA = '#5fbf9a', CURRENT = '#9fd8ff';
 
 // ---------- images ----------
 type Img = HTMLImageElement & { box?: { bottom: number } };
@@ -215,6 +216,7 @@ async function play(evs: ServerEvent[]) {
       case 'battleRequest': return send({ t: 'battle', action: await battleMenu(e.request) });
       case 'battleEnd': await battleEnd(); break;
       case 'chapterEnd': await chapterEnd(e.title, e.subtitle); break;
+      case 'evolve': await evolveScene(e); break;
       case 'error': console.error(e.message); await say(`Something went wrong: ${e.message}`); break;
       case 'checkpoint': case 'title': break;
     }
@@ -340,6 +342,24 @@ async function pickSpecies(opts: Extract<ServerEvent, { t: 'pickSpecies' }>['spe
   } finally { G.overlays.pop(); G.ui.text = null; }
 }
 
+async function evolveScene(e: Extract<ServerEvent, { t: 'evolve' }>) {
+  let showTo = false, white = 0;
+  const ov = () => {
+    ctx.fillStyle = '#0e2148'; ctx.fillRect(0, 0, VW, VH);
+    for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2 + G.t / 40; ctx.fillStyle = 'rgba(159,216,255,0.25)'; ctx.fillRect(VW / 2 + Math.cos(a) * 150, 160 + Math.sin(a) * 110, 4, 4); }
+    drawMonSprite(showTo ? e.to : e.from, 'front', VW / 2, 250, 1.1, true, white ? { tint: '#ffffff' } : {});
+    if (white > 0.5) { ctx.fillStyle = `rgba(255,255,255,${white - 0.5})`; ctx.fillRect(0, 0, VW, VH); }
+  };
+  G.overlays.push(ov);
+  try {
+    Sound.cry(e.from);
+    await wait(50);
+    for (let k = 0; k < 10; k++) { showTo = k % 2 === 1; white = 0.4; await wait(Math.max(4, 16 - k)); }
+    white = 1; await wait(20); showTo = true; white = 0; Sound.cry(e.to);
+    await wait(40);
+  } finally { G.overlays.pop(); }
+}
+
 async function chapterEnd(title: string, subtitle: string) {
   await fadeTo(1);
   let alpha = 0;
@@ -396,27 +416,49 @@ function drawTextbox() {
     ctx.moveTo(x + w - 30, y + h - 26); ctx.lineTo(x + w - 18, y + h - 26); ctx.lineTo(x + w - 24, y + h - 18); ctx.fill();
   }
 }
+const CHOICE_ROWS = 8; // longer lists (the Mart) scroll
 function drawChoice() {
   const c = G.ui.choice; if (!c) return;
-  const w = c.rect?.w ?? Math.max(120, ...c.options.map(o => o.length * 11 + 56));
-  const h = c.options.length * 30 + 22;
-  const x = c.rect?.x ?? VW - w - 8, y = c.rect?.y ?? VH - 108 - h;
+  const w = c.rect?.w ?? Math.min(VW - 16, Math.max(120, ...c.options.map(o => o.length * 11 + 56)));
+  const rows = Math.min(CHOICE_ROWS, c.options.length);
+  const first = Math.max(0, Math.min(c.idx - Math.floor(rows / 2), c.options.length - rows));
+  const h = rows * 30 + 22;
+  const x = c.rect?.x ?? VW - w - 8, y = c.rect?.y ?? Math.max(4, VH - 108 - h);
   panel(x, y, w, h);
-  c.options.forEach((o, i) => {
-    text(o, x + 36, y + 32 + i * 30, 18, '#26324a');
-    if (i === c.idx) { ctx.fillStyle = '#d9473a'; ctx.beginPath(); ctx.moveTo(x + 18, y + 19 + i * 30); ctx.lineTo(x + 28, y + 25 + i * 30); ctx.lineTo(x + 18, y + 31 + i * 30); ctx.fill(); }
-  });
+  for (let r = 0; r < rows; r++) {
+    const i = first + r;
+    text(c.options[i], x + 36, y + 32 + r * 30, 18, '#26324a');
+    if (i === c.idx) { ctx.fillStyle = '#d9473a'; ctx.beginPath(); ctx.moveTo(x + 18, y + 19 + r * 30); ctx.lineTo(x + 28, y + 25 + r * 30); ctx.lineTo(x + 18, y + 31 + r * 30); ctx.fill(); }
+  }
+  ctx.fillStyle = '#d9473a';
+  if (first > 0) { ctx.beginPath(); ctx.moveTo(x + w - 24, y + 18); ctx.lineTo(x + w - 18, y + 10); ctx.lineTo(x + w - 12, y + 18); ctx.fill(); }
+  if (first + rows < c.options.length) { ctx.beginPath(); ctx.moveTo(x + w - 24, y + h - 18); ctx.lineTo(x + w - 18, y + h - 10); ctx.lineTo(x + w - 12, y + h - 18); ctx.fill(); }
 }
 
 // Pokemon sprites are horizontal strips of square frames.
-function drawMonSprite(key: string, side: 'front' | 'back', cx: number, bottom: number, scaleMul = 1, animate = true, opts: { shrink?: number; flash?: boolean; dy?: number } = {}) {
+type SpriteFx = { shrink?: number; flash?: boolean; dy?: number; tint?: string; glitch?: number };
+const tintCanvas = document.createElement('canvas');
+function drawMonSprite(key: string, side: 'front' | 'back', cx: number, bottom: number, scaleMul = 1, animate = true, opts: SpriteFx = {}) {
   const im = monImg(side, key); if (!im.complete || !im.naturalWidth) return;
   const fh = im.height, frames = Math.max(1, Math.floor(im.width / fh));
   const f = animate ? Math.floor(G.t / 2) % frames : 0;
   const scale = 2 * scaleMul * (opts.shrink ?? 1);
   const w = fh * scale, foot = ((im.box?.bottom ?? fh - 1) + 1) * scale;
   if (opts.flash) ctx.globalAlpha = 0.4;
-  ctx.drawImage(im, f * fh, 0, fh, fh, Math.round(cx - w / 2), Math.round(bottom - foot + (opts.dy || 0)), w, w);
+  const dx = Math.round(cx - w / 2), dy = Math.round(bottom - foot + (opts.dy || 0));
+  if (opts.tint || opts.glitch) {
+    // Copper patina / Overcharge: tint the sprite's own pixels on a scratch canvas.
+    tintCanvas.width = w; tintCanvas.height = w;
+    const g = tintCanvas.getContext('2d')!;
+    g.imageSmoothingEnabled = false;
+    g.drawImage(im, f * fh, 0, fh, fh, 0, 0, w, w);
+    g.globalCompositeOperation = 'source-atop';
+    if (opts.tint) { g.globalAlpha = 0.38; g.fillStyle = opts.tint; g.fillRect(0, 0, w, w); }
+    if (opts.glitch) { g.globalAlpha = 0.5; g.fillStyle = Math.floor(G.t / 3) % 2 ? '#ffffff' : COPPER; for (let y = 0; y < w; y += 8) if ((y + G.t) % 24 < 8) g.fillRect(0, y, w, 4); }
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    const jit = opts.glitch ? (Math.floor(G.t / 2) % 3 - 1) * 3 : 0;
+    ctx.drawImage(tintCanvas, dx + jit, dy);
+  } else ctx.drawImage(im, f * fh, 0, fh, fh, dx, dy, w, w);
   ctx.globalAlpha = 1;
 }
 
@@ -615,10 +657,35 @@ async function overworldTick() {
   await send({ t: 'step', dir });
 }
 
+const slotName = (s: SaveSlot) => (s === 'auto' ? 'Autosave' : `Slot ${s}`);
+async function pickSlot(slots: SlotInfo[], forSaving: boolean): Promise<SaveSlot | null> {
+  const list = forSaving ? slots.filter(s => s.slot !== 'auto') : slots.filter(s => s.summary);
+  const opts = list.map(s => `${slotName(s.slot)}: ${s.summary ?? 'empty'}`);
+  const c = await choose([...opts, 'Back'], opts.length, { x: 8, y: 8, w: VW - 16 });
+  return c < list.length ? list[c].slot : null;
+}
+
 async function startMenu() {
   Sound.se('menu');
   for (;;) {
-    const c = await choose(['Pokémon', 'Bag', 'Save', 'Close'], 3, { x: VW - 168, y: 8, w: 160 });
+    const w = G.world;
+    const items = ['Pokémon', 'Bag', 'Save', ...(w?.debug ? ['Debug'] : []), 'Close'];
+    const ov = () => { if (w) { panel(8, 8, 200, 58); text(`${w.money} kr.`, 28, 34, 16, '#26324a'); text(`Badges: ${w.badges}`, 28, 54, 14, '#55617a'); } };
+    G.overlays.push(ov);
+    let c: number;
+    try { c = await choose(items, items.length - 1, { x: VW - 168, y: 8, w: 160 }); } finally { G.overlays.pop(); }
+    const pick = items[c];
+    if (pick === 'Save') {
+      const r = await conn.send({ t: 'slots' });
+      const slots = r.find(e => e.t === 'slots');
+      if (!slots || slots.t !== 'slots') continue;
+      const slot = await pickSlot(slots.slots, true);
+      if (slot !== null) await send({ t: 'save', slot });
+      continue;
+    }
+    if (pick === 'Debug') { await debugMenu(); continue; }
+    if (pick === 'Close') return;
+    if (pick === 'Pokémon') c = 0; else if (pick === 'Bag') c = 1;
     if (c === 0) {
       const i = await partyScreen('view', G.world?.party ?? []);
       if (i > 0) {
@@ -628,9 +695,19 @@ async function startMenu() {
     } else if (c === 1) {
       const r = await bagMenu(G.world?.bag ?? {}, G.world?.party ?? [], false);
       if (r?.kind === 'item') await send({ t: 'useItem', item: r.item, uid: r.uid });
-    } else if (c === 2) await send({ t: 'save' });
-    else return;
+    }
   }
+}
+
+// Dev builds only: the server refuses these commands otherwise.
+async function debugMenu() {
+  const cmds: [string, DebugCommand, (string | number)?][] = [
+    ['Give Lv. 10 Sprigatito', 'givePokemon', 'sprigatito'], ['Heal team', 'heal'], ['Lead +5 levels', 'levelUp', 5], ['Give items', 'items'], ['+10,000 kr.', 'money'],
+    ['Unlock Copper & Current', 'unlockCoil'], ['Toggle wild encounters', 'encounters'], ['Add a badge', 'badge'],
+    ['Warp: Nørrebro', 'warp', 'hafnia:norrebro'], ['Warp: Route 1', 'warp', 'hafnia:route1'], ['Warp: Botanical Garden', 'warp', 'hafnia:garden']
+  ];
+  const c = await choose([...cmds.map(x => x[0]), 'Back'], cmds.length, { x: 8, y: 8, w: 300 });
+  if (c < cmds.length) await send({ t: 'debug', cmd: cmds[c][1], ...(cmds[c][2] !== undefined ? { arg: cmds[c][2] } : {}) });
 }
 
 async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced', party: MonView[]): Promise<number> {
@@ -671,15 +748,18 @@ async function partyScreen(mode: 'view' | 'switch' | 'item' | 'forced', party: M
 
 type BagChoice = { kind: 'item'; item: string; uid: string } | { kind: 'ball'; item: string } | null;
 async function bagMenu(bag: Record<string, number>, party: MonView[], inBattle: boolean): Promise<BagChoice> {
-  const items = Object.keys(ITEM_NAMES).filter(k => bag[k] > 0);
-  if (!items.length) { await say('Your bag is empty.'); return null; }
-  const c = await choose([...items.map(k => `${ITEM_NAMES[k]}  x${bag[k]}`), 'Back'], items.length, { x: VW - 240, y: inBattle ? 120 : 8, w: 232 });
+  const order = ['balls', 'medicine', 'other'];
+  const items = Object.keys(ITEMS).filter(k => bag[k] > 0 && (!inBattle || ITEMS[k].pocket !== 'other'))
+    .sort((a, b) => order.indexOf(ITEMS[a].pocket) - order.indexOf(ITEMS[b].pocket));
+  if (!items.length) { await say(inBattle ? 'You have nothing to use in battle.' : 'Your bag is empty.'); return null; }
+  const c = await choose([...items.map(k => `${ITEMS[k].name}  x${bag[k]}`), 'Back'], items.length, { x: VW - 260, y: 8, w: 252 });
   if (c >= items.length) return null;
-  const item = items[c];
-  if (item.endsWith('ball')) {
+  const item = items[c], def = ITEMS[item];
+  if (def.ball) {
     if (!inBattle) { await say('Throw Poké Balls at weakened wild Pokémon.'); return null; }
     return { kind: 'ball', item };
   }
+  if (def.repel) return { kind: 'item', item, uid: '' };
   const i = await partyScreen('item', party);
   return i < 0 ? null : { kind: 'item', item, uid: party[i].uid };
 }
@@ -689,11 +769,12 @@ interface BattleState {
   start: BattleStart; intro: number;
   foe: BattleMonView | null; ally: BattleMonView | null; foeHp: number; allyHp: number;
   foeShown: boolean; allyShown: boolean; trainerShown: boolean; trainerOffset: number; playerBackShown: boolean; playerOffset: number;
-  foeFx: { shrink?: number; flash?: boolean; dy?: number }; allyFx: { shrink?: number; flash?: boolean; dy?: number };
+  foeFx: SpriteFx; allyFx: SpriteFx;
   ballFx: { x: number; y: number; dy?: number } | null; grid: GridState | null; lastIdx: Record<string, number>; foeLeft: number;
   savedBgm: string | null;
+  coil: { ally?: CoilView; foe?: CoilView }; patina: Set<string>; overcharged: Set<string>; arc: { side: BattleSide; t: number } | null;
 }
-interface GridState { x: number; y: number; w: number; h: number; items: { label: string; type?: string; sub?: string; dim?: boolean }[]; cols: number; idx: number; key: string }
+interface GridState { x: number; y: number; w: number; h: number; items: { label: string; type?: string; sub?: string; dim?: boolean; on?: string }[]; cols: number; idx: number; key: string }
 let B: BattleState | null = null;
 
 function hpBar(x: number, y: number, w: number, hp: number, max: number) {
@@ -719,6 +800,37 @@ function databox(m: BattleMonView, x: number, y: number, showNums: boolean, disp
     }
   }
 }
+/** The Coil gauge: copper pips that light up one by one, pulse when ready and go dark once spent. */
+function drawCoil(c: CoilView, x: number, y: number) {
+  ctx.fillStyle = 'rgba(29,43,69,0.9)'; roundRect(x, y, 26 + c.max * 18, 16, 8); ctx.fill();
+  ctx.fillStyle = c.overcharge ? '#ff6b5a' : CURRENT; ctx.font = `10px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('⚡', x + 6, y + 12);
+  const pulse = !c.used && c.pips >= c.ready ? 0.65 + 0.35 * Math.sin(G.t / 6) : 1;
+  for (let i = 0; i < c.max; i++) {
+    const lit = !c.used && i < c.pips;
+    ctx.globalAlpha = lit ? pulse : 1;
+    ctx.fillStyle = c.used ? '#3b3f4a' : lit ? (c.overcharge ? '#ff8a5a' : COPPER) : '#55617a';
+    roundRect(x + 20 + i * 18, y + 4, 14, 8, 3); ctx.fill();
+    if (i === c.ready - 1) { ctx.fillStyle = '#fbf7ee'; ctx.fillRect(x + 20 + i * 18 + 15, y + 3, 1, 10); }
+  }
+  ctx.globalAlpha = 1;
+}
+/** Current: arcs from the Rotom Pokédex (bottom left) into the Pokémon. */
+function drawArc(side: BattleSide, t: number) {
+  const [tx, ty] = side === 'ally' ? [128, 230] : [384, 130];
+  ctx.strokeStyle = CURRENT; ctx.lineWidth = 3; ctx.globalAlpha = 1 - t / 30;
+  for (let k = 0; k < 2; k++) {
+    ctx.beginPath(); ctx.moveTo(20, 280);
+    for (let i = 1; i <= 8; i++) { const f = i / 8; ctx.lineTo(20 + (tx - 20) * f + (i < 8 ? Math.sin(G.t * 7 + i * 3 + k) * 14 : 0), 280 + (ty - 280) * f + (i < 8 ? Math.cos(G.t * 5 + i * 2 + k) * 10 : 0)); }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 0.25 * (1 - t / 30); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, VW, 288);
+  ctx.globalAlpha = 1;
+}
+function sideFx(side: BattleSide): SpriteFx {
+  const b = B!, mon = side === 'foe' ? b.foe : b.ally, fx = side === 'foe' ? b.foeFx : b.allyFx;
+  if (!mon?.uid) return fx;
+  return { ...fx, ...(b.patina.has(mon.uid) ? { tint: PATINA } : {}), ...(b.overcharged.has(mon.uid) ? { glitch: 1 } : {}) };
+}
 function drawBattle() {
   const b = B!, bg = b.start.bg;
   ctx.drawImage(packImg(`bb/${bg}_bg`), 0, 0, 512, 288);
@@ -729,17 +841,25 @@ function drawBattle() {
     const ti = packImg(b.start.trainer.sprite);
     if (ti.naturalWidth) ctx.drawImage(ti, 0, 0, ti.width, ti.height, 384 - 64 + slide + b.trainerOffset, 70, 128, 128);
   }
-  if (b.foe && b.foeShown) drawMonSprite(b.foe.key, 'front', 384 + slide, 180, 1, true, b.foeFx);
+  if (b.foe && b.foeShown) drawMonSprite(b.foe.key, 'front', 384 + slide, 180, 1, true, sideFx('foe'));
   if (b.ballFx) ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, b.ballFx.x - 16, b.ballFx.y - 16 + (b.ballFx.dy || 0), 32, 32);
   if (b.playerBackShown) {
     const im = packImg('tr/player_back'), fw = im.width / 5;
     if (im.naturalWidth) ctx.drawImage(im, 0, 0, fw, im.height, 70 - slide + b.playerOffset, 292 - im.height * 0.62, fw * 0.62, im.height * 0.62);
   }
-  if (b.ally && b.allyShown) drawMonSprite(b.ally.key, 'back', 128 - slide, 286, 1, true, b.allyFx);
+  if (b.ally && b.allyShown) drawMonSprite(b.ally.key, 'back', 128 - slide, 286, 1, true, sideFx('ally'));
+  if (b.arc) drawArc(b.arc.side, b.arc.t);
   if (b.foe && b.foeShown) databox(b.foe, 16, 20, false, b.foeHp);
   if (b.ally && b.allyShown) databox(b.ally, VW - 246, 196, true, b.allyHp);
-  if (b.start.trainer && b.trainerShown) { // pokeball lineup
-    for (let i = 0; i < b.start.foeCount; i++) { ctx.fillStyle = i < b.foeLeft ? '#ef5a4b' : '#777'; ctx.beginPath(); ctx.arc(40 + i * 22, 40, 8, 0, 7); ctx.fill(); }
+  if (b.coil.foe && !b.trainerShown) drawCoil(b.coil.foe, 16, 78);
+  if (b.coil.ally && b.allyShown) drawCoil(b.coil.ally, VW - 42 - b.coil.ally.max * 18, 174);
+  if (b.start.trainer && b.trainerShown) { // the trainer's team, one ball per Pokémon
+    ctx.fillStyle = 'rgba(29,43,69,0.85)'; roundRect(16, 20, b.start.foeCount * 26 + 14, 34, 10); ctx.fill();
+    for (let i = 0; i < b.start.foeCount; i++) {
+      ctx.globalAlpha = i < b.foeLeft ? 1 : 0.35;
+      ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, 21 + i * 26, 21, 32, 32);
+      ctx.globalAlpha = 1;
+    }
   }
   if (!G.ui.text) { ctx.fillStyle = '#1d2b45'; ctx.fillRect(0, 288, VW, 96); }
 }
@@ -750,6 +870,7 @@ function drawGrid(g: GridState) {
   items.forEach((it, i) => {
     const cx = x + 12 + (i % cols) * cw, cy = y + 10 + Math.floor(i / cols) * rh;
     if (i === idx) { ctx.fillStyle = '#ffe9a8'; roundRect(cx + 2, cy + 2, cw - 4, rh - 4, 6); ctx.fill(); }
+    if (it.on) { ctx.fillStyle = it.on; roundRect(cx + 2, cy + 2, cw - 4, rh - 4, 6); ctx.fill(); if (i === idx) { ctx.strokeStyle = '#d9473a'; ctx.lineWidth = 3; roundRect(cx + 3, cy + 3, cw - 6, rh - 6, 6); ctx.stroke(); } }
     if (it.type) { ctx.fillStyle = TYPE_COLORS[it.type] ?? '#777'; roundRect(cx + 6, cy + 8, 6, rh - 16, 3); ctx.fill(); }
     text(it.label, cx + 18, cy + rh / 2 + 6, 17, it.dim ? '#9aa3b5' : '#26324a');
     if (it.sub) text(it.sub, cx + cw - 10, cy + rh / 2 + 6, 11, '#55617a', 'right');
@@ -779,7 +900,8 @@ async function battleStart(start: BattleStart) {
   B = {
     start, intro: 300, foe: null, ally: null, foeHp: 0, allyHp: 0, foeShown: false, allyShown: false,
     trainerShown: !!start.trainer, trainerOffset: 0, playerBackShown: true, playerOffset: 0, foeFx: {}, allyFx: {},
-    ballFx: null, grid: null, lastIdx: {}, foeLeft: start.foeCount, savedBgm: Sound.bgmName
+    ballFx: null, grid: null, lastIdx: {}, foeLeft: start.foeCount, savedBgm: Sound.bgmName,
+    coil: { ...start.coil }, patina: new Set(), overcharged: new Set(), arc: null
   };
   Sound.bgm(start.bgm);
   for (let i = 0; i < 3; i++) { await fadeTo(0.8, 4); await fadeTo(0, 4); }
@@ -892,10 +1014,64 @@ async function battleEvent(e: BattleEvent) {
       break;
     }
     case 'flee': Sound.se('flee'); break;
+    case 'coil': b.coil[e.side] = e.coil; break;
+    case 'copper': {
+      const mon = e.side === 'foe' ? b.foe : b.ally;
+      Sound.se('recall');
+      for (let i = 0; i < 12; i++) { if (mon?.uid) { if (i % 2) b.patina.add(mon.uid); else b.patina.delete(mon.uid); } await wait(3); }
+      if (mon?.uid) b.patina.add(mon.uid);
+      Sound.se('select');
+      await say(e.text);
+      break;
+    }
+    case 'current': case 'overcharge': {
+      Sound.se('hit_super', 0.4);
+      for (let t = 0; t < 30; t++) { b.arc = { side: e.side, t }; await nextFrame(); }
+      b.arc = null;
+      const mon = e.side === 'foe' ? b.foe : b.ally;
+      if (e.b === 'overcharge' && mon?.uid) { b.patina.add(mon.uid); b.overcharged.add(mon.uid); }
+      await say(e.text);
+      break;
+    }
   }
 }
 
-async function battleMenu(req: BattleRequest): Promise<import('@hafnia/core').BattleAction> {
+/** Moves, plus the Copper and Current toggles when the Coil is online (a toggle applies to the move picked next). */
+async function fightMenu(req: BattleRequest): Promise<BattleAction | null> {
+  let mode: CoilMode | null = null;
+  const coil = req.coil;
+  const pad = <T,>(list: T[], filler: T) => { const out = [...list]; while (out.length % 2) out.push(filler); return out; };
+  for (;;) {
+    const moves: GridState['items'] = pad<GridState['items'][number]>(req.moves.map((m: MoveView) => ({
+      label: m.name, type: m.type, sub: `${m.pp}/${m.maxpp}`,
+      dim: m.disabled || (mode === 'current' && m.category === 'Status')
+    })), { label: '', dim: true });
+    const toggles: GridState['items'] = coil ? [
+      { label: mode === 'copper' ? 'Copper ✓' : 'Copper', sub: coil.copper ? '' : 'ready', dim: !!coil.copper, on: mode === 'copper' ? '#cdeedd' : undefined },
+      { label: mode === 'current' ? 'Current ✓' : 'Current', sub: coil.current ? '' : 'ready', dim: !!coil.current, on: mode === 'current' ? '#d6efff' : undefined }
+    ] : [];
+    const items = [...moves, ...toggles];
+    const rows = items.length / 2;
+    const h = rows * 34 + 20;
+    const mi = await gridChoose(items, { x: 0, y: VH - h, w: 512, h, key: 'move' }, 2, true);
+    if (mi < 0) return null;
+    if (mi >= moves.length) {
+      const which: CoilMode = mi === moves.length ? 'copper' : 'current';
+      const why = coil?.[which];
+      if (why) { await say(why); continue; }
+      mode = mode === which ? null : which;
+      Sound.se(mode ? 'select' : 'cursor');
+      continue;
+    }
+    const m = req.moves[mi];
+    if (!m) continue;
+    if (m.disabled) { await say(m.pp === 0 ? 'There\'s no PP left for this move!' : 'That move can\'t be used right now!'); continue; }
+    if (mode === 'current' && m.category === 'Status') { await say('Status moves can\'t carry Current.'); continue; }
+    return { kind: 'move', index: mi, ...(mode ? { mode } : {}) };
+  }
+}
+
+async function battleMenu(req: BattleRequest): Promise<BattleAction> {
   const b = B!;
   if (req.forceSwitch) {
     const i = await partyScreen('forced', req.party);
@@ -908,11 +1084,9 @@ async function battleMenu(req: BattleRequest): Promise<import('@hafnia/core').Ba
       { x: 272, y: 288, w: 240, h: 96, key: 'cmd' }, 2, false);
     G.ui.text = null;
     if (c === 0) {
-      const items = req.moves.map((m: MoveView) => ({ label: m.name, type: m.type, sub: `${m.pp}/${m.maxpp}`, dim: m.disabled }));
-      const mi = await gridChoose(items, { x: 0, y: 288, w: 512, h: 96, key: 'move' }, 2, true);
-      if (mi < 0) continue;
-      if (req.moves[mi].disabled) { await say(req.moves[mi].pp === 0 ? 'There\'s no PP left for this move!' : 'That move can\'t be used right now!'); continue; }
-      return { kind: 'move', index: mi };
+      const r = await fightMenu(req);
+      if (r) return r;
+      continue;
     }
     if (c === 1) {
       const r = await bagMenu(req.bag, req.party, true);
@@ -958,12 +1132,15 @@ function drawTitle() {
   }
   ctx.fillStyle = 'rgba(14,33,72,0.55)'; ctx.fillRect(0, VH - 40, VW, 40);
   for (let i = 0; i < 12; i++) { ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect((i * 53 + G.t) % VW, VH - 30 + (i % 3) * 8, 18, 2); }
-  text('COPPER & CURRENT', VW / 2, 104, 44, '#ffd36b', 'center');
-  text('A Pokémon fan game set in Hafnia', VW / 2, 140, 18, '#e8eefc', 'center');
+  text('COPPER & CURRENT', VW / 2, 82, 44, '#ffd36b', 'center');
+  text('A Pokémon fan game set in Hafnia', VW / 2, 114, 18, '#e8eefc', 'center');
   drawMonSprite('POPPLIO', 'front', 120, 236, 0.9, true);
   drawMonSprite('SPRIGATITO', 'front', 256, 230, 0.9, true);
-  drawMonSprite('PONYTA', 'front', 392, 236, 0.9, true);
-  if (!G.ui.choice && Math.floor(G.t / 30) % 2 === 0) text('Tap the screen or press A to start', VW / 2, 270, 18, '#fff', 'center');
+  drawMonSprite('PONYTA', 'front', 392, 236, 0.8, true);
+  if (!G.ui.choice && Math.floor(G.t / 30) % 2 === 0) {
+    ctx.fillStyle = 'rgba(14,33,72,0.8)'; roundRect(VW / 2 - 170, 290, 340, 34, 17); ctx.fill();
+    text('Tap the screen or press A to start', VW / 2, 313, 18, '#fff', 'center');
+  }
   if (titleSummary && G.ui.choice) text(titleSummary, VW / 2, 360, 14, '#e8eefc', 'center');
 }
 let titleSummary = '';
@@ -974,13 +1151,20 @@ async function titleFlow() {
   const title = evs.find(e => e.t === 'title');
   const hasSave = !!(title && title.t === 'title' && title.hasSave);
   titleSummary = title && title.t === 'title' ? title.summary ?? '' : '';
+  const slots = title && title.t === 'title' ? title.slots ?? [] : [];
   await waitKey('A');
   Sound.se('select');
   const opts = hasSave ? ['Continue', 'New game'] : ['New game'];
   const c = await choose(opts, -1, { x: VW / 2 - 90, y: 250, w: 180 });
+  let slot: SaveSlot | undefined;
+  if (hasSave && c === 0 && slots.filter(s => s.summary).length > 1) {
+    const picked = await pickSlot(slots, false);
+    if (picked === null) return titleFlow();
+    slot = picked;
+  }
   await fadeTo(1, 16);
   if (hasSave && c === 0) {
-    const r = await conn.send({ t: 'continue' });
+    const r = await conn.send({ t: 'continue', ...(slot !== undefined ? { slot } : {}) });
     if (r.some(e => e.t === 'error')) { G.fade = 0; await play(r); return titleFlow(); }
     await play(r);
     return;
@@ -1038,6 +1222,10 @@ async function boot() {
   (window as any).__hafnia = { G, mode: c.mode, send: (i: Intent) => conn.send(i) }; // for tests and debugging
   G.lock = true;
   try { await titleFlow(); } finally { G.lock = false; }
+  // Browsers close tabs without warning: autosave every 2 minutes and whenever the tab is hidden (systems.md §8).
+  const autosave = () => { if (G.scene === 'overworld') conn.send({ t: 'autosave' }); };
+  setInterval(autosave, 120_000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') autosave(); });
 }
 
 document.getElementById('mute')!.addEventListener('click', e => {

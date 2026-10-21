@@ -1,0 +1,27 @@
+# Copper & Current (hafnia/): typecheck, tests (including the scripted prologue playthrough and
+# content validation) and a production build on every push and pull request that touches it.
+name: hafnia
+
+on:
+  push:
+    paths: ['hafnia/**', '.github/workflows/hafnia.yml']
+  pull_request:
+    paths: ['hafnia/**', '.github/workflows/hafnia.yml']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hafnia
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: hafnia/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
