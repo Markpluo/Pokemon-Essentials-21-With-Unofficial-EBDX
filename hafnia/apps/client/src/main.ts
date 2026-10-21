@@ -700,7 +700,7 @@ function drawChar(sprite: string, x: number, y: number, dir: Dir, frame: number,
 }
 function drawOverworld() {
   const { map: m, stamps } = mapOf(G.mapKey), [cx, cy] = camera();
-  ctx.fillStyle = '#2f6b3a'; ctx.fillRect(0, 0, VW, VH);
+  ctx.fillStyle = m.indoor ? '#0d1220' : '#2f6b3a'; ctx.fillRect(0, 0, VW, VH); // rooms smaller than the screen sit on black, not grass
   const x0 = Math.floor(cx / TILE) - 1, y0 = Math.floor(cy / TILE) - 1;
   for (let y = y0; y < y0 + 14; y++) for (let x = x0; x < x0 + 18; x++) {
     const t = tileAt(x, y); if (t === null) continue;

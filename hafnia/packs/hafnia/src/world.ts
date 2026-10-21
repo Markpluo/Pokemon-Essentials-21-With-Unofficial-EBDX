@@ -209,7 +209,7 @@ function garden(): MapData {
   fill(g, 3, 13, 5, 4, 'o'); fill(g, 21, 13, 4, 4, 'o');
   dots(g, 'f', [[4, 3], [5, 3], [6, 3], [4, 4], [6, 4], [20, 3], [21, 3], [22, 3], [21, 4], [10, 14], [11, 14],
     [12, 15], [15, 15], [16, 14], [17, 14], [9, 17], [18, 17], [12, 17], [15, 17]]);
-  dots(g, 'T', [[2, 6], [3, 6]]);
+  dots(g, 'T', [[2, 5], [3, 5], [2, 6], [3, 6]]);   // a whole 2x2 tree, not a half-height stub
   fill(g, 2, 7, 4, 3, 'g'); fill(g, 21, 7, 4, 3, 'g');   // flower beds
   return {
     id: 'garden', name: 'Botanical Garden', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld',
