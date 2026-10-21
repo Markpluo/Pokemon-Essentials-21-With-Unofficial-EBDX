@@ -122,7 +122,8 @@ export class Bot {
     return this.continueGame(slot);
   }
 
-  private async titleChoice(label: string) {
+  /** Title -> the given title-menu option. */
+  async titleChoice(label: string) {
     await this.waitFor(s => s.scene === 'title', 30_000, 'the title screen');
     await this.waitFor(s => !!s.choice, 10_000, 'the title menu', async () => this.tap('A'));
     await this.choose(label);

@@ -123,7 +123,7 @@ export type ServerEvent =
   | { t: 'walk'; actor: string; dir: Dir; frames?: number; async?: boolean }
   | { t: 'place'; actor: string; x: number; y: number; dir: Dir; sprite?: string; hidden?: boolean }
   | { t: 'exclaim'; actor: string }
-  | { t: 'map'; map: string; name: string; x: number; y: number; dir: Dir; bgm: string }
+  | { t: 'map'; map: string; name: string; x: number; y: number; dir: Dir; bgm: string; npcs: NpcView[] }
   | { t: 'wait'; frames: number }
   | { t: 'fade'; to: number; frames?: number }
   | { t: 'battleStart'; battle: BattleStart }
