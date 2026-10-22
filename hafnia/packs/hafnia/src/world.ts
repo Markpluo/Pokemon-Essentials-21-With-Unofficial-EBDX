@@ -1,4 +1,4 @@
-// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 8). Plain data,
+// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 9). Plain data,
 // so the client can import it for rendering without the scripts.
 // Outdoor tiles: '.' ground, '=' brick path, 'g' tall grass, 'f' flowers, 'T' trees, '~' sea, 'o' still water,
 //   'r' Den Røde Plads, 'k' Den Sorte Plads, 'q' cobbles, 'a' asphalt/concrete, 'l' bike lane, 'd' planks,
@@ -30,7 +30,9 @@ export const STAMPS: Record<string, Stamp> = {
   circus: { draw: 'circus', w: 6, h: 4, door: [3, 3] },       // Pierrot's striped tent at Bakken
   lighthouse: { draw: 'lighthouse', w: 3, h: 5, door: [1, 4] }, // Trekroner's dead lighthouse
   bunker: { draw: 'bunker', w: 5, h: 3, door: [2, 2] },        // the old gun battery, cells below
-  fortgate: { draw: 'fortgate', w: 6, h: 3, door: [3, 2] }     // Vanguard's steel door into the fort
+  fortgate: { draw: 'fortgate', w: 6, h: 3, door: [3, 2] },    // Vanguard's steel door into the fort
+  borsen: { draw: 'borsen', w: 10, h: 4, door: [5, 3] },       // Børsen under scaffolding, the dragon spire's stump
+  palace: { draw: 'palace', w: 9, h: 5 }                      // Christiansborg
 };
 
 const makeGrid = (w: number, h: number, ch: string) => Array.from({ length: h }, () => Array<string>(w).fill(ch));
@@ -387,8 +389,8 @@ function route4(): MapData {
       '~~~~~~nqqqn~~~~~~~~~',
       '~~~~~~nqqqn~~~~~~~~~',
       'TT..ggqqqqgg..f..TTT',
-      'TT..ggqqqqgg.....TTT',
-      'TT....qqqq..gggg.TTT',
+      'qqqqggqqqqgg.....TTT',
+      'qqqqqqqqqq..gggg.TTT',
       'TTf...qqqq..gggg.TTT',
       'TToooooqqoooooooooTT',
       'TToooooqqoooooooooTT',
@@ -403,7 +405,7 @@ function route4(): MapData {
     encountersNight: [[30, 'hoothoot'], [25, 'wingull'], [25, 'nickit'], [20, 'murkrow']],
     levels: [13, 16],
     fishing: [[50, 'magikarp'], [30, 'tentacool'], [20, 'finizen']], fishLevels: [12, 17],
-    exits: { up: { to: 'indreby', offset: 6 }, down: { to: 'christianshavn', offset: 6 } }
+    exits: { up: { to: 'indreby', offset: 6 }, down: { to: 'christianshavn', offset: 6 }, left: { to: 'slotsholmen', offset: 3 } }
   };
 }
 
@@ -1077,6 +1079,59 @@ const siphon = () => room('siphon', 'Trekroner: Siphon Chamber', [
   'wwwwwwwwwwwwwwwww'
 ], { to: 'trekroner', x: 13, y: 5 });
 
+// ---------- Chapter 9: The Spire ----------
+
+// Slotsholmen: Børsen under scaffolding after the fire, Christiansborg behind it, the canal and Knippelsbro to the east.
+function slotsholmen(): MapData {
+  const W = 30, H = 20, g = makeGrid(W, H, 'q');
+  fill(g, 0, 0, W, 1, 'H'); fill(g, 0, 0, 1, H, 'H'); fill(g, 0, H - 1, W, 1, '~'); fill(g, 0, H - 2, W, 1, 'n');
+  fill(g, 26, 0, 4, H, '~'); fill(g, 25, 0, 1, H - 2, 'n');
+  fill(g, 25, 9, 5, 2, 'q');                  // the lane east onto Knippelsbro
+  fill(g, 2, 13, 5, 3, 'g'); fill(g, 10, 14, 5, 3, 'g'); fill(g, 12, 7, 3, 2, 'g');
+  dots(g, 'f', [[2, 11], [10, 11], [16, 11], [23, 11]]);
+  return {
+    id: 'slotsholmen', name: 'Slotsholmen', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
+    buildings: [{ s: 'borsen', x: 14, y: 2, id: 'borsen' }, { s: 'palace', x: 2, y: 1 }, { s: 'pc', x: 19, y: 12, id: 'pc' }],
+    encounters: [[25, 'corvisquire'], [20, 'bronzor'], [20, 'magneton'], [15, 'pawniard'], [10, 'cufant'], [10, 'skarmory']],
+    encountersNight: [[30, 'bronzor'], [25, 'murkrow'], [20, 'magneton'], [15, 'pawniard'], [10, 'noibat']],
+    levels: [40, 43],
+    exits: { right: { to: 'route4', offset: -3 } }
+  };
+}
+
+// Børsen's great hall: crates, scaffolding inside too, the archive desk and the stair down to the vault.
+const borsenHall = () => room('borsen', 'Børsen', [
+  'wwwwwwwwwwwwwwwww',
+  'wKKK____w____KKKw',
+  'w_______w_______w',
+  'w__KK_______KK__w',
+  'w_______________w',
+  'w__KK_______KK__w',
+  'w_______________w',
+  'w_______________w',
+  'w_______m_______w',
+  'wwwwwwwwwwwwwwwww'
+], { to: 'slotsholmen', x: 19, y: 6 });
+
+// Gym 7, the vault beneath the dragon spire: three merchants' counting-houses, the brass scales and the vault gate.
+const gym7 = () => room('gym7', 'Børsen: The Vault', [
+  'wwwwwwwwwwwwwwwwwww',
+  'w_______KKK_______w',
+  'w_________________w',
+  'w_________________w',
+  'wwwwwwww___wwwwwwww',
+  'w_________________w',
+  'w__KKK_______KKK__w',
+  'w_________________w',
+  'w_________________w',
+  'w______KKKKK______w',
+  'w_________________w',
+  'w__KKK_______KKK__w',
+  'w_________________w',
+  'w_________________w',
+  'wwwwwwwwwwwwwwwwwww'
+], { to: 'borsen', x: 12, y: 2 });
+
 export const MAPS = {
   norrebro: norrebro(), flat: flat(), lukasflat: lukasFlat(), pcnorrebro: center('pcnorrebro', 'Pokémon Center', 'norrebro', 22, 8),
   gym1: gym1(), bridge: bridge(), route1: route1(), garden: garden(), palmhouse: palmhouse(), tunnels: tunnels(),
@@ -1092,5 +1147,6 @@ export const MAPS = {
   osterbro: osterbro(), pcosterbro: center('pcosterbro', 'Pokémon Center', 'osterbro', 13, 6), kastellet: kastellet(), route8: route8(),
   lyngby: lyngby(), dyrehaven: dyrehaven(), substation: substation(), bakken: bakken(),
   pcbakken: center('pcbakken', 'Pokémon Center', 'bakken', 4, 8), gym6: gym6(),
-  fleetboat: fleetboat(), trekroner: trekroner(), tklighthouse: tklighthouse(), battery: battery(), siphon: siphon()
+  fleetboat: fleetboat(), trekroner: trekroner(), tklighthouse: tklighthouse(), battery: battery(), siphon: siphon(),
+  slotsholmen: slotsholmen(), pcslotsholmen: center('pcslotsholmen', 'Pokémon Center', 'slotsholmen', 21, 17), borsen: borsenHall(), gym7: gym7()
 };

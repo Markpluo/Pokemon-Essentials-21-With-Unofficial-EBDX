@@ -395,6 +395,15 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
       box(4, 4, 24, 26, '#3b3f4a'); box(7, 7, 18, 11, (time >> 4) % 2 ? '#1d6fb8' : '#2a7fcc');
       g.fillStyle = '#fff'; g.font = 'bold 6px sans-serif'; g.fillText('VG', dx + 12, dy + 15);
       for (let i = 0; i < 3; i++) box(8 + i * 6, 21, 4, 4, ['#c9574b', '#e8c35a', '#4fae5b'][i]); break;
+    case 'scales': {
+      // The merchants' brass scales: a beam on a post, two pans.
+      box(15, 8, 2, 22, '#b08a3a'); box(8, 28, 16, 3, '#8a6a2a');
+      box(3, 8, 26, 2, '#c9a24a');
+      g.strokeStyle = '#8a6a2a'; g.lineWidth = 1; g.beginPath(); g.moveTo(dx + 5, dy + 10); g.lineTo(dx + 3, dy + 18); g.moveTo(dx + 5, dy + 10); g.lineTo(dx + 9, dy + 18);
+      g.moveTo(dx + 27, dy + 10); g.lineTo(dx + 23, dy + 18); g.moveTo(dx + 27, dy + 10); g.lineTo(dx + 29, dy + 18); g.stroke();
+      box(2, 18, 9, 2, '#c9a24a'); box(22, 18, 9, 2, '#c9a24a'); box(4, 15, 5, 3, '#565b66');
+      break;
+    }
     case 'photo':
       // The old photograph on the lighthouse wall: two sailors on a jetty, sepia.
       box(7, 6, 18, 16, '#6b4526'); box(9, 8, 14, 12, '#d8c39a'); box(9, 16, 14, 4, '#a68a5c');
@@ -492,6 +501,31 @@ export function drawBuildingArt(g: G2, kind: string, w: number, h: number) {
     g.fillStyle = '#e8c35a'; g.fillRect(0, H - 32, W, 4);
     g.fillStyle = '#6b4526'; g.fillRect(W / 2 - 1, 0, 2, 10); g.fillStyle = '#8e5bb5'; g.beginPath(); g.moveTo(W / 2 + 1, 0); g.lineTo(W / 2 + 14, 4); g.lineTo(W / 2 + 1, 8); g.fill();
     g.fillStyle = '#26172a'; g.fillRect(W / 2 - 12, H - 28, 24, 28);
+    return;
+  }
+  if (kind === 'borsen') {
+    // Børsen under restoration: the long red-brick exchange, Dutch gables, scaffolding, and the spire's burned stump.
+    g.fillStyle = '#a5462f'; g.fillRect(0, 34, W, H - 34);
+    g.fillStyle = '#8a3a27'; for (let y = 40; y < H; y += 8) g.fillRect(0, y, W, 1);
+    for (let i = 0; i < 6; i++) { const x = 14 + i * 52; g.fillStyle = '#a5462f'; g.beginPath(); g.moveTo(x, 34); g.lineTo(x + 12, 14); g.lineTo(x + 24, 34); g.fill(); g.fillStyle = '#e8e2d6'; g.fillRect(x + 9, 24, 6, 8); }
+    g.fillStyle = '#4f7a6a'; g.fillRect(0, 30, W, 6);                                   // the copper roof
+    g.fillStyle = '#26272c'; g.fillRect(W / 2 - 6, 4, 12, 28);                           // the burned spire stump
+    g.strokeStyle = '#c9ccd2'; g.lineWidth = 1;
+    for (let x = 4; x < W; x += 16) { g.beginPath(); g.moveTo(x, 10); g.lineTo(x, H); g.stroke(); }
+    for (let y = 16; y < H; y += 20) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+    for (const x of [40, 90, 200, 250]) { g.fillStyle = '#f2e6c4'; g.fillRect(x, 60, 14, 20); }
+    g.fillStyle = '#3b2a22'; g.fillRect(W / 2 - 12, H - 30, 24, 30);
+    return;
+  }
+  if (kind === 'palace') {
+    // Christiansborg: pale granite, rows of windows, a green copper roof and the tower.
+    g.fillStyle = '#d8d2c4'; g.fillRect(0, 40, W, H - 40);
+    g.fillStyle = '#4f7a6a'; g.fillRect(0, 28, W, 14);
+    g.fillStyle = '#d8d2c4'; g.fillRect(W / 2 - 18, 6, 36, 34);
+    g.fillStyle = '#4f7a6a'; g.beginPath(); g.moveTo(W / 2 - 22, 8); g.lineTo(W / 2, 0); g.lineTo(W / 2 + 22, 8); g.fill();
+    g.fillStyle = '#e8c35a'; g.fillRect(W / 2 - 3, 0, 6, 4);
+    for (let y = 52; y < H - 20; y += 26) for (let x = 12; x < W - 12; x += 22) { g.fillStyle = '#5f6b7a'; g.fillRect(x, y, 10, 16); }
+    g.fillStyle = '#8f8a7c'; g.fillRect(0, H - 8, W, 8);
     return;
   }
   if (kind === 'lighthouse') {

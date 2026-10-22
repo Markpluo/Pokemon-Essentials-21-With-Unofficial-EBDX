@@ -165,7 +165,16 @@
     "manectric",
     "skuntank",
     "bisharp",
-    "garbodor"
+    "garbodor",
+    "corviknight",
+    "corvisquire",
+    "copperajah",
+    "cufant",
+    "duraludon",
+    "skarmory",
+    "pawniard",
+    "probopass",
+    "torkoal"
   ],
   "spriteKeys": {
     "qwilfishhisui": "QWILFISH_1"
@@ -299,7 +308,13 @@
     "tr/ranger": "Graphics/Trainers/POKEMONRANGER_M.png",
     "chars/stantler": "Graphics/Characters/Followers/STANTLER.png",
     "tr/commandant": "Graphics/Trainers/GENTLEMAN.png",
-    "tr/kaas": "Graphics/Trainers/ROCKETBOSS.png"
+    "tr/kaas": "Graphics/Trainers/ROCKETBOSS.png",
+    "chars/lawyer": "Graphics/Characters/trainer_SUPERNERD.png",
+    "tr/lawyer": "Graphics/Trainers/SUPERNERD.png",
+    "chars/margrethe": "Graphics/Characters/trainer_LEADER_Sabrina.png",
+    "tr/margrethe": "Graphics/Trainers/LEADER_Sabrina.png",
+    "chars/archivist": "Graphics/Characters/trainer_RUINMANIAC.png",
+    "tr/gentleman": "Graphics/Trainers/GENTLEMAN.png"
   },
   "audio": {
     "title": "Audio/BGM/Title.ogg",

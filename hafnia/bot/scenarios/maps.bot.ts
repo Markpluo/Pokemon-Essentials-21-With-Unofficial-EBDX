@@ -3,7 +3,7 @@
 import { test, expect } from '../lib/bot';
 import { afterStarter } from '../lib/saves';
 
-const MAPS = ['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven', 'dragor', 'route2', 'vesterbro', 'kodbyen', 'route3', 'islandsbrygge', 'assistens', 'frederiksberg', 'osterbro', 'route8', 'lyngby', 'dyrehaven', 'bakken', 'trekroner'];
+const MAPS = ['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven', 'dragor', 'route2', 'vesterbro', 'kodbyen', 'route3', 'islandsbrygge', 'assistens', 'frederiksberg', 'osterbro', 'route8', 'lyngby', 'dyrehaven', 'bakken', 'trekroner', 'slotsholmen'];
 
 for (const time of ['day', 'night'] as const) {
   test(`every map by ${time} @maps`, async ({ bot }) => {
