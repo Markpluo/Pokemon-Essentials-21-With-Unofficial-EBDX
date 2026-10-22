@@ -154,7 +154,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step to the end of Chapter 6', () => {
+  it('plays from the first step to the end of Chapter 7', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -445,6 +445,51 @@ describe('Hafnia demo', () => {
     d.answers.push(0); d.talkTo(12, 10);                       // the orrery: morning
     expect(d.game.period).toBe('morning');
     d.talkTo(10, 10); at('towerin');                           // the staff stairs
+
+    // Chapter 7: Langelinie, Strandvejen, Ingrid, Sif and the sub-station, Bakken and Pierrot
+    expect(flag('ch7'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);                                // a stop at the Pokémon Center
+    d.walkTo(4, 4); at('indreby');
+    d.leave('right'); at('nyhavn');
+    d.leave('right'); at('osterbro');
+    expect(flag('c7met'), d.where()).toBe(true);
+    d.talkTo(22, 13);                                          // the statue's heartbeat
+    expect(flag('statueHeard')).toBe(true);
+    d.leave('up'); at('route8');
+    d.leave('left'); at('lyngby');
+    d.talkTo(9, 8);                                            // Ingrid: Holger Danske and Kronvakt
+    expect(flag('ingridTold')).toBe(true);
+    d.leave('right'); at('route8');
+    d.leave('up'); at('dyrehaven');
+    expect(flag('dyrehavenSeen')).toBe(true);
+    d.leave('up'); at('dyrehaven');                            // Bakken is dark: the gate is chained
+    d.s.party.forEach(healMon);
+    d.walkTo(26, 8);                                           // Sif, and the Grid Enforcers
+    expect(flag('sifMet'), d.where()).toBe(true);
+    d.send({ t: 'step', dir: 'up' }); at('substation');
+    d.talkTo(7, 1);                                            // shut it down
+    expect(flag('lightsOn'), d.where()).toBe(true);
+    d.walkTo(7, 7); at('dyrehaven');
+    d.leave('up'); at('bakken');
+    expect(flag('bakkenSeen')).toBe(true);
+    d.s.party.forEach(healMon);
+    d.exit('up', 15, 5); at('gym6');
+    d.answers.push(0); d.talkTo(2, 11);                        // a laughing reflection: back to the door
+    expect(flag('mirrorDone')).toBeFalsy();
+    d.answers.push(0); d.talkTo(12, 11);                       // the weeping one
+    expect(flag('mirrorDone'), d.where()).toBe(true);
+    d.walkTo(10, 9);
+    d.talkTo(8, 7); expect([d.s.x, d.s.y], d.where()).toEqual([3, 2]);    // red: up to the left platform
+    d.talkTo(5, 1); expect([d.s.x, d.s.y], d.where()).toEqual([17, 2]);   // green: across the dark
+    d.talkTo(15, 1); expect([d.s.x, d.s.y], d.where()).toEqual([10, 3]);  // blue: the stage
+    // A player brings answers to Fairies (and a team, not one Sprigatito): the lead stands in for that.
+    Object.assign(d.s.party[0], { level: 100, exp: 100 ** 3 + 10, moves: [{ id: 'ironhead', pp: 15 }, { id: 'poisonjab', pp: 20 }, { id: 'shadowball', pp: 15 }] });
+    d.s.party.forEach(healMon);
+    d.talkTo(10, 1);                                           // Pierrot
+    expect(d.s.badges.at(-1), d.where()).toBe('hafnia:harlequin');
+    expect([d.s.bag.snorkel, d.s.bag.ferrycharts, d.s.bag.tmdazzlinggleam]).toEqual([1, 1, 1]);
+    expect(flag('ch7done')).toBe(true);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 7 complete');
   });
 
   it('a wrong steam valve closes them all again', () => {

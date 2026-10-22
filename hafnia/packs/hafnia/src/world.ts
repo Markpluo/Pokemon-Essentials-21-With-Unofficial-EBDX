@@ -1,10 +1,10 @@
-// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 6). Plain data,
+// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 7). Plain data,
 // so the client can import it for rendering without the scripts.
 // Outdoor tiles: '.' ground, '=' brick path, 'g' tall grass, 'f' flowers, 'T' trees, '~' sea, 'o' still water,
 //   'r' Den Røde Plads, 'k' Den Sorte Plads, 'q' cobbles, 'a' asphalt/concrete, 'l' bike lane, 'd' planks,
 //   'H' house fronts, 'x' shipping containers, 'n' railings.
 // Indoor and tunnels: '_' floor, 'w' wall, 'K' furniture, 'm' doormat, 'c' tunnel floor, 'R' rock, 'p' pipes, 'P' planters,
-//   'u' drain water, 'i' ice, 'z' Trick Room floor (steps go the opposite way).
+//   'u' drain water, 'i' ice, 'z' Trick Room floor (steps go the opposite way), 'j' coaster track.
 import type { MapDef, Stamp, Warp } from '@hafnia/core';
 
 type MapData = Omit<MapDef, 'npcs' | 'doors' | 'events' | 'onEnter'>;
@@ -24,7 +24,10 @@ export const STAMPS: Record<string, Stamp> = {
   tower: { draw: 'roundTower', w: 4, h: 5, door: [1, 4] },   // Rundetårn
   cafe: { draw: 'cafe', w: 4, h: 3, door: [1, 2] },          // a gabled Nyhavn house with a café door
   houseboat: { draw: 'houseboat', w: 6, h: 3, door: [2, 2] }, // Alva's gym on the moat
-  pyramid: { draw: 'pyramid', w: 3, h: 2, door: [1, 1] }      // the glass entrance to the Cisterns in Søndermarken
+  pyramid: { draw: 'pyramid', w: 3, h: 2, door: [1, 1] },     // the glass entrance to the Cisterns in Søndermarken
+  kastellet: { draw: 'kastellet', w: 6, h: 3, door: [3, 2] }, // Kastellet's gate through the ramparts
+  substation: { draw: 'substation', w: 4, h: 3, door: [2, 2] }, // Vanguard's hidden sub-station in Dyrehaven
+  circus: { draw: 'circus', w: 6, h: 4, door: [3, 3] }        // Pierrot's striped tent at Bakken
 };
 
 const makeGrid = (w: number, h: number, ch: string) => Array.from({ length: h }, () => Array<string>(w).fill(ch));
@@ -329,7 +332,7 @@ function nyhavn(): MapData {
     battleBg: 'city', bgm: 'overworld',
     buildings: [{ s: 'cafe', x: 9, y: 0, id: 'cafe' }],
     fishing: [[50, 'magikarp'], [30, 'tentacool'], [20, 'finizen']], fishLevels: [12, 17],
-    exits: { left: { to: 'indreby', offset: 1 } }
+    exits: { left: { to: 'indreby', offset: 1 }, right: { to: 'osterbro', offset: 4 } }
   };
 }
 
@@ -809,6 +812,185 @@ const trinitatis = (): MapData => ({
   warps: [{ x: 0, y: 4, to: 'rundetarn', tx: 21, ty: 11, dir: 'left' }]
 });
 
+// ---------- Chapter 7: North by Kystbanen ----------
+
+// Østerbro: in from Nyhavn along the Langelinie promenade, Kastellet's star fortress, the Pokémon Center,
+// Fælledparken's lawns, the pier out to the little statue, and Strandvejen leading north. Østerport station
+// (Kystbanen) is by the road.
+function osterbro(): MapData {
+  return {
+    id: 'osterbro', name: 'Østerbro: Langelinie', ...grid([
+      'TTTTTTTTTTTTTTTTTTTTTTqqqqTTTT',
+      'T.....................qqqq...T',
+      'T.....................qqqq.f.T',
+      'T.....................qqqq...T',
+      'T....=................qqqq...T',
+      'T....=................qqqq...T',
+      'T....=.......=........qqqq...T',
+      'qqqqqqqqqqqqqqqqqqqqqqqqqq...T',
+      'qqqqqqqqqqqqqqqqqqqqqqqqqq...T',
+      'qq..gggggg...ff.....dd.......T',
+      'qq..gggggg..........dd~~~~~~~~',
+      'qq..gggggg....TT....dd~~~~~~~~',
+      'qq..gggggg....TT....dd~~~~~~~~',
+      'qq..gggggg..........dd~~~~~~~~',
+      'qq..................dd~~~~~~~~',
+      'T.....TT............dd~~~~~~~~',
+      'T.....TT...ggggg....dd~~~~~~~~',
+      'T...........ggggg...dd~~~~~~~~',
+      'Tqqqqqqqqqqqqqqqqqqqdd~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+    ]),
+    battleBg: 'city', bgm: 'overworld',
+    buildings: [{ s: 'kastellet', x: 2, y: 1, id: 'kastellet' }, { s: 'pc', x: 11, y: 1, id: 'pc' }],
+    encounters: [[25, 'wingull'], [25, 'skwovet'], [20, 'fidough'], [15, 'cutiefly'], [15, 'wooloo']],
+    encountersNight: [[30, 'hoothoot'], [25, 'noibat'], [25, 'nickit'], [20, 'murkrow']],
+    levels: [30, 33],
+    fishing: [[40, 'tentacool'], [30, 'finizen'], [20, 'shellder'], [10, 'wingull']], fishLevels: [28, 32],
+    exits: { left: { to: 'nyhavn', offset: -4 }, up: { to: 'route8', offset: -17 } }
+  };
+}
+
+// Kastellet: the star fortress, ramparts lined with trees, red barracks and the commandant's parade ground.
+function kastellet(): MapData {
+  const W = 24, H = 20, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 1, 'T'); fill(g, 0, H - 1, W, 1, 'T'); fill(g, 0, 0, 2, H, 'T'); fill(g, W - 2, 0, 2, H, 'T');
+  fill(g, 2, 0, 3, 3, 'T'); fill(g, 19, 0, 3, 3, 'T'); fill(g, 2, 16, 3, 3, 'T'); fill(g, 19, 16, 3, 3, 'T');   // the bastions
+  fill(g, 10, 1, 2, 18, 'q'); fill(g, 2, 12, 20, 2, 'q');
+  g[H - 1][10] = 'm'; g[H - 1][11] = 'm';
+  dots(g, 'f', [[6, 1], [15, 1], [7, 17], [16, 17]]);
+  return {
+    id: 'kastellet', name: 'Kastellet', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld',
+    buildings: [{ s: 'red', x: 4, y: 3 }, { s: 'red', x: 4, y: 7 }, { s: 'red', x: 16, y: 3 }, { s: 'red', x: 16, y: 7 }],
+    warps: [{ x: 10, y: H - 1, to: 'osterbro', tx: 5, ty: 4, dir: 'down' }, { x: 11, y: H - 1, to: 'osterbro', tx: 5, ty: 4, dir: 'down' }]
+  };
+}
+
+// Route 8: Strandvejen, the coast road north. Villas on the left, the bike lane and beach on the right, the
+// ice-bath club's pier out into the Sound. A lane west leads to Lyngby and Frilandsmuseet.
+function route8(): MapData {
+  const W = 16, H = 40, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, 1, H, 'T'); fill(g, 0, 0, 5, 1, 'T'); fill(g, 9, 0, 7, 1, 'T'); fill(g, 0, H - 1, 5, 1, 'T'); fill(g, 9, H - 1, 7, 1, 'T');
+  fill(g, 5, 0, 2, H, 'a'); fill(g, 7, 0, 2, H, 'l');
+  fill(g, 11, 1, 5, H - 1, '~');
+  for (const y of [2, 7, 17, 22, 28, 33]) fill(g, 1, y, 3, 3, 'H');   // the villas
+  fill(g, 0, 12, 5, 2, '='); g[12][0] = '='; g[13][0] = '=';          // the lane to Lyngby
+  fill(g, 9, 24, 6, 2, 'd');                                          // the ice-bath club pier
+  fill(g, 9, 4, 2, 4, 'g'); fill(g, 9, 14, 2, 5, 'g'); fill(g, 9, 30, 2, 5, 'g'); fill(g, 1, 15, 3, 2, 'g'); fill(g, 1, 36, 3, 2, 'g');
+  dots(g, 'f', [[4, 6], [4, 21], [4, 27], [10, 10]]);
+  return {
+    id: 'route8', name: 'Route 8: Strandvejen', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld', buildings: [],
+    encounters: [[25, 'wingull'], [20, 'psyduck'], [20, 'clauncher'], [20, 'spheal'], [15, 'buizel']],
+    encountersNight: [[30, 'noibat'], [25, 'psyduck'], [20, 'spheal'], [15, 'clauncher'], [10, 'murkrow']],
+    levels: [31, 34],
+    fishing: [[35, 'tentacool'], [25, 'shellder'], [25, 'finizen'], [15, 'clauncher']], fishLevels: [30, 34],
+    exits: { down: { to: 'osterbro', offset: 17 }, up: { to: 'dyrehaven', offset: 10 }, left: { to: 'lyngby', offset: -3 } }
+  };
+}
+
+// Lyngby: Frilandsmuseet, the open-air museum of old farmhouses, with fields, a pond and Ingrid's porch.
+function lyngby(): MapData {
+  const W = 26, H = 20, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 1, 'T'); fill(g, 0, H - 1, W, 1, 'T'); fill(g, 0, 0, 1, H, 'T'); fill(g, W - 1, 0, 1, H, 'T');
+  fill(g, 1, 9, W - 1, 2, '='); g[9][W - 1] = '='; g[10][W - 1] = '=';
+  fill(g, 12, 1, 2, 8, '='); fill(g, 12, 11, 2, 8, '=');
+  fill(g, 2, 13, 6, 4, 'g'); fill(g, 17, 2, 6, 3, 'g'); fill(g, 16, 13, 7, 4, 'g');
+  fill(g, 3, 2, 4, 3, 'o');                   // the duck pond
+  dots(g, 'f', [[8, 3], [9, 3], [15, 6], [20, 11], [3, 18], [10, 15]]);
+  return {
+    id: 'lyngby', name: 'Lyngby: Frilandsmuseet', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld',
+    buildings: [{ s: 'red', x: 7, y: 5 }, { s: 'green', x: 16, y: 5 }, { s: 'orange', x: 4, y: 11 }, { s: 'red', x: 18, y: 11 }],
+    encounters: [[25, 'wooloo'], [20, 'cutiefly'], [20, 'skwovet'], [15, 'impidimp'], [10, 'morelull'], [10, 'fidough']],
+    encountersNight: [[30, 'impidimp'], [25, 'morelull'], [20, 'hoothoot'], [15, 'phantump'], [10, 'murkrow']],
+    levels: [31, 34],
+    exits: { right: { to: 'route8', offset: 3 } }
+  };
+}
+
+// Dyrehaven: the royal deer park. Gnarled oaks, open grass where the Stantler graze, the Eremitage hunting
+// lodge, Klampenborg station at the south gate, and Vanguard's sub-station hidden in the trees to the east.
+function dyrehaven(): MapData {
+  const W = 34, H = 28, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 1, 'T'); fill(g, 0, H - 1, W, 1, 'T'); fill(g, 0, 0, 1, H, 'T'); fill(g, W - 1, 0, 1, H, 'T');
+  g[0][15] = '.'; g[0][16] = '.'; g[0][17] = '.'; g[0][18] = '.';
+  for (let x = 15; x <= 18; x++) g[H - 1][x] = '.';
+  fill(g, 15, 1, 4, H - 2, '=');              // the main ride up to Bakken
+  fill(g, 19, 9, 9, 2, '=');                  // the track to the sub-station
+  fill(g, 2, 3, 10, 6, 'g'); fill(g, 3, 13, 9, 6, 'g'); fill(g, 21, 15, 9, 7, 'g'); fill(g, 2, 21, 8, 4, 'g');
+  const oaks = [[4, 10], [8, 10], [12, 12], [13, 4], [20, 3], [23, 3], [30, 3], [20, 13], [24, 13], [30, 12], [12, 20], [21, 23], [26, 23], [6, 25], [11, 25], [30, 25]];
+  for (const [x, y] of oaks) fill(g, x, y, 2, 2, 'T');
+  fill(g, 29, 4, 4, 4, 'T'); fill(g, 22, 1, 7, 2, 'T');
+  return {
+    id: 'dyrehaven', name: 'Dyrehaven', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld',
+    buildings: [{ s: 'orange', x: 6, y: 1 }, { s: 'substation', x: 24, y: 5, id: 'substation' }],
+    encounters: [[25, 'stantler'], [20, 'deerling'], [15, 'phantump'], [15, 'skwovet'], [10, 'cutiefly'], [10, 'morelull'], [5, 'sawsbuck']],
+    encountersNight: [[30, 'phantump'], [25, 'stantler'], [20, 'morelull'], [15, 'noibat'], [10, 'hoothoot']],
+    levels: [33, 36],
+    exits: { down: { to: 'route8', offset: -10 }, up: { to: 'bakken', offset: -2 } }
+  };
+}
+
+const substation = () => room('substation', 'Vanguard Sub-station D-7', [
+  'wwwwwwwwwwwwwww',
+  'wpppp_____ppppw',
+  'w_____________w',
+  'w_pp_______pp_w',
+  'w_____________w',
+  'w_pp_______pp_w',
+  'w_____________w',
+  'w______m______w',
+  'wwwwwwwwwwwwwww'
+], { to: 'dyrehaven', x: 26, y: 8 });
+
+// Bakken: the world's oldest amusement park, deep in the deer park. The neon square, Pierrot's circus tent
+// (Gym 6, the Rutschebanen inside) and the Pokémon Center.
+function bakken(): MapData {
+  const W = 30, H = 22, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 1, 'T'); fill(g, 0, H - 1, W, 1, 'T'); fill(g, 0, 0, 1, H, 'T'); fill(g, W - 1, 0, 1, H, 'T');
+  for (let x = 13; x <= 16; x++) g[H - 1][x] = 'q';
+  fill(g, 13, 15, 4, 6, 'q');                 // the gate road
+  fill(g, 8, 7, 14, 8, 'v');                  // the neon square
+  fill(g, 4, 8, 4, 2, 'q'); fill(g, 22, 10, 5, 2, 'q');
+  fill(g, 2, 15, 6, 4, 'g'); fill(g, 22, 15, 6, 4, 'g');
+  dots(g, 'T', [[2, 2], [3, 2], [26, 2], [27, 2], [2, 12], [27, 13], [9, 18], [20, 18]]);
+  dots(g, 'f', [[7, 13], [22, 8], [11, 17], [18, 17]]);
+  return {
+    id: 'bakken', name: 'Bakken', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
+    buildings: [{ s: 'circus', x: 12, y: 1, id: 'gym' }, { s: 'pc', x: 2, y: 3, id: 'pc' }],
+    exits: { down: { to: 'dyrehaven', offset: 2 } }
+  };
+}
+
+// Gym 6, inside Pierrot's tent: the Hall of Mirrors below, the Rutschebanen's platforms above. Coaster cars
+// ('j' is the track) carry you between platforms; only one route reaches the stage.
+const gym6 = (): MapData => {
+  const g = grid([
+    'wwwwwwwwwwwwwwwwwwwww',
+    'w_____jj_____jj_____w',
+    'w_____jj_____jj_____w',
+    'w_____jj_____jj_____w',
+    'wjjjjjjjjjjjjjjjjjjjw',
+    'wjjjjjjjjjjjjjjjjjjjw',
+    'wjjjjjjjjjjjjjjjjjjjw',
+    'wjjjjjjj_____jjjjjjjw',
+    'wjjjjjjj_____jjjjjjjw',
+    'wjjjjjjj_____jjjjjjjw',
+    'wwwwwwwwww_wwwwwwwwww',
+    'w___________________w',
+    'w___________________w',
+    'w___________________w',
+    'w___________________w',
+    'w___________________w',
+    'wwwwwwwwwwmwwwwwwwwww'
+  ]);
+  return {
+    id: 'gym6', name: 'Bakken: Pierrot\'s Tent', ...g, battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true, dark: true,
+    warps: [{ x: 10, y: 16, to: 'bakken', tx: 15, ty: 5, dir: 'down' }]
+  };
+};
+
 const bakery = () => room('bakery', 'Bageriet', [
   'wwwwwwwwwww',
   'wKKK___KKKw',
@@ -830,5 +1012,8 @@ export const MAPS = {
   kodbyen: kodbyen(), kitchen: kitchen(), gym3: gym3(), route3: route3(), islandsbrygge: islandsbrygge(),
   assistens: assistens(), stormdrain: stormdrain(), gym4: gym4(), bakery: bakery(),
   frederiksberg: frederiksberg(), pcfrederiksberg: center('pcfrederiksberg', 'Pokémon Center', 'frederiksberg', 5, 14), cisterns: cisterns(),
-  rundetarn: rundetarn(), bibliotek: bibliotek(), trinitatis: trinitatis()
+  rundetarn: rundetarn(), bibliotek: bibliotek(), trinitatis: trinitatis(),
+  osterbro: osterbro(), pcosterbro: center('pcosterbro', 'Pokémon Center', 'osterbro', 13, 6), kastellet: kastellet(), route8: route8(),
+  lyngby: lyngby(), dyrehaven: dyrehaven(), substation: substation(), bakken: bakken(),
+  pcbakken: center('pcbakken', 'Pokémon Center', 'bakken', 4, 8), gym6: gym6()
 };

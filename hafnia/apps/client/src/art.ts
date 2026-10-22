@@ -167,6 +167,14 @@ export function drawTile(g: G2, t: string, x: number, y: number, dx: number, dy:
       g.strokeStyle = '#c9a8f0'; g.lineWidth = 1; g.strokeRect(dx + 0.5, dy + 0.5, 31, 31);
       return true;
     }
+    case 'j': {
+      // Gym 6: the Rutschebanen's wooden coaster track over a dark drop.
+      g.fillStyle = '#1b1622'; g.fillRect(dx, dy, 32, 32);
+      g.fillStyle = '#6b4526'; for (let i = 2; i < 32; i += 8) g.fillRect(dx + i, dy, 3, 32);
+      g.fillStyle = '#a67646'; g.fillRect(dx, dy + 9, 32, 3); g.fillRect(dx, dy + 21, 32, 3);
+      g.fillStyle = '#c9cdd4'; g.fillRect(dx, dy + 9, 32, 1); g.fillRect(dx, dy + 21, 32, 1);
+      return true;
+    }
     case 'n':
       g.fillStyle = '#7a7e84'; g.fillRect(dx, dy, 32, 32);
       g.fillStyle = '#2f4a3a'; g.fillRect(dx + 13, dy, 6, 32);
@@ -184,6 +192,12 @@ const SWITCH: Record<string, string> = { green: '#4fae5b', gold: '#e8c35a', silv
 /** Draws an `obj:*` sprite with its tile's top-left at (dx, dy). */
 export function drawObject(g: G2, kind: string, dx: number, dy: number, time: number) {
   const box = (x: number, y: number, w: number, h: number, c: string) => { g.fillStyle = c; g.fillRect(dx + x, dy + y, w, h); };
+  if (kind.startsWith('cart-')) {
+    const col = ({ red: '#c9574b', blue: '#3a6fa8', green: '#4fae5b', yellow: '#e8c35a', purple: '#8e5bb5' } as Record<string, string>)[kind.slice(5)] ?? '#888';
+    box(2, 12, 28, 14, col); box(4, 8, 24, 6, col); box(4, 10, 24, 2, 'rgba(255,255,255,0.35)');
+    g.fillStyle = '#26272c'; g.beginPath(); g.arc(dx + 8, dy + 27, 3, 0, 7); g.arc(dx + 24, dy + 27, 3, 0, 7); g.fill();
+    return;
+  }
   if (kind.startsWith('switch-')) {
     box(6, 8, 20, 22, '#3b3f4a'); box(8, 10, 16, 18, '#565b66');
     g.fillStyle = SWITCH[kind.slice(7)] ?? '#fff'; g.beginPath(); g.arc(dx + 16, dy + 19, 6, 0, 7); g.fill();
@@ -355,6 +369,32 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
       g.fillStyle = '#c9574b'; g.beginPath(); g.arc(dx + 16 + Math.cos(-a * 0.6) * 8, dy + 12 + Math.sin(-a * 0.6) * 3.3, 2, 0, 7); g.fill();
       break;
     }
+    case 'mermaid':
+      // The little statue on her rock (she really is small).
+      g.fillStyle = '#6d6a66'; g.beginPath(); g.ellipse(dx + 16, dy + 26, 13, 6, 0, 0, 7); g.fill();
+      box(13, 12, 7, 12, '#4f7d6a'); box(11, 20, 12, 4, '#4f7d6a');
+      g.fillStyle = '#5f9580'; g.beginPath(); g.arc(dx + 17, dy + 9, 4, 0, 7); g.fill();
+      if ((time >> 4) % 6 === 0) { g.fillStyle = 'rgba(159,216,255,0.7)'; g.beginPath(); g.arc(dx + 16, dy + 17, 2, 0, 7); g.fill(); }
+      break;
+    case 'train':
+      box(0, 6, 32, 20, '#b8323a'); box(2, 9, 28, 7, '#dfe8f0'); box(0, 26, 32, 3, '#26272c');
+      for (let i = 3; i < 30; i += 9) box(i, 10, 6, 5, '#5f8fc4');
+      box(12, 18, 8, 8, '#8a2027'); break;
+    case 'card': {
+      // One of Pierrot's playing cards, a little harlequin diamond on it.
+      g.save(); g.translate(dx + 16, dy + 20); g.rotate(-0.2 + Math.sin(time / 30) * 0.05);
+      g.fillStyle = '#fbf7ee'; g.fillRect(-7, -9, 14, 18); g.strokeStyle = '#26272c'; g.lineWidth = 1; g.strokeRect(-7, -9, 14, 18);
+      g.fillStyle = '#c9574b'; g.beginPath(); g.moveTo(0, -5); g.lineTo(4, 0); g.lineTo(0, 5); g.lineTo(-4, 0); g.fill();
+      g.restore(); break;
+    }
+    case 'mirror':
+      box(4, 1, 24, 30, '#c9a24a'); box(6, 3, 20, 26, '#b8d4e8');
+      g.fillStyle = 'rgba(255,255,255,0.45)'; g.beginPath(); g.moveTo(dx + 8, dy + 26); g.lineTo(dx + 18, dy + 5); g.lineTo(dx + 22, dy + 5); g.lineTo(dx + 12, dy + 26); g.fill();
+      break;
+    case 'terminal':
+      box(4, 4, 24, 26, '#3b3f4a'); box(7, 7, 18, 11, (time >> 4) % 2 ? '#1d6fb8' : '#2a7fcc');
+      g.fillStyle = '#fff'; g.font = 'bold 6px sans-serif'; g.fillText('VG', dx + 12, dy + 15);
+      for (let i = 0; i < 3; i++) box(8 + i * 6, 21, 4, 4, ['#c9574b', '#e8c35a', '#4fae5b'][i]); break;
     default: box(8, 8, 16, 16, '#d0f');
   }
 }
@@ -403,6 +443,38 @@ export function drawBuildingArt(g: G2, kind: string, w: number, h: number) {
     g.strokeStyle = '#6f7f88'; g.lineWidth = 1;
     for (let i = 1; i < 4; i++) { const y = 4 + i * (H - 10) / 4; g.beginPath(); g.moveTo(W / 2 - (y - 4) * (W / 2 - 4) / (H - 10), y); g.lineTo(W / 2 + (y - 4) * (W / 2 - 4) / (H - 10), y); g.stroke(); }
     g.fillStyle = '#26323a'; g.fillRect(W / 2 - 9, H - 26, 18, 20);
+    return;
+  }
+  if (kind === 'kastellet') {
+    // Kastellet's gate: a grass rampart with a brick gatehouse and the flag.
+    g.fillStyle = '#4e9a55'; g.fillRect(0, 10, W, H - 10);
+    g.fillStyle = '#3f7f47'; g.fillRect(0, 10, W, 4);
+    g.fillStyle = '#b5523e'; g.fillRect(W / 2 - 26, 18, 52, H - 18);
+    g.fillStyle = '#e8e2d6'; g.fillRect(W / 2 - 26, 18, 52, 4);
+    g.fillStyle = '#2a1c16'; g.beginPath(); g.moveTo(W / 2 - 10, H); g.lineTo(W / 2 - 10, H - 18); g.arc(W / 2, H - 18, 10, Math.PI, 0); g.lineTo(W / 2 + 10, H); g.fill();
+    g.fillStyle = '#6b4526'; g.fillRect(W / 2 - 1, 0, 2, 18);
+    g.fillStyle = '#c8102e'; g.fillRect(W / 2 + 1, 1, 14, 9); g.fillStyle = '#fff'; g.fillRect(W / 2 + 5, 1, 2, 9); g.fillRect(W / 2 + 1, 5, 14, 2);
+    return;
+  }
+  if (kind === 'substation') {
+    g.fillStyle = '#8a8d93'; g.fillRect(2, 10, W - 4, H - 10);
+    g.fillStyle = '#6c7076'; g.fillRect(2, 10, W - 4, 4);
+    g.fillStyle = '#1d6fb8'; g.fillRect(10, 20, 30, 12); g.fillStyle = '#fff'; g.font = 'bold 8px sans-serif'; g.fillText('VG D-7', 12, 29);
+    g.fillStyle = '#3b3f4a'; g.fillRect(W / 2 - 9, H - 26, 18, 26);
+    g.strokeStyle = '#e8c35a'; g.lineWidth = 2; g.beginPath(); g.moveTo(W - 22, 18); g.lineTo(W - 28, 28); g.lineTo(W - 20, 28); g.lineTo(W - 26, 38); g.stroke();
+    return;
+  }
+  if (kind === 'circus') {
+    // Pierrot's tent: red and cream stripes, a pennant, the dark doorway.
+    const stripes = 8;
+    for (let i = 0; i < stripes; i++) {
+      g.fillStyle = i % 2 ? '#f2e6c8' : '#c9302c';
+      g.beginPath(); g.moveTo(W / 2, 8); g.lineTo(i * W / stripes, H - 30); g.lineTo((i + 1) * W / stripes, H - 30); g.fill();
+      g.fillRect(i * W / stripes, H - 30, W / stripes, 30);
+    }
+    g.fillStyle = '#e8c35a'; g.fillRect(0, H - 32, W, 4);
+    g.fillStyle = '#6b4526'; g.fillRect(W / 2 - 1, 0, 2, 10); g.fillStyle = '#8e5bb5'; g.beginPath(); g.moveTo(W / 2 + 1, 0); g.lineTo(W / 2 + 14, 4); g.lineTo(W / 2 + 1, 8); g.fill();
+    g.fillStyle = '#26172a'; g.fillRect(W / 2 - 12, H - 28, 24, 28);
     return;
   }
   if (kind === 'houseboat') {

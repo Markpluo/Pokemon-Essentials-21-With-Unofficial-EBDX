@@ -1,9 +1,10 @@
 // The base game, "Copper & Current", as a content pack: the demo from the Prologue in Nørrebro
-// to the end of Chapter 6 at Rundetårn. Lines live in strings/en.json (from the demo
+// to the end of Chapter 7 at Bakken. Lines live in strings/en.json (from the demo
 // script); each area's scripts live in their own file.
 import { speciesExtra, type Dir, type MapDef, type Pack, type Script } from '@hafnia/core';
 import manifest from '../pack.json';
 import strings from '../strings/en.json';
+import { BAKKEN_SCRIPTS, bakkenGate, ch7Start, langelinieGate } from './bakken';
 import { ASSISTENS_SCRIPTS, MAILBOXES, lanternGate, mailboxNpc, norrebroCh4, norrebroNorth } from './assistens';
 import { CISTERNS_SCRIPTS, ch5Start, frederiksbergGate } from './cisterns';
 import { CITY } from './city';
@@ -18,7 +19,7 @@ import { RUNDETARN_SCRIPTS, ch6Start } from './rundetarn';
 import { MAPS, STAMPS } from './world';
 
 const SCRIPTS: Record<string, MapScripts & { exitGuards?: Partial<Record<Dir, Script>> }> = {
-  ...HOME, ...LAKES, ...CITY, ...FREETOWN, ...DRAGOR_SCRIPTS, ...VESTERBRO_SCRIPTS, ...ASSISTENS_SCRIPTS, ...CISTERNS_SCRIPTS, ...RUNDETARN_SCRIPTS
+  ...HOME, ...LAKES, ...CITY, ...FREETOWN, ...DRAGOR_SCRIPTS, ...VESTERBRO_SCRIPTS, ...ASSISTENS_SCRIPTS, ...CISTERNS_SCRIPTS, ...RUNDETARN_SCRIPTS, ...BAKKEN_SCRIPTS
 };
 const homeEnter = SCRIPTS.norrebro.onEnter;
 SCRIPTS.norrebro = {
@@ -35,6 +36,13 @@ for (const id of ['frederiksberg', 'pcfrederiksberg', 'route2', 'norrebro', 'ass
   const enter = SCRIPTS[id].onEnter;
   SCRIPTS[id] = { ...SCRIPTS[id], onEnter: function* (s) { if (s.flag('ch5done')) yield* ch6Start(s); if (enter) yield* enter(s); } };
 }
+// Chapter 7 starts on the next map you enter after Rundetårn's observatory.
+for (const id of ['towerin', 'indreby', 'pcindreby', 'nyhavn', 'garden']) {
+  const enter = SCRIPTS[id].onEnter;
+  SCRIPTS[id] = { ...SCRIPTS[id], onEnter: function* (s) { if (s.flag('ch6done')) yield* ch7Start(s); if (enter) yield* enter(s); } };
+}
+SCRIPTS.nyhavn.exitGuards = { right: langelinieGate };
+SCRIPTS.dyrehaven.exitGuards = { up: bakkenGate };
 SCRIPTS.assistens.exitGuards = { up: lanternGate };
 SCRIPTS.route2.exitGuards = { up: frederiksbergGate };
 SCRIPTS.vesterbro = { ...SCRIPTS.vesterbro, doors: { ...SCRIPTS.vesterbro.doors, bakery: function* (s) { s.warp('bakery', 5, 4, 'up'); } } };
