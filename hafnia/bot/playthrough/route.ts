@@ -12,7 +12,7 @@ type P = Player;
 const HEALERS: [string, number, number, string][] = [
   ['flat', 6, 2, 'starter'], ['pcnorrebro', 2, 2, 'starter'], ['pcindreby', 2, 2, 'c2'], ['pcchristianshavn', 2, 2, 'chrMaja'],
   ['pcvesterbro', 2, 2, 'vbArrive'], ['pcfrederiksberg', 2, 2, 'ch5met'],
-  ['pcosterbro', 2, 2, 'c7met'], ['pcbakken', 2, 2, 'bakkenSeen']
+  ['pcosterbro', 2, 2, 'c7met'], ['pcbakken', 2, 2, 'bakkenSeen'], ['trekroner', 12, 21, 'c8land']
 ];
 
 /** Walks to the nearest open Pokémon Center (or Mum) and heals. */
@@ -252,4 +252,24 @@ export function chapter7(p: P) {
     p.talkTo(10, 1);
   });
   goal(p, 'Maja after the show', () => !!p.flag('ch7done'), () => goto(p, 'bakken'));
+}
+
+// ---------- Chapter 8: Trekroner ----------
+
+export function chapter8(p: P) {
+  grindMaps = ['dyrehaven', 'route8', 'osterbro', 'trekroner'];
+  // Pierrot's charts: behind the breakwater, engines off, the south landing.
+  p.answers.push({ when: /Which way/, pick: 'Behind' }, { when: /Speed or silence/, pick: 'Cut' }, { when: /Where do we land/, pick: /south/ });
+  if (p.mapId === 'gym6' && p.s.y <= 9) p.talkTo(12, 1);    // the yellow car down from Pierrot's stage
+  goal(p, 'the chapter opens', () => !!p.flag('ch8'), () => goto(p, 'bakken'));
+  shopAndHeal(p, 'pcbakken');
+  goal(p, 'the briefing', () => !!p.flag('c8brief'), () => goto(p, 'fleetboat'));
+  goal(p, 'the hydrofoil run', () => !!p.flag('c8land'), () => { goto(p, 'fleetboat'); p.talkTo(5, 1); });
+  goal(p, 'Maja is caught', () => !!p.flag('c8alarm'), () => { goto(p, 'trekroner'); p.walkTo(13, 14); });
+  goal(p, 'the battery keys', () => !!p.flag('keysTaken'), () => { goto(p, 'tklighthouse'); p.talkTo(4, 3); });
+  goal(p, 'the old photograph', () => !!p.flag('photoSeen'), () => { goto(p, 'tklighthouse'); p.talkTo(3, 1); });
+  goal(p, 'the battery corridor', () => !!p.flag('c8corridor'), () => { goto(p, 'battery'); p.walkTo(9, 6); });
+  goal(p, 'Maja', () => !!p.flag('mayaFree'), () => { goto(p, 'battery'); p.talkTo(10, 3); });
+  goal(p, 'the siphon chamber', () => !!p.flag('c8chamber'), () => { goto(p, 'siphon'); p.walkTo(8, 6); });
+  goal(p, 'Kaas', () => !!p.flag('ch8done'), () => { goto(p, 'siphon'); p.talkTo(8, 3); });
 }

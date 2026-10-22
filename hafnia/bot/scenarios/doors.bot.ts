@@ -1,5 +1,5 @@
 // Every building with a door can be walked into (Mark: "every building with a door is enterable").
-// Gyms, the Cisterns pyramid and the Dyrehaven substation may be locked until the story opens them, and Vuggestuen (Dragør nursery) is served at the
+// Gyms, the Cisterns pyramid, the Dyrehaven substation and the Trekroner battery and siphon doors may be locked until the story opens them, and Vuggestuen (Dragør nursery) is served at the
 // door for now; those must at least say something.
 import { test, expect } from '../lib/bot';
 import { afterStarter, tweak } from '../lib/saves';
@@ -21,7 +21,7 @@ test('every door leads inside, or says why it is locked @doors', async ({ bot })
     out.push(`${map}/${building}: ${inside ? s.map : 'locked'}`);
     if (inside) await bot.shot(`${map}-${building}-inside`);
     else expect(bot.said.length, `${map}/${building} neither opens nor says anything`).toBeGreaterThan(before);
-    if (!/gym|vuggestuen|cisterns|substation/.test(building)) expect(inside, `${map}/${building} does not open`).toBe(true);
+    if (!/gym|vuggestuen|cisterns|substation|battery|siphon/.test(building)) expect(inside, `${map}/${building} does not open`).toBe(true);
   }
   console.log(out.join('\n'));
 });

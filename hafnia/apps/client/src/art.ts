@@ -395,6 +395,23 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
       box(4, 4, 24, 26, '#3b3f4a'); box(7, 7, 18, 11, (time >> 4) % 2 ? '#1d6fb8' : '#2a7fcc');
       g.fillStyle = '#fff'; g.font = 'bold 6px sans-serif'; g.fillText('VG', dx + 12, dy + 15);
       for (let i = 0; i < 3; i++) box(8 + i * 6, 21, 4, 4, ['#c9574b', '#e8c35a', '#4fae5b'][i]); break;
+    case 'photo':
+      // The old photograph on the lighthouse wall: two sailors on a jetty, sepia.
+      box(7, 6, 18, 16, '#6b4526'); box(9, 8, 14, 12, '#d8c39a'); box(9, 16, 14, 4, '#a68a5c');
+      box(12, 10, 3, 6, '#5a4630'); box(17, 10, 3, 6, '#5a4630'); break;
+    case 'logbook': box(6, 14, 20, 14, '#6b4526'); box(8, 10, 16, 8, '#7a2f2a'); box(9, 11, 14, 6, '#f2e6c8'); box(15, 11, 1, 6, '#7a2f2a'); break;
+    case 'keyring': {
+      g.strokeStyle = '#8a8d93'; g.lineWidth = 2; g.beginPath(); g.arc(dx + 16, dy + 12, 6, 0, 7); g.stroke();
+      for (const [x, r] of [[10, 0.3], [16, 0], [22, -0.3]] as const) { g.save(); g.translate(dx + x, dy + 18); g.rotate(r); g.fillStyle = '#b08a3a'; g.fillRect(-1, 0, 3, 10); g.fillRect(-1, 7, 5, 2); g.restore(); }
+      break;
+    }
+    case 'viewport': {
+      // A thick window into the deep water below the fort. Something vast and grey is down there.
+      box(0, 2, 32, 28, '#3b3f4a'); box(3, 5, 26, 22, '#0d2236');
+      g.fillStyle = `rgba(80,140,190,${0.25 + 0.1 * Math.sin(time / 40)})`; g.fillRect(dx + 3, dy + 5, 26, 22);
+      g.fillStyle = '#6f7880'; g.beginPath(); g.ellipse(dx + 16, dy + 24, 11, 6, 0, Math.PI, 0); g.fill();
+      break;
+    }
     default: box(8, 8, 16, 16, '#d0f');
   }
 }
@@ -475,6 +492,34 @@ export function drawBuildingArt(g: G2, kind: string, w: number, h: number) {
     g.fillStyle = '#e8c35a'; g.fillRect(0, H - 32, W, 4);
     g.fillStyle = '#6b4526'; g.fillRect(W / 2 - 1, 0, 2, 10); g.fillStyle = '#8e5bb5'; g.beginPath(); g.moveTo(W / 2 + 1, 0); g.lineTo(W / 2 + 14, 4); g.lineTo(W / 2 + 1, 8); g.fill();
     g.fillStyle = '#26172a'; g.fillRect(W / 2 - 12, H - 28, 24, 28);
+    return;
+  }
+  if (kind === 'lighthouse') {
+    // Trekroner's lighthouse: white tower, red band, a dark lamp room.
+    g.fillStyle = '#e8e6e0'; g.fillRect(20, 30, W - 40, H - 30);
+    g.fillStyle = '#b8323a'; g.fillRect(20, 70, W - 40, 12);
+    g.fillStyle = '#3b3f4a'; g.fillRect(16, 26, W - 32, 6);
+    g.fillStyle = '#26323a'; g.fillRect(24, 8, W - 48, 18);
+    g.fillStyle = '#565b66'; g.beginPath(); g.moveTo(20, 8); g.lineTo(W / 2, 0); g.lineTo(W - 20, 8); g.fill();
+    g.fillStyle = '#3b2a22'; g.fillRect(W / 2 - 9, H - 24, 18, 24);
+    return;
+  }
+  if (kind === 'bunker') {
+    // The old gun battery: a grassed-over earth mound with a stone mouth and an iron door.
+    g.fillStyle = '#4e7a55'; g.beginPath(); g.moveTo(0, H); g.lineTo(10, 14); g.lineTo(W - 10, 14); g.lineTo(W, H); g.fill();
+    g.fillStyle = '#9b958a'; g.fillRect(W / 2 - 30, 30, 60, H - 30);
+    g.fillStyle = '#4a4e54'; g.fillRect(W / 2 - 12, H - 30, 24, 30);
+    g.fillStyle = '#6b6f75'; for (let y = H - 26; y < H; y += 6) g.fillRect(W / 2 - 12, y, 24, 1);
+    return;
+  }
+  if (kind === 'fortgate') {
+    // Vanguard's steel door set into the old brick of the inner fort.
+    g.fillStyle = '#9b4a36'; g.fillRect(0, 6, W, H - 6);
+    g.fillStyle = '#86402f'; for (let y = 12; y < H; y += 8) g.fillRect(0, y, W, 1);
+    g.fillStyle = '#8a8d93'; g.fillRect(W / 2 - 18, 26, 36, H - 26);
+    g.fillStyle = '#6c7076'; g.fillRect(W / 2 - 1, 26, 2, H - 26);
+    g.fillStyle = '#1d6fb8'; g.fillRect(W / 2 - 40, 14, 30, 10); g.fillStyle = '#fff'; g.font = 'bold 7px sans-serif'; g.fillText('VANGUARD', W / 2 - 39, 22);
+    g.fillStyle = '#d9473a'; g.fillRect(W / 2 + 22, 40, 6, 8);
     return;
   }
   if (kind === 'houseboat') {
