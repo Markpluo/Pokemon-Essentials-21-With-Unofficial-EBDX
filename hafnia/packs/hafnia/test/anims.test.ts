@@ -1,8 +1,11 @@
 // The pack's battle animations must use known steps, presets and shapes, and name real moves.
 import { describe, expect, it } from 'vitest';
 import { Dex } from '@pkmn/sim';
-import { checkTimeline, type AnimPack } from '@hafnia/core';
+import { Content, checkTimeline, type AnimPack } from '@hafnia/core';
 import anims from '../anims.json';
+import { hafnia } from '../src';
+
+new Content([hafnia]);   // the pack's own moves (Siren's Requiem) join the dex
 
 describe('battle animations', () => {
   const pack = anims as AnimPack;

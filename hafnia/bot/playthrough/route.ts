@@ -13,7 +13,9 @@ const HEALERS: [string, number, number, string][] = [
   ['flat', 6, 2, 'starter'], ['pcnorrebro', 2, 2, 'starter'], ['pcindreby', 2, 2, 'c2'], ['pcchristianshavn', 2, 2, 'chrMaja'],
   ['pcvesterbro', 2, 2, 'vbArrive'], ['pcfrederiksberg', 2, 2, 'ch5met'],
   ['pcosterbro', 2, 2, 'c7met'], ['pcbakken', 2, 2, 'bakkenSeen'], ['trekroner', 12, 21, 'c8land'], ['pcslotsholmen', 2, 2, 'c9arrive'],
-  ['shipyards', 2, 4, 'c10arrive'], ['pccopenhill', 2, 2, 'c10hill']
+  ['shipyards', 2, 4, 'c10arrive'], ['pccopenhill', 2, 2, 'c10hill'],
+  ['floodnyhavn', 1, 10, 'ch11'], ['metro', 1, 8, 'c11metro'], ['pchelsingor', 2, 2, 'c11ruins'],
+  ['stormhill', 3, 22, 'ch12'], ['leaguehall', 3, 1, 'ch13']
 ];
 
 /** Walks to the nearest open Pokémon Center (or Mum) and heals. */
@@ -32,7 +34,8 @@ let grindMaps: string[] = ['route1'];
 export function train(p: P, level: number, why: string) {
   // Like a player: train towards the foe's level, but not past the soft cap (Exp is a trickle beyond it),
   // and bring the rest of the team along to within two levels.
-  const cap = p.game.content.rules.levelCaps[p.s.badges.length] ?? Infinity;
+  const rules = p.game.content.rules;
+  const cap = rules.levelCaps[p.s.badges.length + (rules.capFlags ?? []).filter(f => p.s.flags[f]).length] ?? Infinity;
   level = Math.min(level, cap);
   const ok = () => p.leadLevel >= level && p.minLevel >= level - 2;
   const before = `${p.minLevel}-${p.leadLevel}`;
@@ -321,4 +324,53 @@ export function chapter10(p: P) {
   goal(p, 'the summit lift', () => !!p.flag('liftOn'), () => { goto(p, 'gym8'); p.talkTo(14, 8); });
   goal(p, 'Astrid', () => !!p.flag('turbine'), () => { goto(p, 'gym8'); p.walkTo(9, 3); p.talkTo(9, 2); });
   goal(p, 'the broadcast', () => !!p.flag('ch10done'), () => goto(p, 'copenhill'));
+}
+
+export function chapter11(p: P) {
+  grindMaps = ['metro', 'ruins', 'helsingor'];
+  // the Mermaid cutscene carries the player off the quay mid-walk
+  goal(p, 'the chapter opens', () => !!p.flag('ch11'), () => { try { goto(p, 'eastquay'); } catch (e) { if (!p.flag('ch11')) throw e; } });
+  goal(p, 'Fru Jensen', () => !!p.flag('resJensen'), () => { goto(p, 'floodnyhavn'); p.talkTo(3, 3); });
+  goal(p, 'the pølse man', () => !!p.flag('resPolse'), () => { goto(p, 'floodnyhavn'); p.talkTo(13, 6); });
+  goal(p, 'Captain Bodil', () => !!p.flag('resBodil'), () => { goto(p, 'floodnyhavn'); p.talkTo(22, 3); });
+  goal(p, 'the M-Ring', () => !!p.flag('c11metro'), () => goto(p, 'metro'));
+  goal(p, "Maja's broadcast", () => !!p.flag('c11broadcast'), () => goto(p, 'slotsholmen'));
+  // Absalon's ruins: each plaque is a gym (the Spray, the Lantern walk, the Rundetårn orrery, the turbines)
+  ([[4, 'Spray'], [8, 'Lantern'], [12, 'Orrery'], [16, 'Turbine']] as const).forEach(([x, badge], i) =>
+    goal(p, `the ${badge} door`, () => !!p.flag(`ruinsDoor${i}`), () => { goto(p, 'ruins'); p.queue.push(badge); p.talkTo(x, 2); }));
+  goal(p, "Absalon's altar", () => !!p.flag('c11ruins'), () => { goto(p, 'ruins'); p.talkTo(18, 1); });
+  shopAndHeal(p, 'pchelsingor');
+  goal(p, 'Kaas in the casemates', () => !!p.flag('c11kaas'), () => { goto(p, 'casemates'); p.walkTo(14, 8); });
+  goal(p, 'Holger Danske', () => !!p.flag('ch11done'), () => { goto(p, 'casemates'); p.talkTo(16, 1); });
+}
+
+export function chapter12(p: P) {
+  grindMaps = ['copenhill', 'helsingor'];
+  // The last train south leaves as you step out of Kronborg (no healing first: the way to a Center is through it).
+  if (!p.flag('ch12')) try { goto(p, 'helsingor'); } catch (e) { if (!p.flag('ch12')) throw e; }
+  // Kronvakt breaks the three walls of black ice on the switchbacks
+  for (const [id, y] of [['A', 18], ['B', 12], ['C', 6]] as const)
+    goal(p, `the ice wall ${id}`, () => !!p.flag(`c12ice${id}`), () => { goto(p, 'stormhill'); p.talkTo(1, y); });
+  goal(p, 'the lift, with Lukas', () => !!p.flag('c12lift'), () => { goto(p, 'stormhill'); p.walkTo(7, 2); });
+  shopAndHeal(p, 'pccopenhill');
+  goal(p, 'Lindholm on the Smokestack Ring', () => !!p.flag('c12song'), () => goto(p, 'smokestack'));
+  // A player brings a bag of Ultra Balls for a legend.
+  if ((p.s.bag.ultraball ?? 0) < 15) { goto(p, 'pccopenhill'); p.buy([['Ultra Ball', 10], ['Ultra Ball', 10]]); }
+  p.wanted.add('langelira');
+  goal(p, 'Langelira', () => !!p.flag('ch12done'), () => {
+    for (let i = 0; i < 4 && !p.flag('ch12done'); i++) {    // knocked out by mistake: she rises again
+      if ((p.s.bag.ultraball ?? 0) < 5) { goto(p, 'pccopenhill'); p.buy([['Ultra Ball', 10]]); }
+      goto(p, 'smokestack'); p.talkTo(12, 1);
+    }
+  });
+}
+
+export function chapter13(p: P) {
+  grindMaps = ['helsingor', 'copenhill'];
+  // The dark night starts on the way down from the Ring and ends at home.
+  if (!p.flag('ch13')) try { goto(p, 'copenhill'); } catch (e) { if (!p.flag('ch13')) throw e; }
+  shopAndHeal(p, 'pcslotsholmen');
+  for (const [m, map] of [['valdemar', 'stables'], ['clara', 'admiral'], ['nikolai', 'greathall'], ['freja', 'towerstairs']] as const)
+    goal(p, `Elite Four ${m}`, () => !!p.flag(`e4${m}`), () => { goto(p, map); p.talkTo(5, 2); });
+  goal(p, 'the Champions', () => !!p.flag('ch13done'), () => goto(p, 'towerroof'));
 }

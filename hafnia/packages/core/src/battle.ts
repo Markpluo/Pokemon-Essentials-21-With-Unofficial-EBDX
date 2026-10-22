@@ -40,6 +40,8 @@ export interface BattleHost {
   readonly playerName: string;
   readonly rules: Rules;
   readonly badges: number;
+  /** Which level cap applies: the badge count plus any story steps past the last badge (rules.capFlags). */
+  readonly capStep?: number;
   readonly coil: CoilUnlocks;
   emit(ev: ServerEvent): void;
   /** Takes the whiteout money and returns how much was lost. */
@@ -626,14 +628,16 @@ export class BattleSession {
     const active = this.sim.p1.active[0];
     const team = this.sim.p1.pokemon.filter(p => !p.fainted && p.hp > 0 && this.monOf(p)!.level < 100);
     team.sort((x, y) => Number(y === active) - Number(x === active));
-    const rules = this.host.rules, cap = rules.levelCaps[this.host.badges] ?? Infinity;
+    const rules = this.host.rules, cap = rules.levelCaps[this.host.capStep ?? this.host.badges] ?? Infinity;
     let sharedSaid = false;
     for (const p of team) {
       const m = this.monOf(p)!, Lp = m.level;
       const full = (b * L / 5) * trainer * ((2 * L + 10) / (L + Lp + 10)) ** 2.5 + 1;
       const amount = Math.max(1, Math.floor(full * (p === active ? 1 : rules.benchExp) * (Lp >= cap ? rules.overCapExp : 1)));
       if (p === active) this.ev({ b: 'text', text: `${p.name} gained ${amount} Exp. Points!` });
-      if (p === active && Lp >= cap && !this.capSaid) { this.capSaid = true; this.ev({ b: 'text', text: `${p.name} is already a match for the next Gym\nLeader, so it learns less from battles now.` }); }
+      if (p === active && Lp >= cap && !this.capSaid) { this.capSaid = true; this.ev({ b: 'text', text: (this.host.capStep ?? this.host.badges) >= 8
+        ? `${p.name} is already a match for the League,\nso it learns less from battles now.`
+        : `${p.name} is already a match for the next Gym\nLeader, so it learns less from battles now.` }); }
       else if (!sharedSaid) { sharedSaid = true; this.ev({ b: 'text', text: 'The rest of your team gained Exp. Points\nthanks to the Exp. Share!' }); }
       const steps = gainExp(m, amount);
       for (const step of steps) {

@@ -34,6 +34,7 @@ export const THEMES: Record<string, Theme> = {
   boat: T({ floor: 'planks', f1: '#a57e50', f2: '#8e6a42', wall: 'panel', w1: '#2e5f6e', w2: '#244c58', skirt: '#1f4450', back: '#16323a', rug: '#b8433a', rug2: '#f2efe6', cloth: '#7d7f86', top: '#8e6a42' }),
   stone: T({ floor: 'stone', f1: '#8f877b', f2: '#7a7368', wall: 'stone', w1: '#9b958a', w2: '#7f796f', skirt: '#6b665e', back: '#3d3936', rug: '#6b4526', rug2: '#a67646', cloth: '#6b4526', top: '#6b4526' }),
   borsen: T({ floor: 'check', f1: '#e8e2d6', f2: '#3b3f4a', wall: 'panel', w1: '#3f6b5a', w2: '#2f5446', skirt: '#c9a24a', back: '#1f3a30', rug: '#8e3a34', rug2: '#c9a24a', cloth: '#8e3a34', top: '#6b4526' }),
+  palace: T({ floor: 'wood', f1: '#b07a45', f2: '#9a6a3a', wall: 'panel', w1: '#8e2f34', w2: '#76262b', skirt: '#c9a24a', back: '#3a1a1c', rug: '#8e2f34', rug2: '#c9a24a', cloth: '#8e2f34', top: '#c9a24a' }),
   vault: T({ floor: 'check', f1: '#d8c08a', f2: '#6b5a3a', wall: 'stone', w1: '#7a6a52', w2: '#665842', skirt: '#c9a24a', back: '#3a3024', rug: '#8e3a34', rug2: '#c9a24a', cloth: '#8e3a34', top: '#c9a24a' }),
   palm: T({ floor: 'stone', f1: '#cfc6b4', f2: '#bdb3a0', wall: 'glass', w1: '#a9dce0', w2: '#f3f1e8', skirt: '#9b958a', back: '#4b5a6b', rug: '#4e9a55', rug2: '#cfc6b4', cloth: '#4e9a55', top: '#cfc6b4' })
 };

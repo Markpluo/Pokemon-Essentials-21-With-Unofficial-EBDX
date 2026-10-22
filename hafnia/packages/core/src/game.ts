@@ -716,6 +716,7 @@ export class Game {
     return {
       rng: g.rng, party: g.state.party.filter(m => !m.egg), bag: g.state.bag, playerName: g.state.name,
       rules: g.content.rules, badges: g.state.badges.length, coil: g.state.coil,
+      capStep: g.state.badges.length + (g.content.rules.capFlags ?? []).filter(f => g.state.flags[f]).length,
       whiteout: () => {
         const rules = g.content.rules, top = Math.max(1, ...g.state.party.map(m => m.level));
         const loss = Math.min(g.state.money, rules.whiteoutBase[Math.min(g.state.badges.length, rules.whiteoutBase.length - 1)] * top);

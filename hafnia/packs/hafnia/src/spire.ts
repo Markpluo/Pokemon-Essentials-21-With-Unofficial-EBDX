@@ -58,7 +58,7 @@ const SLOTSHOLMEN: MapScripts = {
     { id: 'lukas9a', sprite: 'chars/lukas', x: 22, y: 10, dir: 'down', hidden: true },
     sign('slsign', 24, 8, 'obj:sign', 'c9.sl.sign'),
     sign('slscaffold', 13, 6, 'obj:sign', 'c9.sl.scaffold'),
-    sign('slpalace', 6, 6, 'obj:sign', 'c9.sl.palace'),
+    sign('slpalace', 4, 6, 'obj:sign', 'c9.sl.palace'),
     { id: 'slvan', sprite: 'obj:container', x: 16, y: 7, dir: 'down', object: true, talk: talk('c9.sl.van') },
     { id: 'slcrowd', sprite: 'chars/oldwoman', x: 9, y: 9, dir: 'right', talk: talk('c9.sl.crowd') },
     { id: 'slguard', sprite: 'chars/guard', x: 3, y: 7, dir: 'down', talk: talk('c9.sl.guard') },

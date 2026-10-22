@@ -81,11 +81,26 @@ const STEPS: [string, string][] = [
   ['liftOn', 'Get the summit lift running at CopenHill.'],
   ['turbine', 'Challenge Astrid in the Turbine Hall.'],
   ['ch10done', 'Watch Lindholm\'s broadcast.'],
+  ['ch11', 'Head west from CopenHill into the city.'],
+  ['c11broadcast', 'Help the people stranded in flooded Nyhavn,\nthen ride the M-Ring to Slotsholmen.'],
+  ['c11kaas', 'Open Absalon\'s ruins under Slotsholmen and\ngo north to Kronborg.'],
+  ['kronvakt', 'Wake Holger Danske in the casemates.'],
+  ['ch12', 'Leave Kronborg on the last train south.'],
+  ['c12iceC', 'Climb CopenHill in the storm. Kronvakt can\nbreak the black ice.'],
+  ['c12lift', 'Get past the Enforcer captains with Lukas.'],
+  ['c12song', 'Stop Lindholm on the Smokestack Ring.'],
+  ['ch12done', 'Langelira is waiting on the Ring.'],
+  ['ch13', 'Go down from the Ring and head home.'],
+  ['e4valdemar', 'Take on the League at Christiansborg on\nSlotsholmen.'],
+  ['e4clara', 'Challenge Clara in the Admiral\'s Hall.'],
+  ['e4nikolai', 'Challenge Nikolai in the Great Hall.'],
+  ['e4freja', 'Challenge Freja on the Tower Stairs.'],
+  ['champion', 'Face the Champions on the Christiansborg\nTower roof.'],
 ];
 
 export function goal(f: FlagReader): string | null {
   if (!f('mumTalked')) return null;
   let next = STEPS.length;
   while (next > 0 && !f(STEPS[next - 1][0])) next--;
-  return next < STEPS.length ? STEPS[next][1] : 'The story continues in Chapter 11.';
+  return next < STEPS.length ? STEPS[next][1] : 'You are the Champion! Explore the city and\nfill the Pokédex.';
 }

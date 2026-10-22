@@ -31,6 +31,8 @@ describe('current goal', () => {
     expect(goal(f)).toMatch(/Palm House/);
     flags.add('ch3done'); expect(goal(f)).toMatch(/home to Nørrebro/);
     flags.add('ch9done'); expect(goal(f)).toMatch(/Brix/);
-    flags.add('ch10done'); expect(goal(f)).toMatch(/Chapter 11/);
+    flags.add('ch10done'); expect(goal(f)).toMatch(/west from CopenHill/);
+    flags.add('e4freja'); expect(goal(f)).toMatch(/Tower roof/);
+    flags.add('champion'); expect(goal(f)).toMatch(/Champion/);
   });
 });

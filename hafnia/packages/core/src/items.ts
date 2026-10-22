@@ -71,6 +71,8 @@ export const ITEMS: Record<string, ItemDef> = {
   shutdownseq: { name: 'Shutdown Sequence', pocket: 'key', price: 0, desc: 'Dr. Brix\'s notes for shutting down the Bifrost Reactor. "It needs a voice to close the circuit. Literally."' },
   torquegears: { name: 'High-Torque Gears', pocket: 'key', price: 0, desc: 'Astrid\'s gear set for the Cargo-Bike. Low enough to climb a ski slope in a storm.' },
   overloaddata: { name: 'Overload Data', pocket: 'key', price: 0, desc: 'Astrid\'s readings: the Grid puts out three times what every turbine in Hafnia could make.' },
+  kronkey: { name: 'Kronvakt\'s Key', pocket: 'key', price: 0, desc: 'A granite key from Absalon\'s altar, warm when the eight badges are near. It wakes the Sleeper beneath Kronborg.' },
+  pactsong: { name: 'The Pact Song', pocket: 'key', price: 0, desc: 'The old Dragør melody, copied from Freja\'s grandfather\'s log. The Pact is sung, not signed.' },
   tmdazzlinggleam: { name: 'TM Dazzling Gleam', pocket: 'tms', price: 0, tm: 'dazzlinggleam', desc: 'Teaches Dazzling Gleam. Can be used again and again.' },
   ledgercopy: { name: 'Andersen\'s Ledger', pocket: 'key', price: 0, desc: 'A copy of the Pact ledger from the Sunken Archive, in H.C. Andersen\'s hand.' },
   bike: { name: 'Rotom Cargo-Bike', pocket: 'key', price: 0, desc: 'Ørsted\'s prototype. Ride it from the menu outdoors.' },

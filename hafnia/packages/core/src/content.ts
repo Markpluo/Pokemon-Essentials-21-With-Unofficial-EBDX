@@ -88,6 +88,8 @@ export interface Rules {
   benchExp: number;
   /** Soft level caps by badge count (the next leader's ace): Pokémon at or above it get `overCapExp` of the Exp. */
   levelCaps: number[];
+  /** Story flags ("pack:flag") that each move the cap one step on, for the story past the last badge (the League). */
+  capFlags?: string[];
   overCapExp: number;
   coil: CoilRules;
 }
@@ -109,6 +111,8 @@ export interface PackManifest {
   /** Regional Pokédex order (defaults to `species`); level evolutions are slotted in after each. */
   dex?: string[];
   images: Record<string, string>;   // asset key -> path inside the Essentials repo
+  /** Sprites and cries for the pack's own Pokémon, by key (LANGELIRA); "pack:" paths are inside the pack. */
+  pokemon?: Record<string, { front: string; back: string; icons: string; cry: string }>;
   audio: Record<string, string>;
 }
 

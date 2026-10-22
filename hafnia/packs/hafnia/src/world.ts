@@ -1,4 +1,4 @@
-// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 10). Plain data,
+// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 13). Plain data,
 // so the client can import it for rendering without the scripts.
 // Outdoor tiles: '.' ground, '=' brick path, 'g' tall grass, 'f' flowers, 'T' trees, '~' sea, 'o' still water,
 //   'r' Den Røde Plads, 'k' Den Sorte Plads, 'q' cobbles, 'a' asphalt/concrete, 'l' bike lane, 'd' planks,
@@ -32,8 +32,9 @@ export const STAMPS: Record<string, Stamp> = {
   bunker: { draw: 'bunker', w: 5, h: 3, door: [2, 2] },        // the old gun battery, cells below
   fortgate: { draw: 'fortgate', w: 6, h: 3, door: [3, 2] },    // Vanguard's steel door into the fort
   borsen: { draw: 'borsen', w: 10, h: 4, door: [5, 3] },       // Børsen under scaffolding, the dragon spire's stump
-  palace: { draw: 'palace', w: 9, h: 5 },                     // Christiansborg
+  palace: { draw: 'palace', w: 9, h: 5, door: [4, 4] },       // Christiansborg (the League opens in Chapter 13)
   copenhill: { draw: 'copenhill', w: 12, h: 6, door: [6, 5] }, // Amager Bakke: the power plant with the ski slope on its roof
+  kronborg: { draw: 'kronborg', w: 10, h: 6, door: [5, 5] },   // Kronborg: sandstone walls, green spires, the casemates gate
   coldstores: { draw: 'coldStores', w: 7, h: 5, door: [3, 4] }, // Gym 3: Kødbyen's white-tiled cold store with the loading bay
   brick: { draw: 'brickBlock', w: 4, h: 3, door: [1, 2] },     // a Vesterbro red-brick block with a stairwell door
   brickgate: { draw: 'brickGate', w: 4, h: 3 }                // the same block with the courtyard archway (gated)
@@ -1251,7 +1252,7 @@ function slotsholmen(): MapData {
   dots(g, 'f', [[2, 11], [10, 11], [16, 11], [23, 11]]);
   return {
     id: 'slotsholmen', name: 'Slotsholmen', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
-    buildings: [{ s: 'borsen', x: 14, y: 2, id: 'borsen' }, { s: 'palace', x: 2, y: 1 }, { s: 'pc', x: 19, y: 12, id: 'pc' }],
+    buildings: [{ s: 'borsen', x: 14, y: 2, id: 'borsen' }, { s: 'palace', x: 2, y: 1, id: 'palace' }, { s: 'pc', x: 19, y: 12, id: 'pc' }],
     encounters: [[25, 'corvisquire'], [20, 'bronzor'], [20, 'magneton'], [15, 'pawniard'], [10, 'cufant'], [10, 'skarmory']],
     encountersNight: [[30, 'bronzor'], [25, 'murkrow'], [20, 'magneton'], [15, 'pawniard'], [10, 'noibat']],
     levels: [40, 43],
@@ -1391,6 +1392,7 @@ function copenhill(): MapData {
   fill(g, 0, 10, 1, 2, '=');                  // the quay road west to the shipyards
   fill(g, 1, 10, 26, 2, '=');
   fill(g, 14, 7, 1, 3, '=');                  // up to the plant door
+  fill(g, 23, 0, 1, 2, '=');                  // the service stair up to the ski slope (Chapter 12)
   fill(g, 2, 2, 5, 4, 'g'); fill(g, 21, 2, 5, 5, 'g'); fill(g, 3, 14, 6, 3, 'g'); fill(g, 11, 14, 5, 3, 'g');
   dots(g, 'f', [[2, 8], [9, 8], [18, 8], [25, 8]]);
   return {
@@ -1399,7 +1401,7 @@ function copenhill(): MapData {
     encounters: [[25, 'luxio'], [20, 'magneton'], [20, 'galvantula'], [15, 'kilowattrel'], [10, 'heliolisk'], [10, 'zebstrika']],
     encountersNight: [[30, 'luxio'], [25, 'crobat'], [20, 'galvantula'], [15, 'magneton'], [10, 'zebstrika']],
     levels: [44, 47],
-    exits: { left: { to: 'eastquay', offset: 5 } }
+    exits: { left: { to: 'eastquay', offset: 5 }, up: { to: 'stormhill', offset: -16 } }
   };
 }
 
@@ -1422,6 +1424,283 @@ const gym8 = () => room('gym8', 'CopenHill: Turbine Hall', [
   'wwwwwwwwwwwwwwwwwww'
 ], { to: 'copenhill', x: 14, y: 7 }, { theme: 'metal' });
 
+// ---------- Chapter 11: the flood, the M-Ring, Absalon's ruins, Kronborg ----------
+
+// Nyhavn under the storm surge: rooftops and the pontoons the hydrofoil can tie up at.
+const floodnyhavn = (): MapData => ({
+  id: 'floodnyhavn', name: 'Nyhavn (flooded)', ...grid([
+    '~~~~~~~~~~~~~~~~~~~~~~~~',
+    '~HHHHH~~~~~~~~~~~~HHHHH~',
+    '~HHHHH~~~~~~~~~~~~HHHHH~',
+    '~ddddddddddd~~~~~~ddddd~',
+    '~~~~~d~~~~~d~~~~~~d~~~~~',
+    '~~~~~d~~~~~dddddddd~~~~~',
+    '~~ddddd~~~~~~d~d~~~~~~~~',
+    '~~d~~~d~~~~~~~~d~~~~~~~~',
+    '~~d~~~ddddddddddddddd~~~',
+    '~~d~~~~~~~~~~~~~~~~~d~~~',
+    '~ddddddd~~~~~~~~~dddd~~~',
+    '~~~~~~~d~~~~~~~~~d~~~~~~',
+    '~~~~~~~ddddddddddd~~~~~~',
+    '~~~~~~~~~~~~~~~~~~~~~~~~'
+  ]),
+  battleBg: 'city', bgm: 'overworld', buildings: []
+});
+
+// The M-Ring tunnels from Kongens Nytorv to Gammel Strand, dark and half flooded.
+const metro = (): MapData => ({
+  id: 'metro', name: 'M-Ring Tunnels', ...grid([
+    'RRRRRRRRRRRRRRRRRRRRRRRRRRRR',
+    'RcccccccccRRRRRRRccccccccccR',
+    'RcccccccccRRRRRRRccccccccccR',
+    'RccRRRRuuuuuuRRRRccRRRRRRccR',
+    'RccRRRRccccccRRRRccRRRRRRccR',
+    'RcccccccccccccccccccRRRRRccR',
+    'RcccccccccccccccccccRRRRRccR',
+    'RRRRRRRRccRRRRRRRRRRRRRRRccR',
+    'RccccccccccccccccccccccccccR',
+    'RccccccccccccccccccccccccccR',
+    'RRRRRRRRRRRRRRRRRRRRRRRRRRRR'
+  ]),
+  battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true, dark: true,
+  encounterTile: 'c', encounters: [[30, 'crobat'], [25, 'magneton'], [20, 'excadrill'], [15, 'boldore'], [10, 'steelix']], levels: [47, 50]
+});
+
+// Absalon's ruins under Christiansborg: four badge doors in a row, and the old bishop's altar.
+const ruins = (): MapData => ({
+  id: 'ruins', name: 'Absalon\'s Ruins', ...grid([
+    'RRRRRRRRRRRRRRRRRRRRR',
+    'RcccRcccRcccRcccRcccR',
+    'RcccccccccccccccccccR',
+    'RcccRcccRcccRcccRcccR',
+    'RcccRcccRcccRcccRcccR',
+    'RRRRRRRRRRRRRRRRRRRRR'
+  ]),
+  battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true, dark: true,
+  encounterTile: 'c', encounters: [[30, 'golett'], [25, 'bronzor'], [20, 'sableye'], [15, 'haunter'], [10, 'golurk']], levels: [48, 51]
+});
+
+// Helsingør in the storm: the station, Kronborg on its point, the Pokémon Center, and the Sound.
+function helsingor(): MapData {
+  const W = 26, H = 18, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 1, 'T'); fill(g, 0, 0, 1, H, 'T');
+  fill(g, 22, 0, 4, H, '~'); fill(g, 0, 16, W, 2, '~'); fill(g, 21, 0, 1, 16, 'n'); fill(g, 1, 15, 20, 1, 'n');
+  fill(g, 1, 7, 20, 1, '=');                   // the harbour road
+  fill(g, 15, 7, 1, 1, '=');
+  fill(g, 10, 9, 7, 3, 'g'); fill(g, 2, 2, 5, 3, 'g'); fill(g, 14, 12, 6, 2, 'g');
+  return {
+    id: 'helsingor', name: 'Helsingør', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld',
+    buildings: [{ s: 'kronborg', x: 10, y: 1, id: 'kronborg' }, { s: 'pc', x: 3, y: 9, id: 'pc' }],
+    encounters: [[25, 'pelipper'], [20, 'skarmory'], [20, 'crobat'], [15, 'kingler'], [15, 'dewgong'], [5, 'lapras']],
+    encountersNight: [[30, 'crobat'], [25, 'pelipper'], [20, 'haunter'], [15, 'dewgong'], [10, 'kingler']],
+    levels: [48, 51],
+    fishing: [[45, 'kingler'], [35, 'dewgong'], [20, 'lapras']], fishLevels: [46, 50]
+  };
+}
+
+// Kronborg's casemates: flooding corridors under the castle, and Holger Danske asleep in the hall.
+const casemates = (): MapData => ({
+  id: 'casemates', name: 'Kronborg Casemates', ...grid([
+    'RRRRRRRRRRRRRRRRRRRRRR',
+    'RRRRRRRRRRRRRccccccccR',
+    'RRRRRRRRRRRRRccccccccR',
+    'RRRRRRRRRRRRRccccccccR',
+    'RRRRRRRRRRRRRRRccRRRRR',
+    'RccccuuucccccccccccccR',
+    'RcccccccccccuuuuccccuR',
+    'RccuuuccccccuuuuccccuR',
+    'RccuuucccccccccccccccR',
+    'RcccccccccRRRRRRRRRRRR',
+    'RRRRmRRRRRRRRRRRRRRRRR'
+  ]),
+  battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true, dark: true,
+  encounterTile: 'c', encounters: [[35, 'golbat'], [25, 'haunter'], [20, 'sableye'], [20, 'golett']], levels: [48, 51],
+  warps: [{ x: 4, y: 10, to: 'helsingor', tx: 15, ty: 7, dir: 'down' }]
+});
+
+// ---------- Chapter 12: CopenHill in the storm, the Smokestack Ring ----------
+
+// The ski slope on the plant's roof, iced over: switchbacks behind railings, three walls of black ice that only
+// Kronvakt can break, and the Gym Leaders holding the Enforcers back.
+const stormhill = (): MapData => ({
+  id: 'stormhill', name: 'CopenHill Slope', ...grid([
+    'TTTTTTT==TTTTTTT',
+    'T..............T',
+    'T..............T',
+    'Tnnnnnnnnnnnnn.T',
+    'T..............T',
+    'T..............T',
+    'T.nnnnnnnnnnnnnT',
+    'T..............T',
+    'T..............T',
+    'Tnnnnnnnnnnnnn.T',
+    'T..............T',
+    'T..............T',
+    'T.nnnnnnnnnnnnnT',
+    'T..............T',
+    'T..............T',
+    'Tnnnnnnnnnnnnn.T',
+    'T..............T',
+    'T..............T',
+    'T.nnnnnnnnnnnnnT',
+    'T..............T',
+    'T..............T',
+    'T......=.......T',
+    'T......=.......T',
+    'T......=.......T',
+    'T......=.......T',
+    'TTTTTTT=TTTTTTTT'
+  ]),
+  battleBg: 'field', bgm: 'overworld', buildings: [],
+  exits: { down: { to: 'copenhill', offset: 16 }, up: { to: 'smokestack', offset: 0 } }
+});
+
+// The Smokestack Ring at the summit: a steel walkway round the stack, the reactor humming underneath.
+const smokestack = (): MapData => ({
+  id: 'smokestack', name: 'The Smokestack Ring', ...grid([
+    'nnnnnnnnnnnnnnnn',
+    'n..............n',
+    'n.....xxxx.....n',
+    'n.....xxxx.....n',
+    'n.....xxxx.....n',
+    'n..............n',
+    'n..............n',
+    'n..............n',
+    'n..............n',
+    'n..............n',
+    'n..............n',
+    'nnnnnnn..nnnnnnn'
+  ]),
+  battleBg: 'city', bgm: 'overworld', buildings: [],
+  exits: { down: { to: 'stormhill', offset: 0 } }
+});
+
+// ---------- Chapter 13: the League at Christiansborg ----------
+
+// The palace hall: the guard, the League's nurse and clerk, and the door to the first hall.
+const leaguehall = () => room('leaguehall', 'Christiansborg: League Hall', [
+  'wwwwww_wwwwww',
+  'w___________w',
+  'w_KK_____KK_w',
+  'w___________w',
+  'w___________w',
+  'w___________w',
+  'wwwwwwmwwwwww'
+], { to: 'slotsholmen', x: 6, y: 6 }, { theme: 'palace', decor: [
+  '..W.P...P.W..',
+  '......r......',
+  '..pp..r..pp..',
+  '......r......',
+  '......r......',
+  '......r......',
+  '.............'
+] });
+
+// The four halls; each one's doormat goes back to the League hall to rest.
+const stables = () => room('stables', 'The Royal Stables', [
+  'wwwww_wwwww',
+  'w_________w',
+  'w_________w',
+  'w_KK___KK_w',
+  'w_________w',
+  'w_________w',
+  'w_________w',
+  'w_________w',
+  'wwwwwmwwwww'
+], { to: 'leaguehall', x: 6, y: 1 }, { theme: 'stone', decor: [
+  '..W.P.P.W..',
+  '.....r.....',
+  '.....r.....',
+  '..XX.r.XX..',
+  '.....r.....',
+  '.....r.....',
+  '.....r.....',
+  '.....r.....',
+  '...........'
+] });
+const admiral = () => room('admiral', 'The Admiral\'s Hall', [
+  'wwwww_wwwww',
+  'w_________w',
+  'w_________w',
+  'w_KK___KK_w',
+  'w_________w',
+  'w_________w',
+  'w_________w',
+  'w_________w',
+  'wwwwwmwwwww'
+], { to: 'leaguehall', x: 6, y: 1 }, { theme: 'palace', decor: [
+  '..W.P.P.W..',
+  '.....r.....',
+  '.....r.....',
+  '..ZZ.r.ZZ..',
+  '.....r.....',
+  '.....r.....',
+  '.....r.....',
+  '.....r.....',
+  '...........'
+] });
+const greathall = () => room('greathall', 'The Great Hall', [
+  'wwwww_wwwww',
+  'w_________w',
+  'w_________w',
+  'w_KK___KK_w',
+  'w_________w',
+  'w_________w',
+  'w_________w',
+  'w_________w',
+  'wwwwwmwwwww'
+], { to: 'leaguehall', x: 6, y: 1 }, { theme: 'palace', decor: [
+  '..W.P.P.W..',
+  '.....r.....',
+  '.....r.....',
+  '..pp.r.pp..',
+  '.....r.....',
+  '.....r.....',
+  '.....r.....',
+  '.....r.....',
+  '...........'
+] });
+const towerstairs = () => room('towerstairs', 'The Tower Stairs', [
+  'wwwww_wwwww',
+  'w_________w',
+  'w_________w',
+  'w_KK___KK_w',
+  'w_________w',
+  'w_________w',
+  'w_________w',
+  'w_________w',
+  'wwwwwmwwwww'
+], { to: 'leaguehall', x: 6, y: 1 }, { theme: 'stone', decor: [
+  '..W.P.P.W..',
+  '.....r.....',
+  '.....r.....',
+  '..YY.r.YY..',
+  '.....r.....',
+  '.....r.....',
+  '.....r.....',
+  '.....r.....',
+  '...........'
+] });
+
+// The Tower roof, over the whole city: the Champions.
+const towerroof = (): MapData => ({ ...room('towerroof', 'Christiansborg Tower', [
+  'wwwwwwwwwww',
+  'w_________w',
+  'w_________w',
+  'w_________w',
+  'w_________w',
+  'w_________w',
+  'wwwwwmwwwww'
+], { to: 'towerstairs', x: 5, y: 1 }, { theme: 'stone', decor: [
+  '...........',
+  '.t.......t.',
+  '...........',
+  '.....r.....',
+  '.....r.....',
+  '.....r.....',
+  '...........'
+] }), battleBg: 'city' });
+
 export const MAPS = {
   norrebro: norrebro(), flat: flat(), lukasflat: lukasFlat(), pcnorrebro: center('pcnorrebro', 'Pokémon Center', 'norrebro', 22, 8),
   gym1: gym1(), bridge: bridge(), route1: route1(), garden: garden(), palmhouse: palmhouse(), tunnels: tunnels(),
@@ -1439,5 +1718,9 @@ export const MAPS = {
   pcbakken: center('pcbakken', 'Pokémon Center', 'bakken', 4, 8), gym6: gym6(),
   fleetboat: fleetboat(), trekroner: trekroner(), tklighthouse: tklighthouse(), battery: battery(), siphon: siphon(),
   slotsholmen: slotsholmen(), pcslotsholmen: center('pcslotsholmen', 'Pokémon Center', 'slotsholmen', 21, 17), borsen: borsenHall(), gym7: gym7(),
-  shipyards: shipyards(), eastquay: eastquay(), cranetop: cranetop(), copenhill: copenhill(), pccopenhill: center('pccopenhill', 'Pokémon Center', 'copenhill', 21, 17), gym8: gym8()
+  shipyards: shipyards(), eastquay: eastquay(), cranetop: cranetop(), copenhill: copenhill(), pccopenhill: center('pccopenhill', 'Pokémon Center', 'copenhill', 21, 17), gym8: gym8(),
+  floodnyhavn: floodnyhavn(), metro: metro(), ruins: ruins(), helsingor: helsingor(),
+  pchelsingor: center('pchelsingor', 'Pokémon Center', 'helsingor', 5, 14), casemates: casemates(),
+  stormhill: stormhill(), smokestack: smokestack(),
+  leaguehall: leaguehall(), stables: stables(), admiral: admiral(), greathall: greathall(), towerstairs: towerstairs(), towerroof: towerroof()
 };

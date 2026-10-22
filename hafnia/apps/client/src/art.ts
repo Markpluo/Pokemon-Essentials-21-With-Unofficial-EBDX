@@ -320,6 +320,15 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
       g.fillStyle = `rgba(160,200,255,${0.25 + 0.2 * Math.sin(time / 15)})`; g.beginPath(); g.arc(dx + 16, dy + 4, 5, 0, 7); g.fill(); break;
     case 'monument': box(6, 2, 20, 26, '#b9b4a6'); box(8, 4, 16, 22, '#cfcabb'); box(4, 26, 24, 5, '#8f8a7c');
       for (let i = 0; i < 4; i++) box(10, 8 + i * 4, 12 - (i % 2) * 3, 1, '#8f8a7c'); break;
+    case 'iceblock':  // a wall of black ice across the ski slope
+      box(1, 6, 30, 25, '#24384a'); box(3, 8, 26, 21, '#35546e'); box(5, 10, 8, 4, '#6f97b8'); box(17, 16, 6, 3, '#5a83a6');
+      g.fillStyle = 'rgba(220,240,255,0.55)'; g.fillRect(dx + 7, dy + 11, 3, 1); g.fillRect(dx + 19, dy + 17, 2, 1); break;
+    case 'knight':   // Holger Danske asleep on his throne, sword across his knees
+      box(3, 2, 26, 29, '#5c5850'); box(5, 4, 22, 25, '#6e6a61');
+      box(12, 4, 8, 8, '#9d9789'); box(13, 7, 6, 2, '#4a463f');
+      box(9, 12, 14, 12, '#a39d8f'); box(11, 14, 10, 2, '#8a8477');
+      box(10, 24, 5, 6, '#8f897c'); box(17, 24, 5, 6, '#8f897c');
+      box(4, 20, 24, 2, '#c4c0b6'); box(26, 19, 3, 4, '#7a6a3c'); break;
     case 'andersen': box(4, 2, 24, 26, '#6f6a60'); box(6, 4, 20, 22, '#8a8478'); box(2, 26, 28, 5, '#545049');
       g.fillStyle = '#d8c89a'; g.font = '6px monospace'; g.fillText('H.C.A.', dx + 7, dy + 14); break;
     case 'lantern': case 'lanternout': {
@@ -576,6 +585,19 @@ export function drawBuildingArt(g: G2, kind: string, w: number, h: number) {
     for (let x = 20; x < W - 20; x += 44) { g.fillStyle = '#3b4a5a'; g.fillRect(x, 92, 22, 30); }
     g.fillStyle = '#1d6fb8'; g.fillRect(W / 2 - 40, 72, 80, 12); g.fillStyle = '#fff'; g.font = 'bold 8px sans-serif'; g.fillText('TURBINE HALL', W / 2 - 34, 81);
     g.fillStyle = '#26323a'; g.fillRect(W / 2 - 12, H - 30, 24, 30);
+    return;
+  }
+  if (kind === 'kronborg') {
+    // Kronborg: pale sandstone walls, a copper-green roof, three green spires and the casemates gate.
+    g.fillStyle = '#d6c7a1'; g.fillRect(0, 50, W, H - 50);
+    g.fillStyle = '#c4b48c'; for (let y = 58; y < H; y += 10) g.fillRect(0, y, W, 1);
+    g.fillStyle = '#4f7a6a'; g.fillRect(0, 38, W, 14);
+    for (const [x, h] of [[30, 38], [W / 2, 50], [W - 30, 38]] as const) {
+      g.fillStyle = '#d6c7a1'; g.fillRect(x - 10, 50 - h + 10, 20, h);
+      g.fillStyle = '#4f7a6a'; g.beginPath(); g.moveTo(x - 12, 50 - h + 12); g.lineTo(x, 50 - h - 14); g.lineTo(x + 12, 50 - h + 12); g.fill();
+    }
+    for (let x = 18; x < W - 18; x += 30) { g.fillStyle = '#3b4a5a'; g.fillRect(x, 70, 12, 18); }
+    g.fillStyle = '#2a1c16'; g.beginPath(); g.moveTo(W / 2 - 14, H); g.lineTo(W / 2 - 14, H - 22); g.arc(W / 2, H - 22, 14, Math.PI, 0); g.lineTo(W / 2 + 14, H); g.fill();
     return;
   }
   if (kind === 'palace') {
