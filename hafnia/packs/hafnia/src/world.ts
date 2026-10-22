@@ -32,7 +32,10 @@ export const STAMPS: Record<string, Stamp> = {
   bunker: { draw: 'bunker', w: 5, h: 3, door: [2, 2] },        // the old gun battery, cells below
   fortgate: { draw: 'fortgate', w: 6, h: 3, door: [3, 2] },    // Vanguard's steel door into the fort
   borsen: { draw: 'borsen', w: 10, h: 4, door: [5, 3] },       // Børsen under scaffolding, the dragon spire's stump
-  palace: { draw: 'palace', w: 9, h: 5 }                      // Christiansborg
+  palace: { draw: 'palace', w: 9, h: 5 },                     // Christiansborg
+  coldstores: { draw: 'coldStores', w: 7, h: 5, door: [3, 4] }, // Gym 3: Kødbyen's white-tiled cold store with the loading bay
+  brick: { draw: 'brickBlock', w: 4, h: 3, door: [1, 2] },     // a Vesterbro red-brick block with a stairwell door
+  brickgate: { draw: 'brickGate', w: 4, h: 3 }                // the same block with the courtyard archway (gated)
 };
 
 const makeGrid = (w: number, h: number, ch: string) => Array.from({ length: h }, () => Array<string>(w).fill(ch));
@@ -46,12 +49,32 @@ const grid = (rows: string[]) => {
   return { grid: rows.map(r => r.split('')), w, h: rows.length };
 };
 
-/** A plain room with a doormat in the middle of the bottom wall that leads back outside. */
-function room(id: string, name: string, rows: string[], back: { to: string; x: number; y: number }, bgm = 'overworld'): MapData {
+// Room decor (MapDef.decor), drawn by the client over the grid; '.' is nothing. On a floor tile a piece of
+// furniture also makes the tile solid ('K'); on a wall tile the char is a wall decoration.
+// Furniture: B bed, S bookcase, T table, h chair, o sofa, A armchair, C counter, $ till, F fridge, O stove, k sink,
+//   M shop shelf, G pastry case, E espresso machine, D desk, V TV, p potted plant, X crate, Y barrel,
+//   N control panel, Z cannon, t telescope, b ship's bunk. Walkable: r rug, e floor grate.
+// Walls: W window, P picture, Q clock, U notice, I chart, 0 porthole, 1 lifebuoy, J shelf, L lamp, H healing machine.
+const WALKABLE_DECOR = new Set(['.', 'r', 'e']);
+export interface Look { theme?: string; decor?: string[]; bgm?: string }
+function dress<T extends MapData>(m: T, look: Look): T {
+  if (look.theme) m.theme = look.theme;
+  if (look.decor) {
+    const d = grid(look.decor);
+    if (d.w !== m.w || d.h !== m.h) throw new Error(`${m.id} decor is ${d.w}x${d.h}, expected ${m.w}x${m.h}`);
+    d.grid.forEach((r, y) => r.forEach((c, x) => { if (!WALKABLE_DECOR.has(c) && m.grid[y][x] === '_') m.grid[y][x] = 'K'; }));
+    m.decor = d.grid;
+  }
+  return m;
+}
+
+/** A room with a doormat in the bottom wall that leads back outside, dressed with a theme and furniture. */
+function room(id: string, name: string, rows: string[], back: { to: string; x: number; y: number }, look: string | Look = {}): MapData {
+  const lk = typeof look === 'string' ? { bgm: look } : look;
   const g = grid(rows);
   const warps: Warp[] = [];
   g.grid.forEach((r, y) => r.forEach((c, x) => { if (c === 'm') warps.push({ x, y, to: back.to, tx: back.x, ty: back.y, dir: 'down' }); }));
-  return { id, name, ...g, battleBg: 'indoor1', bgm, buildings: [], indoor: true, warps };
+  return dress({ id, name, ...g, battleBg: 'indoor1', bgm: lk.bgm ?? 'overworld', buildings: [], indoor: true, warps }, lk);
 }
 
 // ---------- Nørrebro ----------
@@ -92,7 +115,16 @@ const flat = () => room('flat', 'Home', [
   'w__________w',
   'w_____m____w',
   'wwwwwwwwwwww'
-], { to: 'norrebro', x: 4, y: 8 });
+], { to: 'norrebro', x: 4, y: 8 }, { theme: 'home', decor: [
+  '..W..P.Q.W..',
+  '.FOk........',
+  '............',
+  '....hTTh....',
+  '.........oo.',
+  '..rrrr......',
+  '.p........p.',
+  '............'
+] });
 
 const lukasFlat = () => room('lukasflat', 'Lukas\'s flat', [
   'wwwwwwwwww',
@@ -102,7 +134,15 @@ const lukasFlat = () => room('lukasflat', 'Lukas\'s flat', [
   'w________w',
   'w____m___w',
   'wwwwwwwwww'
-], { to: 'norrebro', x: 10, y: 8 });
+], { to: 'norrebro', x: 10, y: 8 }, { theme: 'flat2', decor: [
+  '.W..P..W..',
+  '.SS....DV.',
+  '..........',
+  '...hTTh...',
+  '.rrrrrr.p.',
+  '..........',
+  '..........'
+] });
 
 /** Pokémon Center: nurse counter on the left, Mart counter on the right. */
 const center = (id: string, name: string, to: string, x: number, y: number) => room(id, name, [
@@ -114,7 +154,16 @@ const center = (id: string, name: string, to: string, x: number, y: number) => r
   'w___________w',
   'w_____m_____w',
   'wwwwwwwwwwwww'
-], { to, x, y });
+], { to, x, y }, { theme: 'center', decor: [
+  '..H...Q..JJ..',
+  '.CCCC...C$CC.',
+  '.....rrr.....',
+  '.....rrr.....',
+  '.oo..rrr..MM.',
+  '.....rrr.....',
+  '.p.........p.',
+  '.............'
+] });
 
 // Gym 1: a sealed room until the spray switches are pressed in the mural's colour order.
 const gym1 = () => room('gym1', 'Superkilen Gym', [
@@ -132,7 +181,7 @@ const gym1 = () => room('gym1', 'Superkilen Gym', [
   'wkkkkkkkkkkkkkw',
   'wkkkkkkmkkkkkkw',
   'wwwwwwwwwwwwwww'
-], { to: 'norrebro', x: 20, y: 14 }, 'overworld');
+], { to: 'norrebro', x: 20, y: 14 });
 
 // ---------- Dronning Louises Bro ----------
 
@@ -247,7 +296,7 @@ const palmhouse = (): MapData => ({
     'wPP____________PPw',
     'w_______mm_______w',
     'wwwwwwwwwwwwwwwwww'
-  ], { to: 'garden', x: 14, y: 11 }),
+  ], { to: 'garden', x: 14, y: 11 }, { theme: 'palm' }),
   battleBg: 'field'
 });
 
@@ -312,7 +361,14 @@ const tower = () => room('towerin', 'Rundetårn', [
   'w_______w',
   'w___m___w',
   'wwwwwwwww'
-], { to: 'indreby', x: 21, y: 5 });
+], { to: 'indreby', x: 21, y: 5 }, { theme: 'tower', decor: [
+  '.W..U....',
+  '.C$......',
+  '.........',
+  '.p.......',
+  '.........',
+  '.........'
+] });
 
 // ---------- Nyhavn ----------
 
@@ -349,7 +405,15 @@ const cafe = () => room('cafein', 'Café in Nyhavn', [
   'w_________w',
   'w____m____w',
   'wwwwwwwwwww'
-], { to: 'nyhavn', x: 10, y: 3 });
+], { to: 'nyhavn', x: 10, y: 3 }, { theme: 'cafe', decor: [
+  '.W.W...W.W.',
+  '.GGE...CC$.',
+  '...........',
+  '.hTT...TTh.',
+  '.........p.',
+  '...........',
+  '...........'
+] });
 
 // ---------- Refshaleøen drydock ----------
 
@@ -537,10 +601,10 @@ function vesterbro(): MapData {
   dots(g, 'f', [[3, 3], [3, 4], [10, 3], [16, 12], [16, 13], [23, 12], [3, 12], [9, 13]]);
   fill(g, 22, 3, 3, 2, 'T');
   return {
-    id: 'vesterbro', name: 'Vesterbro', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
+    id: 'vesterbro', name: 'Vesterbro', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld', theme: 'brick',
     buildings: [
-      { s: 'cafe', x: 4, y: 5, id: 'cafe' }, { s: 'orange', x: 8, y: 4 }, { s: 'pc', x: 16, y: 3, id: 'pc' },
-      { s: 'orange', x: 4, y: 12 }, { s: 'blue', x: 17, y: 12, id: 'bakery' }
+      { s: 'cafe', x: 4, y: 5, id: 'cafe' }, { s: 'brickgate', x: 8, y: 4 }, { s: 'pc', x: 16, y: 3, id: 'pc' },
+      { s: 'brickgate', x: 4, y: 12 }, { s: 'brick', x: 17, y: 12, id: 'bakery' }
     ],
     exits: { up: { to: 'route2', offset: -9 }, right: { to: 'route3', offset: -5 }, down: { to: 'kodbyen', offset: 0 } }
   };
@@ -554,7 +618,15 @@ const vbCafe = () => room('cafevb', 'Kaffebaren', [
   'w_________w',
   'w____m____w',
   'wwwwwwwwwww'
-], { to: 'vesterbro', x: 5, y: 8 });
+], { to: 'vesterbro', x: 5, y: 8 }, { theme: 'cafevb', decor: [
+  '..U..W..P..',
+  '.EC$...MMM.',
+  '...........',
+  '.hTh...hTh.',
+  '.oo........',
+  '...........',
+  '...........'
+] });
 
 // Kødbyen, the white-tiled Meatpacking District: Kasper's food-bank kitchen, the locker row, the neon square and Gym 3.
 function kodbyen(): MapData {
@@ -565,7 +637,7 @@ function kodbyen(): MapData {
   fill(g, 2, 2, 8, 1, 'H');
   return {
     id: 'kodbyen', name: 'Kødbyen', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
-    buildings: [{ s: 'blue', x: 4, y: 4, id: 'kitchen' }, { s: 'gym', x: 18, y: 3, id: 'gym' }],
+    buildings: [{ s: 'blue', x: 4, y: 4, id: 'kitchen' }, { s: 'coldstores', x: 18, y: 3, id: 'gym' }],
     exits: { up: { to: 'vesterbro', offset: 0 } }
   };
 }
@@ -579,7 +651,16 @@ const kitchen = () => room('kitchen', 'Kasper\'s Kitchen', [
   'w_KK_____KK_w',
   'w_____m_____w',
   'wwwwwwwwwwwww'
-], { to: 'kodbyen', x: 5, y: 7 });
+], { to: 'kodbyen', x: 5, y: 7 }, { theme: 'kitchen', decor: [
+  '..J..Q...J...',
+  '.FOkCC.CCkOF.',
+  '.............',
+  '..TT.....TT..',
+  '.............',
+  '..XX.....YY..',
+  '.............',
+  '.............'
+] });
 
 // Gym 3, the Kødbyen Cold Stores: sea ice over the locker floors. Slide to the three steam valves (in the walls)
 // and open them in menu order; the steam melts the ice block in the gap below Kasper.
@@ -598,7 +679,7 @@ const gym3 = (): MapData => ({
     'w_____________w',
     'w______m______w',
     'wwwwwwwwwwwwwww'
-  ], { to: 'kodbyen', x: 21, y: 8 }),
+  ], { to: 'kodbyen', x: 21, y: 8 }, { theme: 'cold' }),
   battleBg: 'indoor1'
 });
 
@@ -788,7 +869,7 @@ function rundetarn(): MapData {
 }
 
 // Bibliotekssalen, the old university library hall halfway up the tower. The objective lens rolled under the shelves.
-const bibliotek = (): MapData => ({
+const bibliotek = (): MapData => dress({
   id: 'bibliotek', name: 'Bibliotekssalen', ...grid([
     'wwwwwwwwwwwwww',
     'wKK_KK__KK_KKw',
@@ -800,10 +881,19 @@ const bibliotek = (): MapData => ({
     'wwwwwwwwwwwwww'
   ]), battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true,
   warps: [{ x: 13, y: 4, to: 'rundetarn', tx: 1, ty: 11, dir: 'right' }]
-});
+}, { theme: 'library', decor: [
+  '..W..L..W..L..',
+  '.SS.SS..SS.SS.',
+  '..............',
+  '..SS..SS..SS..',
+  '..............',
+  '..TT..TT..TT..',
+  '..............',
+  '..............'
+] });
 
 // The loft of Trinitatis Church, through the little door where tower and church meet: beams, dust and a Murkrow's nest.
-const trinitatis = (): MapData => ({
+const trinitatis = (): MapData => dress({
   id: 'trinitatis', name: 'Trinitatis Loft', ...grid([
     'wwwwwwwwwwwwww',
     'w__K___K___K_w',
@@ -815,7 +905,16 @@ const trinitatis = (): MapData => ({
     'wwwwwwwwwwwwww'
   ]), battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true, dark: true,
   warps: [{ x: 0, y: 4, to: 'rundetarn', tx: 21, ty: 11, dir: 'left' }]
-});
+}, { theme: 'loft', decor: [
+  '..............',
+  '...X...Y...X..',
+  '..............',
+  '..Y...X...Y...',
+  '..............',
+  '...X...Y...X..',
+  '..............',
+  '..............'
+] });
 
 // ---------- Chapter 7: North by Kystbanen ----------
 
@@ -947,7 +1046,17 @@ const substation = () => room('substation', 'Vanguard Sub-station D-7', [
   'w_____________w',
   'w______m______w',
   'wwwwwwwwwwwwwww'
-], { to: 'dyrehaven', x: 26, y: 8 });
+], { to: 'dyrehaven', x: 26, y: 8 }, { theme: 'metal', decor: [
+  '..U.L.....L.U..',
+  '...............',
+  '...............',
+  '...............',
+  '...............',
+  '...............',
+  '.N...........N.',
+  '...............',
+  '...............'
+] });
 
 // Bakken: the world's oldest amusement park, deep in the deer park. The neon square, Pierrot's circus tent
 // (Gym 6, the Rutschebanen inside) and the Pokémon Center.
@@ -1004,7 +1113,15 @@ const bakery = () => room('bakery', 'Bageriet', [
   'w_________w',
   'w____m____w',
   'wwwwwwwwwww'
-], { to: 'vesterbro', x: 18, y: 15 });
+], { to: 'vesterbro', x: 18, y: 15 }, { theme: 'bakery', decor: [
+  '..W..P..W..',
+  '.GGG...GG$.',
+  '...........',
+  '.hT.....Th.',
+  '.........p.',
+  '...........',
+  '...........'
+] });
 
 // ---------- Chapter 8: Trekroner ----------
 
@@ -1017,7 +1134,15 @@ const fleetboat = () => room('fleetboat', 'The Black Fleet\'s Houseboat', [
   'w_________w',
   'w____m____w',
   'wwwwwwwwwww'
-], { to: 'christianshavn', x: 3, y: 7 });
+], { to: 'christianshavn', x: 3, y: 7 }, { theme: 'boat', decor: [
+  '..0.1.I.0..',
+  '.bb.....XY.',
+  '...........',
+  '...T...Y...',
+  '...........',
+  '...........',
+  '...........'
+] });
 
 // Trekroner Sea Fort at night: a ring of old ramparts in the harbour mouth. The jetty and the gun battery in
 // the lower yard, a wall with two gaps (each watched by a Grid Enforcer), and the dead lighthouse and
@@ -1046,7 +1171,15 @@ const tklighthouse = () => room('tklighthouse', 'Trekroner Lighthouse', [
   'w_______w',
   'w___m___w',
   'wwwwwwwww'
-], { to: 'trekroner', x: 3, y: 7 });
+], { to: 'trekroner', x: 3, y: 7 }, { theme: 'stone', decor: [
+  '....W....',
+  '.S.....D.',
+  '.........',
+  '..Y...X..',
+  '.........',
+  '.........',
+  '.........'
+] });
 
 // The gun battery: three old cells along the top (iron doors), the guard post, the corridor.
 const battery = () => room('battery', 'Trekroner: Gun Battery', [
@@ -1061,7 +1194,19 @@ const battery = () => room('battery', 'Trekroner: Gun Battery', [
   'w_________________w',
   'w________m________w',
   'wwwwwwwwwwwwwwwwwww'
-], { to: 'trekroner', x: 21, y: 15 });
+], { to: 'trekroner', x: 21, y: 15 }, { theme: 'stone', decor: [
+  '...................',
+  '...................',
+  '...................',
+  '....L...L...L......',
+  '...................',
+  '.................Z.',
+  '...................',
+  '.X.................',
+  '.XY................',
+  '...................',
+  '...................'
+] });
 
 // The siphon chamber: Vanguard's machines, and a viewport into the deep.
 const siphon = () => room('siphon', 'Trekroner: Siphon Chamber', [
@@ -1077,7 +1222,20 @@ const siphon = () => room('siphon', 'Trekroner: Siphon Chamber', [
   'w_______________w',
   'w_______m_______w',
   'wwwwwwwwwwwwwwwww'
-], { to: 'trekroner', x: 13, y: 5 });
+], { to: 'trekroner', x: 13, y: 5 }, { theme: 'metal', decor: [
+  '..L...........L..',
+  '.................',
+  '.................',
+  '...N.........N...',
+  '.................',
+  '...N.........N...',
+  '.................',
+  '.................',
+  '.................',
+  '.......eee.......',
+  '.................',
+  '.................'
+] });
 
 // ---------- Chapter 9: The Spire ----------
 
@@ -1111,7 +1269,18 @@ const borsenHall = () => room('borsen', 'Børsen', [
   'w_______________w',
   'w_______m_______w',
   'wwwwwwwwwwwwwwwww'
-], { to: 'slotsholmen', x: 19, y: 6 });
+], { to: 'slotsholmen', x: 19, y: 6 }, { theme: 'borsen', decor: [
+  '..W.P.W...W.P.W..',
+  '.DDS.........SSS.',
+  '.................',
+  '...TT.......TT...',
+  '.................',
+  '...TT.......TT...',
+  '.................',
+  '.......rrr.......',
+  '.................',
+  '.................'
+] });
 
 // Gym 7, the vault beneath the dragon spire: three merchants' counting-houses, the brass scales and the vault gate.
 const gym7 = () => room('gym7', 'Børsen: The Vault', [
@@ -1130,7 +1299,7 @@ const gym7 = () => room('gym7', 'Børsen: The Vault', [
   'w_________________w',
   'w_________________w',
   'wwwwwwwwwwwwwwwwwww'
-], { to: 'borsen', x: 12, y: 2 });
+], { to: 'borsen', x: 12, y: 2 }, { theme: 'vault' });
 
 export const MAPS = {
   norrebro: norrebro(), flat: flat(), lukasflat: lukasFlat(), pcnorrebro: center('pcnorrebro', 'Pokémon Center', 'norrebro', 22, 8),

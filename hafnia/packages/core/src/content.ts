@@ -67,6 +67,11 @@ export interface MapDef {
   onEnter?: Script;
   indoor?: boolean;            // no day-night tint
   dark?: boolean;              // tunnels: lit only around the player
+  /** Look of the floor, walls and house fronts (client art only), e.g. 'home', 'center', 'brick'. */
+  theme?: string;
+  /** Furniture and wall decorations drawn over the grid, one char per tile ('.' for none). Purely visual:
+   *  the grid alone decides what is solid, so solid furniture sits on 'K' tiles. */
+  decor?: string[][];
   battleBg: string;
   bgm: string;
 }
