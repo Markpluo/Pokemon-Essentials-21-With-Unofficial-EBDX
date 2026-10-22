@@ -113,7 +113,7 @@ function mix(a: string, b: string) {
 
 /** A wall tile: the face you see where the room's floor starts below it, otherwise the dark top of the wall. */
 export function themedWall(g: G2, th: Theme, dx: number, dy: number, x: number, y: number, below: string | null) {
-  if (below === null || below === 'w') { box(g, dx, dy, 32, 32, th.back); box(g, dx, dy + 28, 32, 4, mix(th.back, th.w2)); return; }
+  if (below === null || below === 'w') { box(g, dx, dy, 32, 32, th.back); return; }
   box(g, dx, dy, 32, 32, th.w1);
   switch (th.wall) {
     case 'stripes': g.fillStyle = th.w2; for (let i = 0; i < 32; i += 8) g.fillRect(dx + i, dy, 2, 22); break;
@@ -240,7 +240,7 @@ export function drawDecor(g: G2, ch: string, th: Theme, x: number, y: number, dx
     case 'C': case '$': case 'k': case 'E': case 'G': {
       const lf = 'C$kEG'.includes(decorAt(x - 1, y) ?? '-'), rt = 'C$kEG'.includes(decorAt(x + 1, y) ?? '-');
       shadow();
-      b(0, 10, 32, 20, mix(th.top, '#000000')); b(0, 6, 32, 6, th.top);
+      b(0, 10, 32, 20, mix(th.top, th.back)); b(0, 6, 32, 6, th.top);
       if (!lf) b(0, 6, 2, 24, 'rgba(0,0,0,0.25)');
       if (!rt) b(30, 6, 2, 24, 'rgba(0,0,0,0.25)');
       if (ch === '$') { b(9, -2, 14, 9, '#3b3f4a'); b(11, 0, 10, 3, '#4fae5b'); b(10, 6, 12, 2, '#26272c'); }

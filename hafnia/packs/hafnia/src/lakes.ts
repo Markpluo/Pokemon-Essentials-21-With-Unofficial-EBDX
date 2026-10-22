@@ -21,7 +21,7 @@ const bumped: Script = function* (s) {
 };
 
 const riders: NpcDef[] = LANES.flatMap((l, li) => l.xs.map((x, i) => ({
-  id: `rider${li}${i}`, sprite: (li + i) % 2 ? 'chars/cyclist2' : 'chars/cyclist1', x, y: l.y, dir: l.dir,
+  id: `rider${li}${i}`, sprite: `chars/commuter${(li + i) % 4 + 1}`, x, y: l.y, dir: l.dir,
   patrol: { dir: l.dir, min: 4, max: 15 }, bump: bumped, when: (f: (n: string) => any) => !f('finale'),
   talk: talk('Commuter: Ding ding! Can\'t stop, late for work!')
 })));

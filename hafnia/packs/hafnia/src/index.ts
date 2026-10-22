@@ -4,6 +4,7 @@
 import { speciesExtra, type Dir, type MapDef, type Pack, type Script } from '@hafnia/core';
 import manifest from '../pack.json';
 import strings from '../strings/en.json';
+import dexText from '../strings/dex.json';
 import { BAKKEN_SCRIPTS, bakkenGate, ch7Start, langelinieGate } from './bakken';
 import { ASSISTENS_SCRIPTS, MAILBOXES, lanternGate, mailboxNpc, norrebroCh4, norrebroNorth } from './assistens';
 import { CISTERNS_SCRIPTS, ch5Start, frederiksbergGate } from './cisterns';
@@ -77,6 +78,7 @@ export const hafnia: Pack = {
   stamps: STAMPS,
   strings,
   textVars: starterVars,
+  dexText,
   // Freja's Hisuian Qwilfish: Showdown knows the form, the PBS data only has the base species.
   speciesExtra: { qwilfishhisui: { ...speciesExtra('qwilfish'), key: 'QWILFISH_1', evolutions: [] } },
   newGame: {

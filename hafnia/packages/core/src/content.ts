@@ -123,6 +123,8 @@ export interface Pack {
   /** Text by key ("p.mum.1"). say() and ask() look keys up here; `{player}` and textVars are filled in. */
   strings?: Record<string, string>;
   textVars?: (flags: FlagReader) => Record<string, string>;
+  /** Pokédex entries by species id, in place of the mainline text from PBS. */
+  dexText?: Record<string, string>;
   /** Balance overrides; only the base pack's are used. */
   rules?: Partial<Rules>;
   /** Only the base game sets this: where a new game begins. */

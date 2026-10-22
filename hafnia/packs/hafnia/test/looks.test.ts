@@ -1,6 +1,7 @@
-// Furnished rooms (MapDef.decor): the furniture must not wall off part of a room or the people in it.
+// The art gaps from the 2026-10-21 quality pass: furnished rooms (MapDef.decor) must not wall off part of a
+// room or the people in it, and every Pokédex entry is a Copenhagen one.
 import { describe, expect, it } from 'vitest';
-import { SOLID_TILES } from '@hafnia/core';
+import { Content, SOLID_TILES, dexOrder } from '@hafnia/core';
 import { hafnia } from '../src';
 
 describe('furnished interiors', () => {
@@ -31,5 +32,13 @@ describe('furnished interiors', () => {
       }
     }
     expect(problems).toEqual([]);
+  });
+});
+
+describe('Hafnia Pokédex text', () => {
+  it('every species in the Dex has its own Copenhagen entry, short enough for the entry screen', () => {
+    const order = dexOrder(new Content([hafnia]));
+    expect(order.filter(id => !hafnia.dexText?.[id])).toEqual([]);
+    expect(Object.entries(hafnia.dexText ?? {}).filter(([, t]) => t.length > 170).map(([id]) => id)).toEqual([]);
   });
 });
