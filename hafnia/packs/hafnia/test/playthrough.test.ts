@@ -142,7 +142,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step to the end of Chapter 4', () => {
+  it('plays from the first step to the end of Chapter 5', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -365,6 +365,42 @@ describe('Hafnia demo', () => {
     expect(flag('kanelDone')).toBe(true);
     expect(d.s.party.filter(m => m.egg).length + d.s.box.filter(m => m.egg).length).toBe(eggs + 1);
     expect(d.s.bag.expcandym).toBe(1);
+
+    // Chapter 5: Frederiksberg, the Cisterns, the Sunken Archive and Lukas
+    expect(flag('ch5')).toBe(true);
+    d.walkTo(5, 5); at('vesterbro');
+    d.exit('up', 13, 0); at('route2');
+    d.exit('up', 22, 0); at('frederiksberg');
+    expect(flag('ch5met')).toBe(true);
+    d.exit('up', 21, 15); at('cisterns');
+    expect(flag('cisArrive')).toBe(true);
+    d.talkTo(6, 5);                                            // the mirror pool, and the Sableye behind the false wall
+    expect(flag('cisMirror'), d.where()).toBe(true);
+    d.talkTo(13, 1);                                           // first sluice wheel: the gallery causeway
+    expect(flag('cisLevel')).toBe(1);
+    d.talkTo(28, 1);                                           // second wheel: the causeway south
+    expect(flag('cisLevel')).toBe(2);
+    d.walkTo(21, 12);
+    d.walkTo(13, 16);                                          // Brix's drone swarm, with Maja
+    expect(flag('swarmDone'), d.where()).toBe(true);
+    d.walkTo(11, 16);                                          // the Sunken Archive
+    expect(flag('archiveDone')).toBe(true);
+    expect(d.s.bag.ledgercopy).toBe(1);
+    d.talkTo(1, 20); at('frederiksberg');
+    expect(flag('lukas5'), d.where()).toBe(true);
+    expect(flag('ch5done')).toBe(true);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 5 complete');
+
+    // The Zoo Night Shift: three escapees after dark
+    const eggs5 = d.s.party.filter(m => m.egg).length + d.s.box.filter(m => m.egg).length;
+    d.talkTo(11, 16);                                          // yes, and wait until dark
+    expect(d.game.period).toBe('night');
+    for (const [x, y] of [[24, 20], [5, 4], [19, 12]]) d.talkTo(x, y);
+    expect(['zoo1', 'zoo2', 'zoo3'].every(f => flag(f)), d.where()).toBe(true);
+    d.talkTo(11, 16);
+    expect(flag('zooDone')).toBe(true);
+    expect(d.s.party.filter(m => m.egg).length + d.s.box.filter(m => m.egg).length).toBe(eggs5 + 1);
+    expect(d.s.bag.ultraball).toBeGreaterThanOrEqual(3);
   });
 
   it('a wrong steam valve closes them all again', () => {

@@ -83,7 +83,30 @@
     "wooper",
     "fidough",
     "chandelure",
-    "mismagius"
+    "mismagius",
+    "sableye",
+    "dewpider",
+    "rotom",
+    "deerling",
+    "fletchling",
+    "pikipek",
+    "noibat",
+    "phanpy",
+    "pancham",
+    "skiddo",
+    "porygon2",
+    "bronzor",
+    "magneton",
+    "golbat",
+    "pawmo",
+    "staravia",
+    "dolliv",
+    "fletchinder",
+    "kilowattrel",
+    "raichu",
+    "jolteon",
+    "magnezone",
+    "bellibolt"
   ],
   "spriteKeys": {
     "qwilfishhisui": "QWILFISH_1"
@@ -192,7 +215,12 @@
     "tr/soren": "Graphics/Trainers/PSYCHIC_M.png",
     "chars/baker": "Graphics/Characters/trainer_AROMALADY.png",
     "chars/litwick": "Graphics/Characters/Followers/LITWICK.png",
-    "chars/lampent": "Graphics/Characters/Followers/LAMPENT.png"
+    "chars/lampent": "Graphics/Characters/Followers/LAMPENT.png",
+    "chars/sableye": "Graphics/Characters/Followers/SABLEYE.png",
+    "chars/phanpy": "Graphics/Characters/Followers/PHANPY.png",
+    "chars/pancham": "Graphics/Characters/Followers/PANCHAM.png",
+    "chars/skiddo": "Graphics/Characters/Followers/SKIDDO.png",
+    "tr/scientist": "Graphics/Trainers/SCIENTIST.png"
   },
   "audio": {
     "title": "Audio/BGM/Title.ogg",

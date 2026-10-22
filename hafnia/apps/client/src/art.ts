@@ -271,6 +271,44 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
     }
     case 'grate': box(2, 6, 28, 22, '#3b3f4a'); for (let i = 5; i < 28; i += 5) box(i, 8, 2, 18, '#1d1f24'); box(2, 6, 28, 2, '#565b66'); break;
     case 'mailbox': box(14, 16, 4, 16, '#565b66'); box(6, 4, 20, 14, '#d9473a'); box(9, 8, 14, 2, '#7a231d'); box(6, 4, 20, 2, '#e9705f'); break;
+    case 'mirrorpool': {
+      // A still pool that reflects what is really there: a pale arch shimmers in it.
+      g.fillStyle = '#4b4643'; g.beginPath(); g.ellipse(dx + 16, dy + 18, 15, 11, 0, 0, 7); g.fill();
+      g.fillStyle = '#1c2a38'; g.beginPath(); g.ellipse(dx + 16, dy + 18, 12, 8, 0, 0, 7); g.fill();
+      g.strokeStyle = `rgba(200,225,255,${0.45 + 0.25 * Math.sin(time / 20)})`; g.lineWidth = 1.5;
+      g.beginPath(); g.arc(dx + 16, dy + 21, 5, Math.PI, 0); g.stroke();
+      break;
+    }
+    case 'fakewall': {
+      box(0, 0, 32, 32, '#3d3936'); box(0, 26, 32, 6, '#57514c');
+      g.fillStyle = `rgba(150,110,220,${0.08 + 0.06 * Math.sin(time / 25)})`; g.fillRect(dx, dy, 32, 26);
+      break;
+    }
+    case 'wheel': box(14, 16, 4, 16, '#565b66');
+      g.strokeStyle = '#b87333'; g.lineWidth = 3; g.beginPath(); g.arc(dx + 16, dy + 13, 10, 0, 7); g.stroke();
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 4; g.beginPath(); g.moveTo(dx + 16 - Math.cos(a) * 10, dy + 13 - Math.sin(a) * 10); g.lineTo(dx + 16 + Math.cos(a) * 10, dy + 13 + Math.sin(a) * 10); g.stroke(); }
+      break;
+    case 'flood': {
+      // Deep water over a causeway; drawn like the 'u' tile so the walkway is hidden until the level drops.
+      box(0, 0, 32, 32, '#26323a');
+      g.fillStyle = '#3a4b55'; const o = ((time >> 2) + dx) % 32;
+      g.fillRect(dx + Math.abs(o), dy + 9, 8, 1); g.fillRect(dx + (Math.abs(o) + 17) % 32, dy + 21, 6, 1);
+      break;
+    }
+    case 'drone': {
+      const bob = Math.sin(time / 8 + dx) * 2;
+      box(6, 10 + bob, 20, 8, '#e8e6e0'); box(6, 10 + bob, 20, 2, '#b87333');
+      box(2, 8 + bob, 8, 2, '#565b66'); box(22, 8 + bob, 8, 2, '#565b66');
+      g.fillStyle = (time >> 4) % 2 ? '#ff5a4a' : '#9fd8ff'; g.beginPath(); g.arc(dx + 16, dy + 16 + bob, 2.5, 0, 7); g.fill();
+      g.fillStyle = 'rgba(159,216,255,0.18)'; g.beginPath(); g.moveTo(dx + 16, dy + 18 + bob); g.lineTo(dx + 4, dy + 32); g.lineTo(dx + 28, dy + 32); g.fill();
+      break;
+    }
+    case 'lectern': box(13, 16, 6, 16, '#6b4526'); box(4, 6, 24, 12, '#8a5a3a'); box(6, 4, 10, 10, '#efe3c2'); box(16, 4, 10, 10, '#e4d6b0');
+      box(8, 7, 6, 1, '#8f7f5a'); box(8, 10, 5, 1, '#8f7f5a'); box(18, 7, 6, 1, '#8f7f5a'); box(18, 10, 5, 1, '#8f7f5a'); break;
+    case 'schematic': box(2, 10, 28, 18, '#6b4526'); box(4, 4, 24, 16, '#1d3f6e');
+      g.strokeStyle = '#9fd8ff'; g.lineWidth = 1; g.beginPath(); g.moveTo(dx + 7, dy + 16); g.lineTo(dx + 14, dy + 9); g.lineTo(dx + 20, dy + 14); g.lineTo(dx + 25, dy + 7); g.stroke();
+      g.beginPath(); g.arc(dx + 14, dy + 9, 2, 0, 7); g.stroke(); break;
+    case 'stairs': for (let i = 0; i < 4; i++) box(2 + i * 2, 4 + i * 7, 28 - i * 4, 6, i % 2 ? '#8e8a84' : '#a3a09a'); break;
     default: box(8, 8, 16, 16, '#d0f');
   }
 }
@@ -309,6 +347,16 @@ export function drawBuildingArt(g: G2, kind: string, w: number, h: number) {
     g.fillStyle = '#2f6f4a'; g.fillRect(36, H - 34, 24, 34);
     g.fillStyle = '#d9473a'; g.fillRect(28, H - 42, 40, 8);
     g.fillStyle = '#fff'; g.font = 'bold 7px sans-serif'; g.fillText('CAFÉ', 38, H - 36);
+    return;
+  }
+  if (kind === 'pyramid') {
+    // The Cisterns' glass pyramid in Søndermarken, with the stair door in the middle.
+    g.fillStyle = '#5b8a6a'; g.fillRect(0, H - 8, W, 8);
+    g.fillStyle = '#a9d4e8'; g.beginPath(); g.moveTo(4, H - 6); g.lineTo(W / 2, 4); g.lineTo(W - 4, H - 6); g.fill();
+    g.fillStyle = '#cfe9f5'; g.beginPath(); g.moveTo(W / 2, 4); g.lineTo(W - 4, H - 6); g.lineTo(W / 2 + 6, H - 6); g.fill();
+    g.strokeStyle = '#6f7f88'; g.lineWidth = 1;
+    for (let i = 1; i < 4; i++) { const y = 4 + i * (H - 10) / 4; g.beginPath(); g.moveTo(W / 2 - (y - 4) * (W / 2 - 4) / (H - 10), y); g.lineTo(W / 2 + (y - 4) * (W / 2 - 4) / (H - 10), y); g.stroke(); }
+    g.fillStyle = '#26323a'; g.fillRect(W / 2 - 9, H - 26, 18, 20);
     return;
   }
   if (kind === 'houseboat') {

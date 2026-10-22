@@ -5,7 +5,7 @@ import { grown, itemBall, sign, talk, trainer, type MapScripts, type Step } from
 import { lukasStarter } from './starters';
 
 export const NAMES = ['Mark', 'Asta', 'Viggo', 'Ida', 'Noor', 'Frej'];
-export const MART_STOCK = ['potion', 'superpotion', 'antidote', 'paralyzeheal', 'awakening', 'burnheal', 'fullheal', 'revive', 'pokeball', 'greatball', 'netball', 'repel'];
+export const MART_STOCK = ['potion', 'superpotion', 'antidote', 'paralyzeheal', 'awakening', 'burnheal', 'fullheal', 'revive', 'pokeball', 'greatball', 'netball', 'repel', 'hyperpotion', 'ultraball'];
 
 // ---------- intro and the flat (P1, P9) ----------
 
