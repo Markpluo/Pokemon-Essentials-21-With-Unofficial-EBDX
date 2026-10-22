@@ -220,6 +220,9 @@ export class BattleSession {
     if (o.multi && o.trainer) this.ev({ b: 'text', text: `${o.trainer.title} ${o.trainer.name} and ${o.multi.second.title} ${o.multi.second.name}\nwould like to battle!` });
     else if (o.trainer) this.ev({ b: 'text', text: `${o.trainer.title} ${o.trainer.name} would like to battle!` });
     for (const side of this.sides) this.sim.choose(side.id, 'default');
+    // Pokémon that come in already fainted don't count (the simulator counts the whole team at the
+    // start): otherwise it waits forever for a switch-in that doesn't exist once the last one faints.
+    this.sim.p1.pokemonLeft = this.sim.p1.pokemon.filter(p => !p.fainted).length;
     for (const side of [this.sim.p1, this.sim.p2]) side.addSideCondition('hafniacoil', side.active[0]);
     if (o.tutorial) this.sim.p1.active[0].addVolatile('hafniaguard');
     this.advance();
@@ -267,7 +270,7 @@ export class BattleSession {
         this.host.bag[action.item]--;
         const before = target.fainted ? 0 : target.hp;
         this.ev({ b: 'text', text: `${this.host.playerName} used a ${item.name}!` });
-        if (target.fainted) { target.fainted = false; target.faintQueued = false; (target as any).status = ''; target.hp = fx.hp; }
+        if (target.fainted) { target.fainted = false; target.faintQueued = false; (target as any).status = ''; target.hp = fx.hp; p1.pokemonLeft++; }
         else target.hp = fx.hp;
         if (fx.cure && target.status) {
           target.cureStatus(true);
@@ -553,7 +556,7 @@ export class BattleSession {
       while (shakes < 3 && this.host.rng.int(65536) < b) shakes++;
     }
     const caught = shakes === 3;
-    this.ev({ b: 'throw', shakes, caught });
+    this.ev({ b: 'throw', shakes, caught, ball: ballId });
     if (!caught) {
       this.ev({ b: 'text', text: ['Oh no! The Pokémon broke free!', 'Aww! It appeared to be caught!', 'Aargh! Almost had it!'][shakes] });
       return false;

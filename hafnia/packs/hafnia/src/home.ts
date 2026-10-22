@@ -156,6 +156,11 @@ const paintGiver = (flag: string, line: string, label: string): Script => functi
   s.say(`${s.player.name} got the ${label}!`);
 };
 
+function* yusufGold(s: ScriptApi): Step {
+  if (!s.flag('muralQuest') || s.flag('paintGold')) return;
+  s.say('c1.paint.gold'); s.setFlag('paintGold', true); s.me('me_item'); s.say(`${s.player.name} got the gold paint!`);
+}
+
 const toxel: Script = function* (s) {
   if (s.flag('paintPurple')) { s.cry('toxel'); s.say('Toxel: Toxi! (It looks happy with its berry.)'); return; }
   s.cry('toxel');
@@ -200,10 +205,8 @@ const NORREBRO_NPCS: NpcDef[] = [
     when: f => !!f('starter'), foes: [{ species: 'stunky', level: 7 }],
     intro: ['Skater Yusuf: Red Square\'s ours. You skate or you sit.'], lose: ['Yusuf: Sat down. Hard.'],
     after: ['Yusuf: Tariq painted half of Superkilen.\nThe other half was us. Mostly the floor.'],
-    reward: function* (s) {
-      if (!s.flag('muralQuest') || s.flag('paintGold')) return;
-      s.say('c1.paint.gold'); s.setFlag('paintGold', true); s.me('me_item'); s.say(`${s.player.name} got the gold paint!`);
-    } }),
+    // Beaten before Tariq asked for paint? He hands it over when you talk to him again.
+    reward: yusufGold, again: yusufGold }),
   trainer({ id: 'laura', x: 22, y: 17, dir: 'up', sprite: 'chars/painter', sight: 2, cls: 'Muralist', name: 'Laura',
     when: f => !!f('starter'), foes: [{ species: 'smeargle', level: 8 }],
     intro: ['Muralist Laura: Smeargle and I sign every wall\nwe paint. Want to be on one?'], lose: ['Laura: Okay, you can sign this one.'] }),

@@ -91,7 +91,8 @@ export type BattleEvent =
   | { b: 'status'; side: BattleSide; slot?: Slot; status: StatusId }
   | { b: 'faint'; side: BattleSide; slot?: Slot; text: string }
   | { b: 'exp'; side: BattleSide; exp: number; expLo: number; expHi: number; level: number; hp: number; maxhp: number }
-  | { b: 'throw'; shakes: number; caught: boolean }
+  /** `ball` is the item id of the ball thrown (its art). */
+  | { b: 'throw'; shakes: number; caught: boolean; ball?: string }
   | { b: 'flee' }
   | { b: 'coil'; side: BattleSide; coil: CoilView }
   | { b: 'copper'; side: BattleSide; text: string }

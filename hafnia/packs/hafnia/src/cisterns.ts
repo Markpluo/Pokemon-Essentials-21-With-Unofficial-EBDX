@@ -59,6 +59,9 @@ function* lukasAtExit(s: ScriptApi): Step {
   const l = cast(s, 'lukas5');
   s.player.faceTo(l.x, l.y);
   s.say('c5.lukas.1'); s.say('c5.lukas.2'); s.say('c5.lukas.3');
+  // Straight out of a long dungeon: he wants a fair fight, so he patches your team up first.
+  s.say('Lukas: ...You look like the Cisterns chewed you up.\nHere. I\'m not beating you on a technicality.');
+  s.heal(); s.me('me_heal');
   const r = yield s.battle({ kind: 'trainer', soft: true, ai: 2, bg: 'field', trainer: { name: 'Lukas', title: 'Rival', sprite: 'tr/lukas' }, foes: [
     { species: 'magneton', level: 28, moves: ['thunderbolt', 'flashcannon', 'thunderwave', 'triattack'] },
     { species: 'porygon2', level: 29, moves: ['triattack', 'psybeam', 'recover', 'agility'] },

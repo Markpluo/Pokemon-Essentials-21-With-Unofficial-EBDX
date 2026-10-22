@@ -32,6 +32,24 @@ function battle(s: Setup) {
   return { b, sim, party, events, lastRequest, act, battleEvents, texts, host };
 }
 
+describe('fainted Pokémon', () => {
+  it('a team that starts the battle with fainted members still loses when the last one faints', () => {
+    // Walking on after a wild battle with two of three knocked out, then a trainer spots you.
+    const rng = new Rng(1);
+    const party: Mon[] = [0, 1, 2].map(() => makeMon('magikarp', 5, rng, { moves: ['splash'] }));
+    party[1].hp = 0; party[2].hp = 0;
+    const events: ServerEvent[] = [];
+    const host: BattleHost = {
+      rng, party, bag: {}, playerName: 'Tester', rules: DEFAULT_RULES, badges: 0, coil: {},
+      emit: e => events.push(e), whiteout: () => 0, addMon: () => 'party', giveMoney: () => {}
+    };
+    const b = new BattleSession(host, { kind: 'trainer', trainer: { name: 'Foe', title: 'Youngster', sprite: '' }, foes: [{ species: 'machop', level: 40, moves: ['karatechop'] }] });
+    b.start();
+    for (let i = 0; i < 5 && !events.some(e => e.t === 'battleEnd'); i++) b.act({ kind: 'move', index: 0 });
+    expect(events.find(e => e.t === 'battleEnd')).toMatchObject({ result: 'lose' });
+  });
+});
+
 describe('Copper & Current: the Coil', () => {
   it('starts at 2 pips in wild battles and 0 in trainer battles', () => {
     const wild = battle({ party: [['pikachu', 20, ['growl']]], foes: [{ species: 'magikarp', level: 5, moves: ['splash'] }], opts: { kind: 'wild', trainer: undefined } });

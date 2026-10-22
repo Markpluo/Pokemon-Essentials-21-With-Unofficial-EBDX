@@ -476,7 +476,7 @@ const gym2 = (): MapData => ({
 });
 
 // Dragør (Ch3): the yellow fishing village. Vuggestuen (the daycare) and its pram yard behind a beech
-// hedge, cobbled lanes and the old harbour. Reached by debug warp until the Amager Coast Path exists.
+// hedge, cobbled lanes and the old harbour. Reached by Skipper Mads's ferry from Islands Brygge.
 function dragor(): MapData {
   const W = 26, H = 20, g = makeGrid(W, H, '.');
   fill(g, 0, 0, W, 2, 'T'); fill(g, 0, 18, W, 2, 'T'); fill(g, 0, 0, 2, H, 'T');

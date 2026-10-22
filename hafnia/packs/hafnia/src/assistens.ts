@@ -267,7 +267,7 @@ const GYM4: MapScripts = {
     { id: 'soreng', sprite: 'chars/soren', x: 7, y: 2, dir: 'down', talk: sorenGym },
     sign('g4sign', 5, 18, 'obj:sign', 'c4.gym.sign'),
     { id: 'g4guide', sprite: 'chars/oldman', x: 9, y: 17, dir: 'left', talk: function* (s) {
-      if (s.flag('lantern')) { s.say('Gym guide: The lanterns burn brighter tonight. / You did that.'); return; }
+      if (s.flag('lantern')) { s.say('Gym guide: The lanterns burn brighter tonight.\nYou did that.'); return; }
       s.say('c4.gym.guide'); s.say('c4.gym.guide.2');
     } },
     sign('rhyme1', 8, 14, 'obj:monument', 'c4.rhyme.1', 'c4.rhyme.1b'),
@@ -340,7 +340,7 @@ const baker: Script = function* (s) {
 const BAKERY: MapScripts = {
   npcs: [
     { id: 'birthe', sprite: 'chars/baker', x: 5, y: 1, dir: 'down', talk: baker },
-    { id: 'bkcustomer', sprite: 'chars/student', x: 2, y: 4, dir: 'right', talk: talk('Student: Day-old kanelsnegle are half price. / Breakfast of champions.') },
+    { id: 'bkcustomer', sprite: 'chars/student', x: 2, y: 4, dir: 'right', talk: talk('Student: Day-old kanelsnegle are half price.\nBreakfast of champions.') },
     sign('oven', 9, 2, 'obj:stove', 'The bread oven. It\'s been on since four.')
   ]
 };

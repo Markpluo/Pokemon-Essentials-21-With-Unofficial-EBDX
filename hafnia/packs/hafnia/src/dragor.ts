@@ -4,6 +4,18 @@ import { DAYCARE_FEE, ITEMS, monName, type NpcDef, type Script, type ScriptApi }
 import { talk, type MapScripts } from './lib';
 
 const DAYCARE_BADGES = 3;
+
+/** Skipper Mads's little ferry down the Amager coast, Islands Brygge to Dragør and back. */
+export const ferry = (to: 'dragor' | 'islandsbrygge'): Script => function* (s) {
+  s.say(to === 'dragor' ? 'Skipper Mads: Down the coast to Dragør? Yellow houses,\nold harbour, and the nursery. Twenty minutes.'
+    : 'Skipper Mads: Back up to Islands Brygge?');
+  const c: number = yield s.ask('Take the ferry?', ['Yes', 'No'], 1);
+  if (c !== 0) return;
+  s.fade(1, 20);
+  if (to === 'dragor') s.warp('dragor', 20, 9, 'up');
+  else s.warp('islandsbrygge', 3, 11, 'right');
+  s.fade(0, 20);
+};
 const TOYS = ['everstone', 'destinyknot'];
 
 const bodil: Script = function* (s) {
@@ -96,6 +108,7 @@ const DRAGOR: MapScripts = {
     { id: 'holm', sprite: 'chars/oldwoman', x: 14, y: 7, dir: 'down',
       talk: talk('Fru Holm: Danish babies nap outside in their prams,\nrain or shine. Vuggestuen does the same with Eggs!',
         'Fru Holm: Pokémon from the same family, raised by\ndifferent trainers, get along best. Like cousins.') },
+    { id: 'skipper', sprite: 'chars/sailor', x: 20, y: 8, dir: 'left', talk: ferry('islandsbrygge') },
     { id: 'oluf', sprite: 'chars/fisher', x: 19, y: 11, dir: 'right',
       talk: talk('Fisher Oluf: The old folk here still hum songs older\nthan the lighthouse. Ask around, if you\'ve time to listen.') }
   ] as NpcDef[],

@@ -50,6 +50,7 @@ const GAME_MINUTES_PER_SECOND = 1440 / (48 * 60);
 const NAME_MAX = 10;
 
 const DIRS: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const BACK: Record<Dir, Dir> = { up: 'down', down: 'up', left: 'right', right: 'left' };
 const PARTY_MAX = 6;
 
 export function faceTo(ax: number, ay: number, bx: number, by: number): Dir {
@@ -340,13 +341,16 @@ export class Game {
       for (let i = 1; i <= n.trainer.sight; i++) {
         const tx = ns_.x + dx * i, ty = ns_.y + dy * i;
         if (tx === s.x && ty === s.y) {
-          const talk = n.talk;
+          const talk = n.talk, g = this;
           this.run(function* (api) {
-            const npc = api.npc(n.id);
+            const npc = api.npc(n.id), post = npc.dir;
             npc.exclaim();
-            if (i > 1) npc.walk(npc.dir, i - 1, 10);
+            if (i > 1) npc.walk(post, i - 1, 10);
             api.player.faceTo(npc.x, npc.y);
-            return yield* talk(api);
+            const r = yield* talk(api);
+            // Back to their post, so they never end up standing in a doorway or across a path.
+            if (i > 1 && !npc.hidden && g.state.map === m.key) { npc.walk(BACK[post], i - 1, 10); npc.face(post); }
+            return r;
           }, m.pack);
           return;
         }
