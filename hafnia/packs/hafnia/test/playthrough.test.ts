@@ -154,7 +154,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step to the end of Chapter 8', () => {
+  it('plays from the first step to the end of Chapter 9', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -537,6 +537,34 @@ describe('Hafnia demo', () => {
     expect(flag('ch8done')).toBe(true);
     expect(d.game.period).toBe('morning');
     expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 8 complete');
+
+    // Chapter 9: Slotsholmen, Margrethe and the ledger, the vault's brass scales, Gym 7, Lukas on Knippelsbro
+    d.leave('up'); at('route4');
+    expect(flag('ch9'), d.where()).toBe(true);
+    d.leave('left'); at('slotsholmen');
+    expect(flag('c9arrive'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    d.s.party[0].moves = [{ id: 'flamethrower', pp: 15 }, ...d.s.party[0].moves];   // answers to Steel types
+    d.walkTo(19, 6); d.send({ t: 'step', dir: 'up' }); at('borsen');
+    d.answers.push(0); d.talkTo(5, 1);                         // show Margrethe Andersen's ledger
+    expect(flag('vaultOpen'), d.where()).toBe(true);
+    d.talkTo(12, 1); at('gym7');                               // down the stair
+    d.talkTo(4, 7); d.talkTo(14, 7); d.talkTo(4, 12);          // the three merchants' tokens
+    expect([flag('tokenShip'), flag('tokenSpice'), flag('tokenSalt')], d.where()).toEqual([true, true, true]);
+    d.answers.push(1); d.talkTo(9, 7);                         // Ship + Salt: the scales lurch
+    expect(flag('scalesDone')).toBeFalsy();
+    d.answers.push(0); d.talkTo(9, 7);                         // Ship + Spice: twelve marks
+    expect(flag('scalesDone'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    d.answers.push(0); d.talkTo(9, 2);                         // Margrethe
+    expect(d.s.badges.at(-1), d.where()).toBe('hafnia:spire');
+    expect([d.s.bag.stormshield, d.s.bag.ledger2]).toEqual([1, 1]);
+    d.talkTo(9, 13); at('borsen');                             // back up the stair
+    d.walkTo(8, 8); at('slotsholmen');
+    d.leave('right'); at('route4');                            // Lukas on Knippelsbro
+    expect(flag('lukas9'), d.where()).toBe(true);
+    expect(flag('ch9done')).toBe(true);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 9 complete');
   });
 
   it('a wrong steam valve closes them all again', () => {

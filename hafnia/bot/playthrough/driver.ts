@@ -60,6 +60,9 @@ export class Player {
         case 'battle': {
           const b = e.ev;
           if (b.b === 'text') this.said.push(b.text);
+          if (process.env.PT_BATTLE && this.battle?.kind === 'trainer' && new RegExp(process.env.PT_BATTLE).test(this.battle.trainer)) {
+            console.error('  ' + (b.b === 'text' ? b.text.replace(/\n/g, ' ') : JSON.stringify(b).slice(0, 160)));
+          }
           if (b.b === 'switch' && b.side === 'foe') {
             this.foe[b.slot ?? 0] = { species: b.mon.species, level: b.mon.level, hp: b.mon.hp, maxhp: b.mon.maxhp };
             this.battle?.foes.push(`${b.mon.species} ${b.mon.level}`);
@@ -92,6 +95,8 @@ export class Player {
   }
 
   private pickIndex(text: string, options: string[]) {
+    const forget = this.forgetMove(text, options);
+    if (forget !== null) return forget;
     if (this.queue.length) {
       const q = this.queue.shift()!;
       const idx = typeof q === 'number' ? q : options.findIndex(o => (typeof q === 'string' ? o.startsWith(q) : q.test(o)));
@@ -108,9 +113,20 @@ export class Player {
     return idx;
   }
 
+  /** "Forget a move to make room for X?": like a player, drop the weakest move, or skip a move that is no better. */
+  private forgetMove(text: string, options: string[]) {
+    const m = /^Forget a move to make room for (.+)\?$/.exec(text);
+    if (!m) return null;
+    const value = (name: string) => { const mv = Dex.moves.get(name); return mv.category === 'Status' ? 30 : mv.basePower || 30; };
+    const known = options.slice(0, -1).map(value);
+    const worst = known.indexOf(Math.min(...known));
+    return value(m[1]) > known[worst] ? worst : options.length - 1;
+  }
+
   // ---------- battles ----------
 
   private score(moveType: string, power: number, category: string, mine: string[], foeSpecies: string) {
+    moveType = cap(moveType); mine = mine.map(cap);   // views use lower case; Dex's type chart wants "Fire"
     if (category === 'Status' || !power) return 0;
     const types = Dex.species.get(foeSpecies).types;
     if (!Dex.getImmunity(moveType, types)) return 0;
@@ -135,7 +151,8 @@ export class Player {
     if (!foe) return m.level;
     const best = Math.max(0, ...m.moves.map(mv => this.score(mv.type, mv.power, mv.category, m.types, foe.species)));
     const foeTypes = Dex.species.get(foe.species).types;
-    const threat = Math.max(...foeTypes.map(t => (Dex.getImmunity(t, m.types) ? 2 ** Dex.getEffectiveness(t, m.types) : 0)));
+    const mine = m.types.map(cap);
+    const threat = Math.max(...foeTypes.map(t => (Dex.getImmunity(t, mine) ? 2 ** Dex.getEffectiveness(t, mine) : 0)));
     return best / (1 + threat) + m.level * 2 + 50 * m.hp / m.maxhp;
   }
 
@@ -317,3 +334,5 @@ export class Player {
   get leadLevel() { return Math.max(...this.s.party.filter(m => !m.egg).map(m => m.level)); }
   get minLevel() { return Math.min(...this.s.party.slice(0, 6).filter(m => !m.egg).map(m => m.level)); }
 }
+
+const cap = (type: string) => type.charAt(0).toUpperCase() + type.slice(1);

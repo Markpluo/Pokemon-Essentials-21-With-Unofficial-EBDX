@@ -12,7 +12,7 @@ type P = Player;
 const HEALERS: [string, number, number, string][] = [
   ['flat', 6, 2, 'starter'], ['pcnorrebro', 2, 2, 'starter'], ['pcindreby', 2, 2, 'c2'], ['pcchristianshavn', 2, 2, 'chrMaja'],
   ['pcvesterbro', 2, 2, 'vbArrive'], ['pcfrederiksberg', 2, 2, 'ch5met'],
-  ['pcosterbro', 2, 2, 'c7met'], ['pcbakken', 2, 2, 'bakkenSeen'], ['trekroner', 12, 21, 'c8land']
+  ['pcosterbro', 2, 2, 'c7met'], ['pcbakken', 2, 2, 'bakkenSeen'], ['trekroner', 12, 21, 'c8land'], ['pcslotsholmen', 2, 2, 'c9arrive']
 ];
 
 /** Walks to the nearest open Pokémon Center (or Mum) and heals. */
@@ -64,6 +64,20 @@ function goal(p: P, name: string, done: () => boolean, act: () => void) {
     train(p, Math.max(p.leadLevel + 2, top + 2), name);
   }
   throw new Error(`${name}: gave up after 6 tries`);
+}
+
+/** Like a player with a new Pokémon in the box: at a Center PC, put the weakest team member away and take it out. */
+function swapIn(p: P, pc: string, species: string) {
+  const mon = p.s.box.find(m => m.species === species);
+  if (!mon) return;
+  goto(p, pc);
+  p.talkTo(6, 1);
+  const weakest = [...p.s.party].filter(m => !m.egg).sort((a, b) => a.level - b.level)[0];
+  p.send({ t: 'pc', op: 'deposit', uid: weakest.uid });
+  p.send({ t: 'pc', op: 'withdraw', uid: mon.uid });
+  p.send({ t: 'pc', op: 'close' });
+  if (!p.s.party.includes(mon)) throw new Error(`could not swap in ${species}`);
+  p.notes.push(`swapped ${weakest.species} ${weakest.level} out for ${species} ${mon.level}`);
 }
 
 /** Before a big fight, a careful player tops up: heal and buy balls/potions with spare money. */
@@ -272,4 +286,24 @@ export function chapter8(p: P) {
   goal(p, 'Maja', () => !!p.flag('mayaFree'), () => { goto(p, 'battery'); p.talkTo(10, 3); });
   goal(p, 'the siphon chamber', () => !!p.flag('c8chamber'), () => { goto(p, 'siphon'); p.walkTo(8, 6); });
   goal(p, 'Kaas', () => !!p.flag('ch8done'), () => { goto(p, 'siphon'); p.talkTo(8, 3); });
+}
+
+// ---------- Chapter 9: The Spire ----------
+
+export function chapter9(p: P) {
+  grindMaps = ['slotsholmen', 'dyrehaven', 'route8'];
+  // The wall ledgers: ship five, salt four, spice seven; twelve in the left pan.
+  p.answers.push({ when: /Which tokens/, pick: 'Ship + Spice' });
+  goal(p, 'the chapter opens', () => !!p.flag('ch9'), () => goto(p, 'route4'));
+  goal(p, 'Slotsholmen', () => !!p.flag('c9arrive'), () => goto(p, 'slotsholmen'));
+  shopAndHeal(p, 'pcslotsholmen');
+  goal(p, 'Margrethe reads the ledger', () => !!p.flag('vaultOpen'), () => { goto(p, 'borsen'); p.talkTo(5, 1); });
+  goal(p, 'the clerk\'s Torkoal', () => !!p.flag('torkoalGift'), () => { goto(p, 'borsen'); p.talkTo(2, 4); });
+  swapIn(p, 'pcslotsholmen', 'torkoal');
+  for (const [id, x, y] of [['tokenShip', 4, 7], ['tokenSpice', 14, 7], ['tokenSalt', 4, 12]] as const) {
+    goal(p, id, () => !!p.flag(id), () => { goto(p, 'gym7'); p.talkTo(x, y); });
+  }
+  goal(p, 'the scales', () => !!p.flag('scalesDone'), () => { goto(p, 'gym7'); p.talkTo(9, 7); });
+  goal(p, 'Margrethe', () => !!p.flag('spire'), () => { goto(p, 'gym7'); p.walkTo(9, 3); p.talkTo(9, 2); });
+  goal(p, 'Lukas on Knippelsbro', () => !!p.flag('ch9done'), () => { goto(p, 'slotsholmen'); goto(p, 'route4'); });
 }
