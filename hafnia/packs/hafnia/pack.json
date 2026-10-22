@@ -174,7 +174,26 @@
     "skarmory",
     "pawniard",
     "probopass",
-    "torkoal"
+    "torkoal",
+    "machamp",
+    "gurdurr",
+    "conkeldurr",
+    "durant",
+    "boldore",
+    "crobat",
+    "luxio",
+    "heliolisk",
+    "zebstrika",
+    "steelix",
+    "kingdra",
+    "gyarados",
+    "haxorus",
+    "excadrill",
+    "klinklang",
+    "metang",
+    "porygonz",
+    "galvantula",
+    "vikavolt"
   ],
   "spriteKeys": {
     "qwilfishhisui": "QWILFISH_1"
@@ -314,7 +333,13 @@
     "chars/margrethe": "Graphics/Characters/trainer_LEADER_Sabrina.png",
     "tr/margrethe": "Graphics/Trainers/LEADER_Sabrina.png",
     "chars/archivist": "Graphics/Characters/trainer_RUINMANIAC.png",
-    "tr/gentleman": "Graphics/Trainers/GENTLEMAN.png"
+    "tr/gentleman": "Graphics/Trainers/GENTLEMAN.png",
+    "chars/acem": "Graphics/Characters/trainer_COOLTRAINER_M.png",
+    "tr/acem": "Graphics/Trainers/COOLTRAINER_M.png",
+    "chars/acef": "Graphics/Characters/trainer_COOLTRAINER_F.png",
+    "tr/acef": "Graphics/Trainers/COOLTRAINER_F.png",
+    "chars/astrid": "Graphics/Characters/trainer_ELITEFOUR_Lorelei.png",
+    "tr/astrid": "Graphics/Trainers/ELITEFOUR_Lorelei.png"
   },
   "audio": {
     "title": "Audio/BGM/Title.ogg",

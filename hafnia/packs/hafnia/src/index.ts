@@ -1,5 +1,5 @@
 // The base game, "Copper & Current", as a content pack: the demo from the Prologue in Nørrebro
-// to the end of Chapter 9 on Knippelsbro. Lines live in strings/en.json (from the demo
+// to the end of Chapter 10 at CopenHill. Lines live in strings/en.json (from the demo
 // script); each area's scripts live in their own file.
 import { speciesExtra, type Dir, type MapDef, type Pack, type Script } from '@hafnia/core';
 import manifest from '../pack.json';
@@ -16,12 +16,13 @@ import type { MapScripts } from './lib';
 import { starterVars } from './starters';
 import { VESTERBRO_SCRIPTS, norrebroWest } from './vesterbro';
 import { RUNDETARN_SCRIPTS, ch6Start } from './rundetarn';
+import { SHIPYARD_SCRIPTS, ch10Start, copenhillGate, shipyardsGate } from './shipyards';
 import { ROUTE4_LUKAS, SPIRE_SCRIPTS, ch9Start, route4Enter, slotsholmenGate } from './spire';
 import { DAWN_NPCS, FLEET_DECKHAND, TREKRONER_SCRIPTS, ch8Start } from './trekroner';
 import { MAPS, STAMPS } from './world';
 
 const SCRIPTS: Record<string, MapScripts & { exitGuards?: Partial<Record<Dir, Script>> }> = {
-  ...HOME, ...LAKES, ...CITY, ...FREETOWN, ...DRAGOR_SCRIPTS, ...VESTERBRO_SCRIPTS, ...ASSISTENS_SCRIPTS, ...CISTERNS_SCRIPTS, ...RUNDETARN_SCRIPTS, ...BAKKEN_SCRIPTS, ...TREKRONER_SCRIPTS, ...SPIRE_SCRIPTS
+  ...HOME, ...LAKES, ...CITY, ...FREETOWN, ...DRAGOR_SCRIPTS, ...VESTERBRO_SCRIPTS, ...ASSISTENS_SCRIPTS, ...CISTERNS_SCRIPTS, ...RUNDETARN_SCRIPTS, ...BAKKEN_SCRIPTS, ...TREKRONER_SCRIPTS, ...SPIRE_SCRIPTS, ...SHIPYARD_SCRIPTS
 };
 const homeEnter = SCRIPTS.norrebro.onEnter;
 SCRIPTS.norrebro = {
@@ -56,6 +57,13 @@ for (const id of ['route4', 'pcchristianshavn', 'stadsgraven', 'indreby', 'nyhav
   SCRIPTS[id] = { ...SCRIPTS[id], onEnter: function* (s) { if (s.flag('ch8done')) yield* ch9Start(s); if (enter) yield* enter(s); if (id === 'route4') yield* route4Enter(s); } };
 }
 SCRIPTS.route4 = { ...SCRIPTS.route4, npcs: [...(SCRIPTS.route4.npcs ?? []), ROUTE4_LUKAS], exitGuards: { left: slotsholmenGate } };
+// Chapter 10 starts on the next map you enter after Knippelsbro; the drydock's east gate opens onto the shipyards.
+for (const id of ['indreby', 'christianshavn', 'slotsholmen', 'pcslotsholmen', 'nyhavn', 'pcchristianshavn', 'stadsgraven', 'drydock']) {
+  const enter = SCRIPTS[id]?.onEnter;
+  SCRIPTS[id] = { ...SCRIPTS[id], onEnter: function* (s) { if (s.flag('ch9done')) yield* ch10Start(s); if (enter) yield* enter(s); } };
+}
+SCRIPTS.drydock.exitGuards = { right: shipyardsGate };
+SCRIPTS.eastquay.exitGuards = { right: copenhillGate };
 SCRIPTS.nyhavn.exitGuards = { right: langelinieGate };
 SCRIPTS.dyrehaven.exitGuards = { up: bakkenGate };
 SCRIPTS.assistens.exitGuards = { up: lanternGate };
