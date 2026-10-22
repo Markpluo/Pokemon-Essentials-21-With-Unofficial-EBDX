@@ -57,7 +57,7 @@ export function doorOf(map: string, building: string): [number, number] {
 
 /** Cheapest path from (sx, sy) to (tx, ty). Tall grass costs more (fewer wild battles); doors and
  *  warps are only entered when they are the target, and `avoid` tiles (traps, wrong gaps) never.
- *  Returns the directions to press, or null. */
+ *  Returns the directions to press (inverted on Trick Room floor), or null. */
 export function findPath(map: string, sx: number, sy: number, tx: number, ty: number, npcs: NpcView[], avoid: [number, number][] = []): Dir[] | null {
   const m = mapDef(map), grass = m.encounterTile ?? sync().core.GRASS_TILE;
   const key = (x: number, y: number) => y * m.w + x;
@@ -80,7 +80,8 @@ export function findPath(map: string, sx: number, sy: number, tx: number, ty: nu
       if (avoid.some(([ax, ay]) => ax === nx && ay === ny)) continue;
       const nc = c + (m.grid[ny][nx] === grass ? 6 : 1);
       if (nc >= (cost.get(key(nx, ny)) ?? Infinity)) continue;
-      cost.set(key(nx, ny), nc); prev.set(key(nx, ny), [key(x, y), d]); open.push([nc, nx, ny]);
+      const press = sync().core.TRICK_TILES.has(m.grid[y][x]) ? sync().core.OPPOSITE[d] : d;   // Trick Room floor: press the other way
+      cost.set(key(nx, ny), nc); prev.set(key(nx, ny), [key(x, y), press]); open.push([nc, nx, ny]);
     }
   }
   return null;

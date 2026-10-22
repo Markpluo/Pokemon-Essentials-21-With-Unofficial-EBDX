@@ -30,6 +30,10 @@ const TALK: Record<string, { to: string; x: number; y: number }[]> = {
   islandsbrygge: [{ to: 'dragor', x: 2, y: 11 }],
   dragor: [{ to: 'islandsbrygge', x: 20, y: 8 }]
 };
+/** Tiles you step on that move you (step events, not warps). */
+const STEP: Record<string, { to: string; x: number; y: number }[]> = {
+  towerin: [{ to: 'rundetarn', x: 6, y: 2 }]
+};
 
 function edgeTiles(map: string, dir: Dir): [number, number][] {
   const m = mapDef(map), out: [number, number][] = [];
@@ -58,6 +62,7 @@ export function hops(map: string): Hop[] {
     if (!out.some(h => h.to === to)) out.push({ to, cost: 10, how: p => p.walkTo(w.x, w.y) });
   }
   for (const t of TALK[map] ?? []) out.push({ to: t.to, cost: 15, how: p => p.talkTo(t.x, t.y) });
+  for (const t of STEP[map] ?? []) out.push({ to: t.to, cost: 10, how: p => p.walkTo(t.x, t.y) });
   return out;
 }
 

@@ -208,3 +208,21 @@ export function chapter5(p: P) {
   goal(p, 'the Sunken Archive', () => !!p.flag('archiveDone'), () => { goto(p, 'cisterns'); p.walkTo(11, 16); });
   goal(p, 'Lukas at the pyramid', () => !!p.flag('ch5done'), () => { goto(p, 'cisterns'); p.talkTo(1, 20); });
 }
+
+// ---------- Chapter 6 ----------
+
+export function chapter6(p: P) {
+  grindMaps = ['frederiksberg', 'assistens', 'route2'];
+  goal(p, 'Tycho\'s message', () => !!p.flag('ch6'), () => goto(p, 'route2'));
+  goal(p, 'the Rundetårn lobby', () => !!p.flag('ch6met'), () => goto(p, 'towerin'));
+  shopAndHeal(p, 'pcindreby');
+  goal(p, 'the objective lens', () => !!p.flag('lens1Got'), () => { goto(p, 'bibliotek'); p.talkTo(1, 6); });
+  goal(p, 'the eyepiece lens', () => !!p.flag('lens2Got'), () => { goto(p, 'trinitatis'); p.talkTo(12, 1); });
+  // The star chart: north the Great Bear, east the Swan, west the Lion.
+  goal(p, 'the brass rings', () => !!p.flag('ringsDone'), () => {
+    goto(p, 'rundetarn');
+    p.talkTo(7, 15);
+    for (const [x, y, sign] of [[8, 11, 'Lion'], [12, 8, 'Great Bear'], [14, 11, 'Swan']] as const) { p.queue.push(sign); p.talkTo(x, y); }
+  });
+  goal(p, 'Tycho', () => !!p.flag('orrery'), () => { goto(p, 'rundetarn'); p.walkTo(11, 12); p.talkTo(11, 11); });
+}

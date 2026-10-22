@@ -1,10 +1,10 @@
-// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 5). Plain data,
+// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 6). Plain data,
 // so the client can import it for rendering without the scripts.
 // Outdoor tiles: '.' ground, '=' brick path, 'g' tall grass, 'f' flowers, 'T' trees, '~' sea, 'o' still water,
 //   'r' Den Røde Plads, 'k' Den Sorte Plads, 'q' cobbles, 'a' asphalt/concrete, 'l' bike lane, 'd' planks,
 //   'H' house fronts, 'x' shipping containers, 'n' railings.
 // Indoor and tunnels: '_' floor, 'w' wall, 'K' furniture, 'm' doormat, 'c' tunnel floor, 'R' rock, 'p' pipes, 'P' planters,
-//   'u' drain water, 'i' ice.
+//   'u' drain water, 'i' ice, 'z' Trick Room floor (steps go the opposite way).
 import type { MapDef, Stamp, Warp } from '@hafnia/core';
 
 type MapData = Omit<MapDef, 'npcs' | 'doors' | 'events' | 'onEnter'>;
@@ -748,6 +748,67 @@ function cisterns(): MapData {
   };
 }
 
+// ---------- Chapter 6: Look Up ----------
+
+// Rundetårn's spiral ramp, drawn as three square rings of 2-wide corridor around the observatory.
+// In at the bottom, west and up through the outer ring (a door to the library hall on the west wall),
+// across the Trick Room floor at the top, down the east side (the Trinitatis loft door), then in through
+// the gap at (16,19) to the middle ring, whose east side is Trick Room again, in at (8,16) to the inner
+// ring with the three brass rings, and through the orrery gate at (11,13) to Tycho.
+function rundetarn(): MapData {
+  const W = 23, H = 23, g = makeGrid(W, H, '_');
+  const ring = (a: number, b: number) => { fill(g, a, a, b - a + 1, 1, 'w'); fill(g, a, b, b - a + 1, 1, 'w'); fill(g, a, a, 1, b - a + 1, 'w'); fill(g, b, a, 1, b - a + 1, 'w'); };
+  ring(0, 22); ring(3, 19); ring(6, 16); ring(9, 13);
+  fill(g, 13, 20, 1, 2, 'w');                 // outer ring: the way up starts west
+  g[19][16] = '_';                            // into the middle ring
+  fill(g, 15, 17, 1, 2, 'w');                 // middle ring: east first
+  g[16][8] = '_';                             // into the inner ring
+  fill(g, 10, 14, 1, 2, 'w');                 // inner ring: west first
+  g[13][11] = '_';                            // the orrery gate (an object until the rings line up)
+  fill(g, 3, 1, 17, 2, 'z');                  // Trick Room: the top of the outer ring
+  fill(g, 17, 6, 2, 11, 'z');                 // Trick Room: the east side of the middle ring
+  dots(g, 'K', [[7, 1], [11, 2], [15, 1], [17, 9], [18, 13]]);   // brass instruments to weave around
+  g[21][11] = 'm'; g[11][0] = 'm'; g[11][22] = 'm';
+  return {
+    id: 'rundetarn', name: 'Rundetårn: the Ramp', grid: g, w: W, h: H, battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true,
+    warps: [
+      { x: 11, y: 21, to: 'towerin', tx: 6, ty: 3, dir: 'down' },
+      { x: 0, y: 11, to: 'bibliotek', tx: 11, ty: 4, dir: 'left' },
+      { x: 22, y: 11, to: 'trinitatis', tx: 1, ty: 4, dir: 'right' }
+    ]
+  };
+}
+
+// Bibliotekssalen, the old university library hall halfway up the tower. The objective lens rolled under the shelves.
+const bibliotek = (): MapData => ({
+  id: 'bibliotek', name: 'Bibliotekssalen', ...grid([
+    'wwwwwwwwwwwwww',
+    'wKK_KK__KK_KKw',
+    'w____________w',
+    'w_KK__KK__KK_w',
+    'w____________m',
+    'w_KK__KK__KK_w',
+    'w____________w',
+    'wwwwwwwwwwwwww'
+  ]), battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true,
+  warps: [{ x: 13, y: 4, to: 'rundetarn', tx: 1, ty: 11, dir: 'right' }]
+});
+
+// The loft of Trinitatis Church, through the little door where tower and church meet: beams, dust and a Murkrow's nest.
+const trinitatis = (): MapData => ({
+  id: 'trinitatis', name: 'Trinitatis Loft', ...grid([
+    'wwwwwwwwwwwwww',
+    'w__K___K___K_w',
+    'w____________w',
+    'w_K___K___K__w',
+    'm____________w',
+    'w__K___K___K_w',
+    'w____________w',
+    'wwwwwwwwwwwwww'
+  ]), battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true, dark: true,
+  warps: [{ x: 0, y: 4, to: 'rundetarn', tx: 21, ty: 11, dir: 'left' }]
+});
+
 const bakery = () => room('bakery', 'Bageriet', [
   'wwwwwwwwwww',
   'wKKK___KKKw',
@@ -768,5 +829,6 @@ export const MAPS = {
   route2: route2(), vesterbro: vesterbro(), cafevb: vbCafe(), pcvesterbro: center('pcvesterbro', 'Pokémon Center', 'vesterbro', 18, 8),
   kodbyen: kodbyen(), kitchen: kitchen(), gym3: gym3(), route3: route3(), islandsbrygge: islandsbrygge(),
   assistens: assistens(), stormdrain: stormdrain(), gym4: gym4(), bakery: bakery(),
-  frederiksberg: frederiksberg(), pcfrederiksberg: center('pcfrederiksberg', 'Pokémon Center', 'frederiksberg', 5, 14), cisterns: cisterns()
+  frederiksberg: frederiksberg(), pcfrederiksberg: center('pcfrederiksberg', 'Pokémon Center', 'frederiksberg', 5, 14), cisterns: cisterns(),
+  rundetarn: rundetarn(), bibliotek: bibliotek(), trinitatis: trinitatis()
 };

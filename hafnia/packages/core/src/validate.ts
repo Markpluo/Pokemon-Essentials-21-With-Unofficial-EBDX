@@ -1,10 +1,10 @@
 // Content checks run by the test suite (systems.md §12): every map, exit, building, NPC sprite and
 // encounter must point at something that exists, so a broken reference fails CI, not a playtest.
 import { Dex } from '@pkmn/sim';
-import { GRASS_TILE, ICE_TILES, SOLID_TILES, WATER_TILES, ns, type Content } from './content';
+import { GRASS_TILE, ICE_TILES, SOLID_TILES, TRICK_TILES, WATER_TILES, ns, type Content } from './content';
 import { speciesExtra } from './pokemon';
 
-const KNOWN_TILES = new Set(['.', '=', 'f', 'r', 'k', 'q', 'a', 'l', 'd', '_', 'm', 'c', 'W', 'v', 'y', GRASS_TILE, ...SOLID_TILES, ...ICE_TILES]);
+const KNOWN_TILES = new Set(['.', '=', 'f', 'r', 'k', 'q', 'a', 'l', 'd', '_', 'm', 'c', 'W', 'v', 'y', GRASS_TILE, ...SOLID_TILES, ...ICE_TILES, ...TRICK_TILES]);
 /** Objects the client draws itself (switches, valves, lily pads...). */
 const DRAWN = /^obj:/;
 

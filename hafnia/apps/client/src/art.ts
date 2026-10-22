@@ -159,6 +159,14 @@ export function drawTile(g: G2, t: string, x: number, y: number, dx: number, dy:
       if (x % 2 === 0 && up === 'y' && down === 'y') g.fillRect(dx + 6, dy + 15, 16, 2);
       return true;
     }
+    case 'z': {
+      // Gym 5 Trick Room floor: a violet checkerboard that slowly shimmers.
+      const ph = ((time >> 3) + x + y) % 12 < 6;
+      g.fillStyle = (x + y) % 2 ? '#5a3f8a' : '#6d4fa3'; g.fillRect(dx, dy, 32, 32);
+      g.fillStyle = ph ? 'rgba(255,214,255,0.16)' : 'rgba(255,214,255,0.06)'; g.fillRect(dx + 3, dy + 3, 26, 26);
+      g.strokeStyle = '#c9a8f0'; g.lineWidth = 1; g.strokeRect(dx + 0.5, dy + 0.5, 31, 31);
+      return true;
+    }
     case 'n':
       g.fillStyle = '#7a7e84'; g.fillRect(dx, dy, 32, 32);
       g.fillStyle = '#2f4a3a'; g.fillRect(dx + 13, dy, 6, 32);
@@ -309,6 +317,44 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
       g.strokeStyle = '#9fd8ff'; g.lineWidth = 1; g.beginPath(); g.moveTo(dx + 7, dy + 16); g.lineTo(dx + 14, dy + 9); g.lineTo(dx + 20, dy + 14); g.lineTo(dx + 25, dy + 7); g.stroke();
       g.beginPath(); g.arc(dx + 14, dy + 9, 2, 0, 7); g.stroke(); break;
     case 'stairs': for (let i = 0; i < 4; i++) box(2 + i * 2, 4 + i * 7, 28 - i * 4, 6, i % 2 ? '#8e8a84' : '#a3a09a'); break;
+    case 'brassring': {
+      // Gym 5: a brass ring of the zodiac on a pedestal, with a pointer.
+      box(13, 22, 6, 10, '#6b4526');
+      g.strokeStyle = '#c9a24a'; g.lineWidth = 3; g.beginPath(); g.arc(dx + 16, dy + 13, 10, 0, 7); g.stroke();
+      g.strokeStyle = '#8a6a28'; g.lineWidth = 1; g.beginPath(); g.arc(dx + 16, dy + 13, 6, 0, 7); g.stroke();
+      const a = time / 60;
+      g.strokeStyle = '#f2e6b8'; g.lineWidth = 2; g.beginPath(); g.moveTo(dx + 16, dy + 13); g.lineTo(dx + 16 + Math.cos(a) * 9, dy + 13 + Math.sin(a) * 9); g.stroke();
+      break;
+    }
+    case 'orrerygate':
+      box(0, 2, 32, 28, '#5a4630'); box(2, 4, 28, 24, '#3b2e20');
+      g.strokeStyle = '#c9a24a'; g.lineWidth = 1; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(dx + 16, dy + 16, 4 + i * 4, 0, 7); g.stroke(); }
+      g.fillStyle = '#e8c35a'; g.beginPath(); g.arc(dx + 16, dy + 16, 3, 0, 7); g.fill();
+      g.fillStyle = '#9fd8ff'; g.beginPath(); g.arc(dx + 24, dy + 16, 2, 0, 7); g.fill();
+      g.fillStyle = '#e07a2e'; g.beginPath(); g.arc(dx + 16, dy + 4.5, 2, 0, 7); g.fill();
+      break;
+    case 'lens': {
+      g.fillStyle = 'rgba(180,220,255,0.75)'; g.beginPath(); g.ellipse(dx + 16, dy + 22, 9, 5, 0, 0, 7); g.fill();
+      g.strokeStyle = '#c9a24a'; g.lineWidth = 2; g.beginPath(); g.ellipse(dx + 16, dy + 22, 9, 5, 0, 0, 7); g.stroke();
+      if ((time >> 3) % 8 < 2) { g.fillStyle = '#fff'; g.fillRect(dx + 12, dy + 19, 3, 2); }
+      break;
+    }
+    case 'starchart': box(14, 18, 4, 14, '#6b4526'); box(3, 3, 26, 18, '#1b2340');
+      g.fillStyle = '#f2e6b8'; for (const [x, y] of [[7, 7], [10, 9], [13, 8], [16, 11], [21, 6], [24, 9], [19, 15], [9, 16]]) g.fillRect(dx + x, dy + y, 2, 2);
+      g.strokeStyle = 'rgba(242,230,184,0.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(dx + 8, dy + 8); g.lineTo(dx + 11, dy + 10); g.lineTo(dx + 14, dy + 9); g.lineTo(dx + 17, dy + 12); g.stroke(); break;
+    case 'telescope':
+      box(10, 26, 12, 4, '#3b3f4a'); box(14, 16, 4, 10, '#565b66');
+      g.save(); g.translate(dx + 16, dy + 16); g.rotate(-0.6); g.fillStyle = '#b87333'; g.fillRect(-14, -4, 28, 8); g.fillStyle = '#d9a066'; g.fillRect(-14, -4, 28, 2); g.fillStyle = '#26272c'; g.fillRect(12, -5, 4, 10); g.restore();
+      break;
+    case 'orrery': {
+      box(6, 24, 20, 6, '#6b4526'); box(15, 14, 2, 10, '#8a6a28');
+      g.fillStyle = '#e8c35a'; g.beginPath(); g.arc(dx + 16, dy + 12, 4, 0, 7); g.fill();
+      g.strokeStyle = 'rgba(201,162,74,0.7)'; g.lineWidth = 1; g.beginPath(); g.ellipse(dx + 16, dy + 12, 12, 5, 0, 0, 7); g.stroke();
+      const a = time / 40;
+      g.fillStyle = '#5f8fc4'; g.beginPath(); g.arc(dx + 16 + Math.cos(a) * 12, dy + 12 + Math.sin(a) * 5, 2.5, 0, 7); g.fill();
+      g.fillStyle = '#c9574b'; g.beginPath(); g.arc(dx + 16 + Math.cos(-a * 0.6) * 8, dy + 12 + Math.sin(-a * 0.6) * 3.3, 2, 0, 7); g.fill();
+      break;
+    }
     default: box(8, 8, 16, 16, '#d0f');
   }
 }
