@@ -67,8 +67,9 @@ for (const id of ['indreby', 'christianshavn', 'slotsholmen', 'pcslotsholmen', '
 }
 SCRIPTS.drydock.exitGuards = { right: shipyardsGate };
 SCRIPTS.eastquay.exitGuards = { right: copenhillGate };
-// Chapter 11 starts on the next map you enter after Lindholm's broadcast; Maja's broadcast waits on Slotsholmen.
-for (const id of ['eastquay', 'pccopenhill', 'gym8', 'shipyards', 'drydock', 'cranetop']) {
+// Chapter 11 starts once you leave CopenHill after Lindholm's broadcast (you can still heal at its Center first);
+// Maja's broadcast waits on Slotsholmen.
+for (const id of ['eastquay', 'shipyards', 'drydock', 'cranetop']) {
   const enter = SCRIPTS[id]?.onEnter;
   SCRIPTS[id] = { ...SCRIPTS[id], onEnter: function* (s) { if (s.flag('ch10done')) yield* ch11Start(s); if (enter) yield* enter(s); } };
 }
