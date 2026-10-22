@@ -15,7 +15,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p bot/tsconfig.json --noEmit",
     "bot": "playwright test -c bot/playwright.config.ts",
-    "bot:report": "playwright show-report bot/results/report"
+    "bot:report": "playwright show-report bot/results/report",
+    "playthrough": "node bot/playthrough/build.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",
