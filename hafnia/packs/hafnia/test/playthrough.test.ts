@@ -20,30 +20,35 @@ class Driver {
   /** Sends an intent, then answers every prompt and battle request that follows (always the first option). */
   send(intent: Parameters<Game['handle']>[0]) { this.take(this.game.handle(intent)); }
 
-  private take(evs: ServerEvent[]) {
-    this.log.push(...evs);
-    for (const e of evs) if (e.t === 'error') throw new Error(e.message);
-    for (const e of evs) if (e.t === 'battleEnd') this.battles.push(e.result);
-    for (const e of evs) if (e.t === 'battleStart') this.wild = e.battle.kind === 'wild';
-    const last = [...evs].reverse().find(e => ['prompt', 'pickSpecies', 'battleRequest', 'askName', 'pickLook'].includes(e.t));
-    if (!last) return;
-    if (last.t === 'askName') this.send({ t: 'answer', index: 0, text: last.suggestions[0] });
-    else if (last.t === 'pickLook') this.send({ t: 'answer', index: 0 });
-    else if (last.t === 'prompt' || last.t === 'pickSpecies') this.send({ t: 'answer', index: this.answers.shift() ?? 0 });
-    else if (last.t === 'battleRequest') {
-      const r = last.request;
-      if (r.forceSwitch) {
-        const next = r.party.find(p => p.hp > 0 && p.uid !== r.activeUid)!;
-        this.send({ t: 'battle', action: { kind: 'switch', uid: next.uid } });
-      } else if (this.ball && this.wild) {
-        this.send({ t: 'battle', action: { kind: 'ball', item: this.ball } });
-      } else {
-        // Strongest usable move, like a sensible player.
-        const best = r.moves.map((m, i) => ({ m, i })).filter(x => !x.m.disabled)
-          .sort((a, b) => Number(b.m.type !== 'normal') - Number(a.m.type !== 'normal'))[0];
-        this.send({ t: 'battle', action: { kind: 'move', index: best?.i ?? 0 } });
-      }
+  private take(first: ServerEvent[]) {
+    // A loop, not recursion: a long battle is hundreds of answers deep.
+    for (let evs = first, n = 0; ; n++) {
+      if (n > 3000) throw new Error(`stuck answering: ${this.where()} ${JSON.stringify(evs.slice(-6)).slice(0, 1500)}`);
+      this.log.push(...evs);
+      for (const e of evs) if (e.t === 'error') throw new Error(e.message);
+      for (const e of evs) if (e.t === 'battleEnd') this.battles.push(e.result);
+      for (const e of evs) if (e.t === 'battleStart') this.wild = e.battle.kind === 'wild';
+      const last = [...evs].reverse().find(e => ['prompt', 'pickSpecies', 'battleRequest', 'askName', 'pickLook'].includes(e.t));
+      if (!last) return;
+      evs = this.game.handle(this.reply(last));
     }
+  }
+
+  private reply(last: ServerEvent): Parameters<Game['handle']>[0] {
+    if (last.t === 'askName') return { t: 'answer', index: 0, text: last.suggestions[0] };
+    if (last.t === 'pickLook') return { t: 'answer', index: 0 };
+    if (last.t === 'prompt' || last.t === 'pickSpecies') return { t: 'answer', index: this.answers.shift() ?? 0 };
+    if (last.t !== 'battleRequest') throw new Error(`no reply for ${last.t}`);
+    const r = last.request;
+    if (r.forceSwitch) {
+      const next = r.party.find(p => p.hp > 0 && p.uid !== r.activeUid)!;
+      return { t: 'battle', action: { kind: 'switch', uid: next.uid } };
+    }
+    if (this.ball && this.wild) return { t: 'battle', action: { kind: 'ball', item: this.ball } };
+    // Strongest usable move, like a sensible player.
+    const best = r.moves.map((m, i) => ({ m, i })).filter(x => !x.m.disabled && x.m.pp !== 0)
+      .sort((a, b) => Number(b.m.type !== 'normal') - Number(a.m.type !== 'normal'))[0];
+    return { t: 'battle', action: { kind: 'move', index: best?.i ?? 0 } };
   }
 
   get s() { return this.game.state; }
@@ -161,7 +166,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step to the end of Chapter 12', () => {
+  it('plays from the first step to the end of the story', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -658,6 +663,27 @@ describe('Hafnia demo', () => {
     expect([...d.s.party, ...d.s.box].some(m => m.species === 'langelira'), d.where()).toBe(true);
     expect(flag('ch12done')).toBe(true);
     expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 12 complete');
+
+    // Chapter 13: the dark night, home, and the League at Christiansborg
+    d.walkTo(7, 11); d.send({ t: 'step', dir: 'down' }); at('flat');   // down from the Ring: candles, then Mum
+    expect(flag('ch13'), d.where()).toBe(true);
+    Object.assign(d.s, { map: 'hafnia:slotsholmen', x: 6, y: 6, dir: 'up' as Dir });
+    d.send({ t: 'step', dir: 'up' }); at('leaguehall');
+    d.walkTo(6, 0); at('stables');
+    // A player picks the right attack for each hall (the driver always uses the first move).
+    const hits: Record<string, string> = { valdemar: 'surf', clara: 'thunderbolt', nikolai: 'surf', freja: 'earthquake' };
+    for (const [m, next] of [['valdemar', 'admiral'], ['clara', 'greathall'], ['nikolai', 'towerstairs'], ['freja', 'towerroof']]) {
+      d.s.party[0].moves = [{ id: hits[m], pp: 99 }, { id: 'surf', pp: 99 }, { id: 'thunderbolt', pp: 99 }];
+      d.s.party.forEach(healMon);
+      d.talkTo(5, 2);
+      expect(flag(`e4${m}`), d.where()).toBe(true);
+      if (next === 'towerroof') { d.s.party[0].moves = [{ id: 'flamethrower', pp: 99 }, { id: 'surf', pp: 99 }]; d.s.party.forEach(healMon); }
+      d.talkTo(5, 0); at(next === 'towerroof' ? 'flat' : next); // up to the next hall (the roof: the Champions, the ending, home)
+    }
+    expect(flag('champion'), d.where()).toBe(true);           // Ørsted and Lukas, with Maja beside you
+    expect(flag('ch13done')).toBe(true);
+    expect(d.said.join('\n')).toMatch(/Not tiny/);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('The End');
   }, 30_000);
 
   it('a wrong steam valve closes them all again', () => {

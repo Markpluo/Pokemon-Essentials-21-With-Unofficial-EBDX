@@ -202,7 +202,22 @@
     "lapras",
     "ampharos",
     "metagross",
-    "langelira"
+    "langelira",
+    "hippowdon",
+    "gigalith",
+    "rhyperior",
+    "mudsdale",
+    "swanna",
+    "barraskewda",
+    "krookodile",
+    "blacephalon",
+    "dhelmise",
+    "sharpedo",
+    "dragalge",
+    "venusaur",
+    "archaludon",
+    "toxapex",
+    "tinkaton"
   ],
   "pokemon": {
     "LANGELIRA": { "front": "pack:assets/pokemon/front/LANGELIRA.png", "back": "pack:assets/pokemon/back/LANGELIRA.png", "icons": "pack:assets/pokemon/icons/LANGELIRA.png", "cry": "Audio/SE/Cries/PRIMARINA.ogg" },
@@ -356,6 +371,13 @@
     "chars/langelira": "pack:assets/chars/langelira.png",
     "chars/lindholm": "Graphics/Characters/trainer_LEADER_Giovanni.png",
     "tr/lindholm": "Graphics/Trainers/LEADER_Giovanni.png",
+    "chars/valdemar": "Graphics/Characters/trainer_ELITEFOUR_Bruno.png",
+    "tr/valdemar": "Graphics/Trainers/ELITEFOUR_Bruno.png",
+    "chars/clara": "Graphics/Characters/trainer_COOLTRAINER_F.png",
+    "tr/clara": "Graphics/Trainers/COOLTRAINER_F.png",
+    "chars/nikolai": "Graphics/Characters/trainer_ELITEFOUR_Lance.png",
+    "tr/nikolai": "Graphics/Trainers/ELITEFOUR_Lance.png",
+    "tr/prof": "Graphics/Trainers/PROFESSOR.png",
     "tr/astrid": "Graphics/Trainers/ELITEFOUR_Lorelei.png"
   },
   "audio": {

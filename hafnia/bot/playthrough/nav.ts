@@ -22,7 +22,7 @@ const DOORS: Record<string, Record<string, string>> = {
   dyrehaven: { substation: 'substation' },
   bakken: { gym: 'gym6', pc: 'pcbakken' },
   trekroner: { lighthouse: 'tklighthouse', battery: 'battery', siphon: 'siphon' },
-  slotsholmen: { borsen: 'borsen', pc: 'pcslotsholmen' },
+  slotsholmen: { borsen: 'borsen', pc: 'pcslotsholmen', palace: 'leaguehall' },
   copenhill: { plant: 'gym8', pc: 'pccopenhill' },
   helsingor: { kronborg: 'casemates', pc: 'pchelsingor' }
 };
@@ -47,11 +47,16 @@ const TALK: Record<string, { to: string; x: number; y: number }[]> = {
   floodnyhavn: [{ to: 'metro', x: 12, y: 12 }],
   metro: [{ to: 'slotsholmen', x: 26, y: 1 }],
   slotsholmen: [{ to: 'ruins', x: 8, y: 6 }],
-  ruins: [{ to: 'slotsholmen', x: 1, y: 4 }]
+  ruins: [{ to: 'slotsholmen', x: 1, y: 4 }],
+  stables: [{ to: 'admiral', x: 5, y: 0 }],
+  admiral: [{ to: 'greathall', x: 5, y: 0 }],
+  greathall: [{ to: 'towerstairs', x: 5, y: 0 }],
+  towerstairs: [{ to: 'towerroof', x: 5, y: 0 }]
 };
 /** Tiles you step on that move you (step events, not warps). */
 const STEP: Record<string, { to: string; x: number; y: number }[]> = {
-  towerin: [{ to: 'rundetarn', x: 6, y: 2 }]
+  towerin: [{ to: 'rundetarn', x: 6, y: 2 }],
+  leaguehall: [{ to: 'stables', x: 6, y: 0 }]
 };
 
 function edgeTiles(map: string, dir: Dir): [number, number][] {

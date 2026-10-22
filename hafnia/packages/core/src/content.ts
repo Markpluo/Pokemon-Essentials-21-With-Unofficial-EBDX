@@ -83,6 +83,8 @@ export interface Rules {
   benchExp: number;
   /** Soft level caps by badge count (the next leader's ace): Pokémon at or above it get `overCapExp` of the Exp. */
   levelCaps: number[];
+  /** Story flags ("pack:flag") that each move the cap one step on, for the story past the last badge (the League). */
+  capFlags?: string[];
   overCapExp: number;
   coil: CoilRules;
 }

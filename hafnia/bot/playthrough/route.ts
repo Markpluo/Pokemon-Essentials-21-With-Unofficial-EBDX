@@ -15,7 +15,7 @@ const HEALERS: [string, number, number, string][] = [
   ['pcosterbro', 2, 2, 'c7met'], ['pcbakken', 2, 2, 'bakkenSeen'], ['trekroner', 12, 21, 'c8land'], ['pcslotsholmen', 2, 2, 'c9arrive'],
   ['shipyards', 2, 4, 'c10arrive'], ['pccopenhill', 2, 2, 'c10hill'],
   ['floodnyhavn', 1, 10, 'ch11'], ['metro', 1, 8, 'c11metro'], ['pchelsingor', 2, 2, 'c11ruins'],
-  ['stormhill', 3, 22, 'ch12']
+  ['stormhill', 3, 22, 'ch12'], ['leaguehall', 3, 1, 'ch13']
 ];
 
 /** Walks to the nearest open Pokémon Center (or Mum) and heals. */
@@ -34,7 +34,8 @@ let grindMaps: string[] = ['route1'];
 export function train(p: P, level: number, why: string) {
   // Like a player: train towards the foe's level, but not past the soft cap (Exp is a trickle beyond it),
   // and bring the rest of the team along to within two levels.
-  const cap = p.game.content.rules.levelCaps[p.s.badges.length] ?? Infinity;
+  const rules = p.game.content.rules;
+  const cap = rules.levelCaps[p.s.badges.length + (rules.capFlags ?? []).filter(f => p.s.flags[f]).length] ?? Infinity;
   level = Math.min(level, cap);
   const ok = () => p.leadLevel >= level && p.minLevel >= level - 2;
   const before = `${p.minLevel}-${p.leadLevel}`;
@@ -362,4 +363,14 @@ export function chapter12(p: P) {
       goto(p, 'smokestack'); p.talkTo(12, 1);
     }
   });
+}
+
+export function chapter13(p: P) {
+  grindMaps = ['helsingor', 'copenhill'];
+  // The dark night starts on the way down from the Ring and ends at home.
+  if (!p.flag('ch13')) try { goto(p, 'copenhill'); } catch (e) { if (!p.flag('ch13')) throw e; }
+  shopAndHeal(p, 'pcslotsholmen');
+  for (const [m, map] of [['valdemar', 'stables'], ['clara', 'admiral'], ['nikolai', 'greathall'], ['freja', 'towerstairs']] as const)
+    goal(p, `Elite Four ${m}`, () => !!p.flag(`e4${m}`), () => { goto(p, map); p.talkTo(5, 2); });
+  goal(p, 'the Champions', () => !!p.flag('ch13done'), () => goto(p, 'towerroof'));
 }
