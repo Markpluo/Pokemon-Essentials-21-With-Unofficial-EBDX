@@ -11,6 +11,7 @@ export const ferry = (to: 'dragor' | 'islandsbrygge'): Script => function* (s) {
     : 'Skipper Mads: Back up to Islands Brygge?');
   const c: number = yield s.ask('Take the ferry?', ['Yes', 'No'], 1);
   if (c !== 0) return;
+  s.sfx('ship_horn');
   s.fade(1, 20);
   if (to === 'dragor') s.warp('dragor', 20, 9, 'up');
   else s.warp('islandsbrygge', 3, 11, 'right');

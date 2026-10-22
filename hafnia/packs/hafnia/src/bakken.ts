@@ -262,6 +262,7 @@ const terminal: Script = function* (s) {
   const c: number = yield s.ask('c7.term.ask', ['Enter codes', 'Leave it'], 1);
   if (c !== 0) return;
   s.sfx('select'); s.wait(10); s.sfx('select'); s.wait(10);
+  s.sfx('turbine');
   for (let i = 0; i < 3; i++) { s.sfx('hit'); s.fade(0.6, 3); s.fade(0, 3); }
   s.takeItem('sifcodes');
   s.setFlag('lightsOn', true);
@@ -367,7 +368,7 @@ const cart = (c: typeof CARTS[number]): NpcDef => ({
   id: c.id, sprite: `obj:cart-${c.colour}`, x: c.x, y: c.y, dir: 'down', object: true, talk: function* (s) {
     const r: number = yield s.ask(s.t('c7.cart.ask').replace('{colour}', c.colour), ['Ride', 'Stay'], 1);
     if (r !== 0) return;
-    s.sfx('door'); s.fade(1, 16);
+    s.sfx('coaster'); s.fade(1, 16);
     s.warp('gym6', c.to[0], c.to[1], 'down');
     s.fade(0, 16);
     s.say('c7.cart.ride');

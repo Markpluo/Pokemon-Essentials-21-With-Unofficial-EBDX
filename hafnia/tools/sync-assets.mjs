@@ -29,7 +29,7 @@ for (const dir of readdirSync(join(root, 'packs'))) {
   const pack = JSON.parse(readFileSync(manifestPath, 'utf8'));
   const packDir = join(root, 'packs', dir);
   for (const [key, src] of Object.entries(pack.images)) copy(src, join(out, pack.id, `${key}.png`), packDir);
-  for (const [key, src] of Object.entries(pack.audio)) copy(src, join(out, pack.id, 'audio', `${key}.ogg`));
+  for (const [key, src] of Object.entries(pack.audio)) copy(src, join(out, pack.id, 'audio', `${key}.ogg`), packDir);
   // Species plus everything they evolve into by levelling up, so evolution scenes have sprites.
   const all = new Set(pack.species);
   for (const id of all) for (const [to, method] of species[id]?.evolutions ?? []) if (method.startsWith('Level') && species[to]) all.add(to);
