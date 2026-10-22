@@ -250,6 +250,7 @@ const sorenGym: Script = function* (s) {
   s.say('c4.got.verse'); s.say('c4.verse'); s.say('c4.soren.verse.3');
   // The hook: a tremor, and the news from Rundetårn.
   s.wait(20);
+  s.sfx('cannon');
   for (let i = 0; i < 3; i++) { s.sfx('hit'); s.fade(0.5, 3); s.fade(0, 3); }
   s.say('c4.tremor.1'); s.say('c4.tremor.2'); s.say('c4.tremor.3');
   s.setFlag('ch4done', true);

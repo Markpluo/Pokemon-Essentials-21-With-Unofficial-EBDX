@@ -20,6 +20,7 @@ import { SHIPYARD_SCRIPTS, ch10Start, copenhillGate, shipyardsGate } from './shi
 import { ROUTE4_LUKAS, SPIRE_SCRIPTS, ch9Start, route4Enter, slotsholmenGate } from './spire';
 import { DAWN_NPCS, FLEET_DECKHAND, TREKRONER_SCRIPTS, ch8Start } from './trekroner';
 import { MAPS, STAMPS } from './world';
+import { battleMusic, withMusic } from './music';
 
 const SCRIPTS: Record<string, MapScripts & { exitGuards?: Partial<Record<Dir, Script>> }> = {
   ...HOME, ...LAKES, ...CITY, ...FREETOWN, ...DRAGOR_SCRIPTS, ...VESTERBRO_SCRIPTS, ...ASSISTENS_SCRIPTS, ...CISTERNS_SCRIPTS, ...RUNDETARN_SCRIPTS, ...BAKKEN_SCRIPTS, ...TREKRONER_SCRIPTS, ...SPIRE_SCRIPTS, ...SHIPYARD_SCRIPTS
@@ -76,13 +77,14 @@ const maps: Record<string, MapDef> = {};
 for (const [id, m] of Object.entries(MAPS)) {
   const sc = SCRIPTS[id] ?? {};
   const exits = m.exits && Object.fromEntries(Object.entries(m.exits).map(([d, ex]) => [d, { ...ex, guard: sc.exitGuards?.[d as Dir] }]));
-  maps[id] = { ...m, exits, npcs: sc.npcs ?? [], doors: sc.doors ?? {}, events: sc.events, onEnter: sc.onEnter };
+  maps[id] = withMusic({ ...m, exits, npcs: sc.npcs ?? [], doors: sc.doors ?? {}, events: sc.events, onEnter: sc.onEnter });
 }
 
 export const hafnia: Pack = {
   manifest,
   maps,
   stamps: STAMPS,
+  battleMusic,
   strings,
   textVars: starterVars,
   // Freja's Hisuian Qwilfish: Showdown knows the form, the PBS data only has the base species.

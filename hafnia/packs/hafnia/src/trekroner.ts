@@ -67,7 +67,7 @@ const LIGHTS: { text: string; ask: string; options: string[]; right: number }[] 
 
 function* hydrofoil(s: ScriptApi): Step {
   s.say('c8.run.1');
-  s.fade(1, 20); s.sfx('door'); s.fade(0.5, 20);
+  s.fade(1, 20); s.sfx('ship_horn'); s.fade(0.5, 20);
   s.say('c8.run.2');
   for (let i = 0; i < LIGHTS.length; i++) {
     const l = LIGHTS[i];
@@ -123,6 +123,7 @@ function* landing(s: ScriptApi): Step {
 
 function* alarm(s: ScriptApi): Step {
   s.setFlag('c8alarm', true);
+  s.sfx('ship_horn');
   for (let i = 0; i < 3; i++) { s.sfx('exclaim'); s.fade(0.4, 4); s.fade(0, 4); }
   s.say('c8.alarm.1'); s.say('c8.alarm.2'); s.say('c8.alarm.lukas'); s.say('c8.alarm.3');
   s.checkpoint();
@@ -292,6 +293,7 @@ function* kaasBattle(s: ScriptApi): Step {
 }
 
 function* escape(s: ScriptApi): Step {
+  s.sfx('ship_horn');
   for (let i = 0; i < 3; i++) { s.sfx('exclaim'); s.fade(0.4, 4); s.fade(0, 4); }
   s.say('c8.esc.1');
   const f = cast(s, 'freja8s');

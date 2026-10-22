@@ -102,7 +102,7 @@ const CHRISTIANSHAVN: MapScripts = {
     m.place(s.player.x - 1, s.player.y, 'right'); m.show(); m.facePlayer(); s.player.faceTo(m.x, m.y);
     s.say('c2.overhear.2');
     m.hide();
-    s.sfx('select');
+    s.sfx('scan_ping');
     s.say('c2.orsted.scan');
     s.me('me_item');
     s.say('c2.scan.got');

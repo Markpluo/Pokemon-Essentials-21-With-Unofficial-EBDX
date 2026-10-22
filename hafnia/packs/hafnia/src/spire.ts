@@ -134,7 +134,7 @@ const TOKENS = [{ id: 'tokenShip', name: 'Ship', marks: 5 }, { id: 'tokenSpice',
 const merchant = (i: number, x: number, y: number, name: string, foes: { species: string; level: number }[]): NpcDef => trainer({
   id: `g7merchant${i}`, x, y, dir: 'down', sprite: 'chars/gentleman', sight: 2, cls: 'Merchant', name,
   foes, intro: [`c9.g7.m${i}.intro`], lose: [`c9.g7.m${i}.lose`],
-  reward: s => { s.setFlag(TOKENS[i].id, true); s.sfx('select'); s.say(`c9.g7.m${i}.token`); }
+  reward: s => { s.setFlag(TOKENS[i].id, true); s.sfx('coins'); s.say(`c9.g7.m${i}.token`); }
 });
 
 const scales: Script = function* (s) {

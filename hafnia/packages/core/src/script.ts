@@ -14,6 +14,8 @@ export interface BattleOptions {
   /** A soft battle does not send the player to the last heal point on a loss (rival intro fights). */
   soft?: boolean;
   leader?: boolean;
+  /** Battle music key; when left out the pack's battleMusic picks one, else battle_wild / battle_trainer. */
+  bgm?: string;
   /** Prize money per level of the last foe; defaults to the rules' base for the trainer's title. */
   prize?: number;
   /** Trainer AI tier (systems.md §2.4): 1 basic, 2 smart, 3 expert. Default: 2 for leaders and rivals, else 1. */

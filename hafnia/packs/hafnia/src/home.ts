@@ -236,6 +236,7 @@ const switchTalk = (colour: string): Script => function* (s) {
   s.sfx('select');
   if (ORDER[n] !== colour) { s.setFlag('gymSeq', 0); s.sfx('hit_weak'); s.say('c1.gym.wrong'); return; }
   s.setFlag('gymSeq', n + 1);
+  s.sfx('spray');
   if (n + 1 < ORDER.length) { s.say(`Pssht! A ${colour} spray. Something clicks.`); return; }
   s.setFlag('vents', true);
   for (const v of ['vent1', 'vent2', 'vent3']) s.npc(v).hide();

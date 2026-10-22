@@ -435,7 +435,8 @@ export class Game {
   private emitMap() {
     const m = this.map, s = this.state;
     // NPCs ride along so a cutscene that starts on arrival (Mum in the intro) can show them before the next view
-    this.out.push({ t: 'map', map: m.key, name: m.name, x: s.x, y: s.y, dir: s.dir, bgm: m.bgm, npcs: this.npcViews() });
+    this.out.push({ t: 'map', map: m.key, name: m.name, x: s.x, y: s.y, dir: s.dir, bgm: this.period === 'night' && m.bgmNight ? m.bgmNight : m.bgm,
+      ...(m.ambient ? { ambient: m.ambient } : {}), npcs: this.npcViews() });
   }
 
   private partyAlive() { return this.state.party.some(p => !p.egg && p.hp > 0); }
@@ -629,7 +630,8 @@ export class Game {
       if (p.kind === 'battle') {
         if (!this.partyAlive()) { value = 'lose'; continue; }
         this.battleSoft = !!p.opts.soft;
-        this.battle = new BattleSession(this.battleHost(), p.opts);
+        const bgm = p.opts.bgm ?? this.content.base.battleMusic?.(p.opts);
+        this.battle = new BattleSession(this.battleHost(), bgm ? { ...p.opts, bgm } : p.opts);
         this.battle.start();
         if (!this.battle.result) return;
         this.endBattle();

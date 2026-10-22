@@ -91,6 +91,7 @@ const audioUrl = (name: string) => assetUrl(name.startsWith('cries/')
   ? `${ASSETS}/pokemon/${name}.ogg` : `${ASSETS}/${BASE_PACK}/audio/${name}.ogg`);
 const Sound = {
   muted: false, bgmEl: null as HTMLAudioElement | null, bgmName: null as string | null, unlocked: false,
+  ambEl: null as HTMLAudioElement | null, ambName: null as string | null,
   vol: { bgm: 0.45, me: 0.6, se: 0.7 },
   bgm(name: string | null) {
     if (this.bgmName === name) return;
@@ -105,6 +106,15 @@ const Sound = {
     const el = new Audio(audioUrl(name)); el.volume = vol ?? this.vol.se; el.play().catch(() => {});
   },
   cry(key: string) { this.se('cries/' + key, 0.6 * this.vol.se / 0.7); },
+  /** A quiet looping area sound (waves, drips, machinery) under the music, on the sound-effects volume. */
+  ambient(name: string | null) {
+    if (this.ambName === name) return;
+    this.ambEl?.pause();
+    this.ambName = name;
+    if (!name) { this.ambEl = null; return; }
+    const el = new Audio(audioUrl(name)); el.loop = true; el.volume = this.vol.se * 0.5; el.muted = this.muted;
+    this.ambEl = el; if (this.unlocked) el.play().catch(() => {});
+  },
   me(name: string): Promise<void> { // jingle: pause bgm, resolve when done (max 6s)
     return new Promise(res => {
       if (this.muted || !this.unlocked) { setTimeout(res, 600); return; }
@@ -119,10 +129,12 @@ const Sound = {
   unlock() {
     if (this.unlocked) return; this.unlocked = true;
     if (this.bgmEl && !this.muted) this.bgmEl.play().catch(() => {});
+    if (this.ambEl && !this.muted) this.ambEl.play().catch(() => {});
   },
   setMuted(m: boolean) {
     this.muted = m;
     if (this.bgmEl) { this.bgmEl.muted = m; if (!m && this.unlocked) this.bgmEl.play().catch(() => {}); }
+    if (this.ambEl) { this.ambEl.muted = m; if (!m && this.unlocked) this.ambEl.play().catch(() => {}); }
   }
 };
 
@@ -173,6 +185,7 @@ const DIR_ROW: Record<Dir, number> = { down: 0, left: 1, right: 2, up: 3 };
 
 const G = {
   scene: 'loading' as 'loading' | 'title' | 'intro' | 'overworld' | 'battle', biking: false,
+  mapBgm: null as string | null, mapAmbient: null as string | null,
   t: 0, fade: 0, overlays: [] as (() => void)[], busy: false, lock: false, mapBanner: 0,
   mapKey: '', world: null as WorldView | null,
   player: { id: 'player', sprite: 'chars/player', x: 0, y: 0, dir: 'down', px: 0, py: 0, moving: false, step: 0, anim: 0 } as Actor,
@@ -299,6 +312,12 @@ async function stepActor(a: Actor, dir: Dir, frames = WALK_FRAMES) {
   if (a === G.player) stepEnding?.();
 }
 
+/** The map's music, or the bike theme while riding (one bike theme for the whole game, as in the mainline games). */
+function overworldMusic() {
+  Sound.bgm(G.biking ? 'bike' : G.mapBgm ?? 'overworld');
+  Sound.ambient(G.mapAmbient);
+}
+
 async function changeMap(e: Extract<ServerEvent, { t: 'map' }>) {
   const first = G.scene !== 'overworld' && G.scene !== 'battle';
   if (G.mapKey) Sound.se('door', 0.3);
@@ -309,7 +328,8 @@ async function changeMap(e: Extract<ServerEvent, { t: 'map' }>) {
   Object.assign(G.player, { x: e.x, y: e.y, dir: e.dir, px: 0, py: 0, moving: false });
   G.scene = 'overworld'; G.mapBanner = 120;
   if (mapOf(e.map).map.indoor) G.biking = false;
-  Sound.bgm(e.bgm);
+  G.mapBgm = e.bgm; G.mapAmbient = e.ambient ?? null;
+  overworldMusic();
   await fadeTo(0, first ? 16 : 10);
 }
 
@@ -854,7 +874,7 @@ async function startMenu() {
     if (pick === 'Debug') { await debugMenu(); continue; }
     if (pick === 'Options') { await optionsScreen(); continue; }
     if (pick === 'Pokédex') { await dexScreen(); continue; }
-    if (pick === 'Ride bike' || pick === 'Get off bike') { G.biking = !G.biking; Sound.se('select'); return; }
+    if (pick === 'Ride bike' || pick === 'Get off bike') { G.biking = !G.biking; Sound.se(G.biking ? 'bike_bell' : 'select'); overworldMusic(); return; }
     if (pick === 'Close') return;
     if (pick === 'Pokémon') c = 0; else if (pick === 'Bag') c = 1;
     if (c === 0) {
@@ -956,6 +976,7 @@ const textSpeed = () => TEXT_SPEEDS[OPTIONS.text]?.[1] ?? 1.5;
 function applyOptions() {
   Sound.vol = { bgm: 0.45 * OPTIONS.music / 7, me: 0.6 * OPTIONS.music / 7, se: 0.7 * OPTIONS.sound / 7 };
   if (Sound.bgmEl) Sound.bgmEl.volume = Math.min(1, Sound.vol.bgm);
+  if (Sound.ambEl) Sound.ambEl.volume = Math.min(1, Sound.vol.se * 0.5);
   try { localStorage.setItem('hafnia.options', JSON.stringify(OPTIONS)); } catch { /* storage blocked */ }
 }
 applyOptions();
@@ -1483,7 +1504,7 @@ async function battleStart(start: BattleStart) {
     ballFx: null, grid: null, lastIdx: {}, foeLeft: start.foeCount, foeLeft2: start.multi?.foeCount2 ?? 0, savedBgm: Sound.bgmName,
     coil: { ...start.coil }, patina: new Set(), overcharged: new Set(), arc: null, request: null
   };
-  Sound.bgm(start.bgm);
+  Sound.bgm(start.bgm); Sound.ambient(null);
   for (let i = 0; i < 3; i++) { await fadeTo(0.8, 4); await fadeTo(0, 4); }
   await fadeTo(1, 10);
   G.scene = 'battle';
@@ -1533,6 +1554,7 @@ async function battleEvent(e: BattleEvent) {
         await say(e.text);
         st.shown = true; Sound.cry(e.mon.key);
         await Promise.all([grow(at), playAnim(SEND_OUT, at)]);
+        if (at === 'ally') lowHpMusic();
       }
       break;
     }
@@ -1566,6 +1588,7 @@ async function battleEvent(e: BattleEvent) {
       } else if (e.effect === 'heal' && e.cause !== 'drain' && e.hp > st.hp) await playAnim(HEAL, at);
       mon.hp = e.hp; mon.maxhp = e.maxhp;
       await animateHp(at, e.hp);
+      lowHpMusic();
       break;
     }
     case 'status': {
@@ -1748,13 +1771,22 @@ async function battleMenu(req: BattleRequest): Promise<BattleAction> {
   }
 }
 
+/** Gen 5+ style: the music changes while the player's Pokémon is under a quarter of its HP. */
+function lowHpMusic() {
+  const b = B!, m = b.spots.ally.mon;
+  const low = !!m && m.hp > 0 && m.hp < m.maxhp / 4;
+  if (Sound.bgmName === b.start.bgm && low) Sound.bgm('battle_lowhp');
+  else if (Sound.bgmName === 'battle_lowhp' && !low) Sound.bgm(b.start.bgm);
+}
+
 async function battleEnd() {
   await wait(20);
   anim.clear();
   await fadeTo(1, 12);
   const saved = B?.savedBgm ?? null;
   G.scene = 'overworld'; B = null; G.ui.text = null;
-  Sound.bgm(saved ?? 'overworld');
+  if (saved && saved !== G.mapBgm && saved !== 'bike') Sound.bgm(saved); // a cutscene's own music
+  else overworldMusic();
   await fadeTo(0, 12);
 }
 
