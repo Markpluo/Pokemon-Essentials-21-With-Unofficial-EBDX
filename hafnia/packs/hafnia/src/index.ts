@@ -19,7 +19,7 @@ import { RUNDETARN_SCRIPTS, ch6Start } from './rundetarn';
 import { KRONBORG_SCRIPTS, SLOTSHOLMEN_CH11, broadcast, ch11Start } from './kronborg';
 import { LEAGUE_SCRIPTS, ch13Start, palaceDoor } from './league';
 import { SIM_DATA, SPECIES_EXTRA } from './legends';
-import { OSTERBRO_PG1, PALM_PG1, ROUTE1_PG1, p1Start, statueTear } from './postgame';
+import { CASEMATES_PG2, HELSINGOR_PG2, OSTERBRO_PG1, PALM_PG1, ROUTE1_PG1, p1Start, p2Start, statueTear } from './postgame';
 import { REACTOR_SCRIPTS, ch12Start, smokestackGate } from './reactor';
 import { SHIPYARD_SCRIPTS, ch10Start, copenhillGate, shipyardsGate } from './shipyards';
 import { ROUTE4_LUKAS, SPIRE_SCRIPTS, ch9Start, route4Enter, slotsholmenGate } from './spire';
@@ -111,6 +111,13 @@ SCRIPTS.slotsholmen = { ...SCRIPTS.slotsholmen, doors: { ...SCRIPTS.slotsholmen.
     }), ...OSTERBRO_PG1]
   };
   SCRIPTS.route1 = { ...SCRIPTS.route1, npcs: [...(SCRIPTS.route1.npcs ?? []), ...ROUTE1_PG1] };
+}
+// P2, the Guardian's Oath: Kronvakt is home in the casemates; the trials start on the way into Helsingør
+// (Kystbanen from Østerport runs that far again once P1 is done).
+{
+  const enter = SCRIPTS.helsingor.onEnter;
+  SCRIPTS.helsingor = { ...SCRIPTS.helsingor, npcs: [...(SCRIPTS.helsingor.npcs ?? []), ...HELSINGOR_PG2], onEnter: function* (s) { if (enter) yield* enter(s); yield* p2Start(s); } };
+  SCRIPTS.casemates = { ...SCRIPTS.casemates, npcs: [...(SCRIPTS.casemates.npcs ?? []), ...CASEMATES_PG2] };
 }
 SCRIPTS.nyhavn.exitGuards = { right: langelinieGate };
 SCRIPTS.dyrehaven.exitGuards = { up: bakkenGate };

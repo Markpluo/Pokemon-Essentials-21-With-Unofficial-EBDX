@@ -179,7 +179,7 @@ const HELSINGOR: MapScripts = {
     pc: function* (s) { s.warp('pchelsingor', 6, 5, 'up'); }
   },
   npcs: [
-    { id: 'hgtrain', sprite: 'obj:train', x: 1, y: 6, dir: 'down', object: true, talk: talk('c11.hg.train') },
+    { id: 'hgtrain', sprite: 'obj:train', x: 1, y: 6, dir: 'down', object: true, when: f => !f('ch12done'), talk: talk('c11.hg.train') },
     { id: 'hgfreja', sprite: 'chars/freja', x: 14, y: 8, dir: 'up', when: f => !f('kronvakt'), talk: talk('c11.hg.freja') },
     sign('hgsign', 9, 8, 'obj:sign', 'c11.hg.sign'),
     trainer({ id: 'hgSailor', x: 18, y: 10, dir: 'left', sprite: 'chars/sailor', sight: 3, cls: 'Sailor', name: 'Aksel',

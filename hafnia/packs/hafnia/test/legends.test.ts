@@ -15,6 +15,14 @@ describe("Hafnia's own Pokémon", () => {
     expect(m.moves.map(x => x.id)).toContain('sirensrequiem');
   });
 
+  it('Kronvakt is Steel/Fighting, and Danish Oath never misses and grows with each fainted ally', () => {
+    expect(Dex.species.get('kronvakt').types).toEqual(['Steel', 'Fighting']);
+    expect(makeMon('kronvakt', 70, new Rng(1)).moves.map(x => x.id)).toContain('danishoath');
+    const oath = Dex.moves.get('danishoath') as unknown as { accuracy: unknown; basePowerCallback(p: unknown): number };
+    expect(oath.accuracy).toBe(true);
+    expect([0, 2, 9].map(n => oath.basePowerCallback({ side: { totalFainted: n } }))).toEqual([70, 110, 150]);
+  });
+
   it("Siren's Requiem hits, lowers the target's Sp. Atk and brings the rain", () => {
     const b = new Battle({ formatid: 'gen9customgame' as never, seed: [1, 2, 3, 4] as never });
     b.setPlayer('p1', { team: [{ species: 'Langelira', moves: ['sirensrequiem'], level: 55, ability: 'Swift Swim', name: 'Langelira', item: '', nature: 'Modest', gender: 'N', evs: {} as never, ivs: {} as never }] as never });

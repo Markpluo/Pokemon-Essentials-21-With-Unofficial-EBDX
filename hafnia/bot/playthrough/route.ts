@@ -384,3 +384,22 @@ export function postgame1(p: P) {
   p.answers.push({ when: /Touch it with the charged Coil/, pick: 'Touch it' });
   goal(p, 'the first Resonance Rift', () => !!p.flag('pg1done'), () => { goto(p, 'route1'); p.talkTo(14, 11); });
 }
+
+export function postgame2(p: P) {
+  grindMaps = ['casemates', 'route1'];
+  // The Guardian's Oath starts on the way into Helsingør.
+  if (!p.flag('pg2')) try { goto(p, 'helsingor'); } catch (e) { if (!p.flag('pg2')) throw e; }
+  shopAndHeal(p, 'pchelsingor');
+  goal(p, 'the Trial of Copper', () => !!p.flag('oathCopper'), () => { goto(p, 'casemates'); p.talkTo(13, 1); });
+  goal(p, 'the Trial of Current', () => !!p.flag('oathCurrent'), () => { goto(p, 'casemates'); p.talkTo(13, 3); });
+  p.answers.push({ when: /Start the Trial of the Oath/, pick: 'Begin' });
+  goal(p, 'the Trial of the Oath', () => !!p.flag('oathOath'), () => { goto(p, 'casemates'); p.talkTo(20, 3); });
+  if ((p.s.bag.ultraball ?? 0) < 15) { goto(p, 'pchelsingor'); p.buy([['Ultra Ball', 10], ['Ultra Ball', 10]]); }
+  p.wanted.add('kronvakt');
+  goal(p, 'Kronvakt', () => !!p.flag('pg2done'), () => {
+    for (let i = 0; i < 4 && !p.flag('pg2done'); i++) {    // knocked out by mistake: it stands up again
+      if ((p.s.bag.ultraball ?? 0) < 5) { goto(p, 'pchelsingor'); p.buy([['Ultra Ball', 10]]); }
+      goto(p, 'casemates'); p.talkTo(18, 1);
+    }
+  });
+}
