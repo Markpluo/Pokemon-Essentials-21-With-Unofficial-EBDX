@@ -1,4 +1,4 @@
-// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 9). Plain data,
+// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 10). Plain data,
 // so the client can import it for rendering without the scripts.
 // Outdoor tiles: '.' ground, '=' brick path, 'g' tall grass, 'f' flowers, 'T' trees, '~' sea, 'o' still water,
 //   'r' Den Røde Plads, 'k' Den Sorte Plads, 'q' cobbles, 'a' asphalt/concrete, 'l' bike lane, 'd' planks,
@@ -33,6 +33,7 @@ export const STAMPS: Record<string, Stamp> = {
   fortgate: { draw: 'fortgate', w: 6, h: 3, door: [3, 2] },    // Vanguard's steel door into the fort
   borsen: { draw: 'borsen', w: 10, h: 4, door: [5, 3] },       // Børsen under scaffolding, the dragon spire's stump
   palace: { draw: 'palace', w: 9, h: 5 },                     // Christiansborg
+  copenhill: { draw: 'copenhill', w: 12, h: 6, door: [6, 5] }, // Amager Bakke: the power plant with the ski slope on its roof
   coldstores: { draw: 'coldStores', w: 7, h: 5, door: [3, 4] }, // Gym 3: Kødbyen's white-tiled cold store with the loading bay
   brick: { draw: 'brickBlock', w: 4, h: 3, door: [1, 2] },     // a Vesterbro red-brick block with a stairwell door
   brickgate: { draw: 'brickGate', w: 4, h: 3 }                // the same block with the courtyard archway (gated)
@@ -425,8 +426,8 @@ function drydock(): MapData {
       '~ddddaaaaaaaxaaaaaaaaxaaaaa~',
       '~~~~aaggggaaxaaggggaaxaaaaa~',
       '~~~~aaggggaaxaaggggaaxaaaaa~',
-      '~~~~aaaaaaaaxaaaaaaaaxaaaaa~',
-      '~~~~aaaaaaaaaaaaaaaaaxaaaaa~',
+      '~~~~aaaaaaaaxaaaaaaaaxaaaaaa',
+      '~~~~aaaaaaaaaaaaaaaaaxaaaaaa',
       '~~~~aaggggaaxaaggggaaaaaaaa~',
       '~~~~aaggggaaxaaggggaaxaaaaa~',
       '~~~~aaaaaaaaxaaaaaaaaxaaaaa~',
@@ -438,7 +439,8 @@ function drydock(): MapData {
     battleBg: 'city', bgm: 'overworld', buildings: [],
     encounters: [[30, 'trubbish'], [25, 'rattata'], [20, 'machop'], [15, 'mareanie'], [10, 'rolycoly']],
     encountersNight: [[30, 'trubbish'], [30, 'zubat'], [25, 'stunky'], [15, 'mareanie']],
-    levels: [14, 17]
+    levels: [14, 17],
+    exits: { right: { to: 'shipyards', offset: 0 } }   // the shipyards open in Chapter 10
   };
 }
 
@@ -1301,6 +1303,125 @@ const gym7 = () => room('gym7', 'Børsen: The Vault', [
   'wwwwwwwwwwwwwwwwwww'
 ], { to: 'borsen', x: 12, y: 2 }, { theme: 'vault' });
 
+// ---------- Chapter 10: Refshaleøen shipyards, the crane, CopenHill ----------
+
+// Victory Road: the old B&W shipyard, container stacks up to the slipway. A dock crane swings you over to the east quay.
+function shipyards(): MapData {
+  return {
+    id: 'shipyards', name: 'Refshaleøen Shipyards', ...grid([
+      '~~~~~~~~~~~~~~~~',
+      '~aaaaaaaaaaaaaan',
+      '~aaxxaaaxxxaaaan',
+      '~aaxxaaaxxxaggan',
+      '~aaaaaaaaaaaggan',
+      'aaaaaaxxaaaaaaan',
+      'aaaaaaxxaaxxxaan',
+      '~aggaaaaaaxxxaan',
+      '~aggaxxxaaaaaaan',
+      '~aaaaxxxaaaggaan',
+      '~aaaaaaaaaaggaan',
+      '~axxaaaggaaaaaan',
+      '~axxaaaggaaxxaan',
+      '~aaaaaaaaaaxxaan',
+      '~aaggaaxxaaaaaan',
+      '~aaggaaxxaaaaaan',
+      '~aaaaaaaaaaaaaan',
+      '~dddddddddddddd~',
+      '~~~~~~~~~~~~~~~~'
+    ]),
+    ...YARD_WILD,
+    exits: { left: { to: 'drydock', offset: 0 } }
+  };
+}
+
+// The east quay over the slipway: the great gantry crane where Lukas waits, and the bridge road on to Amager.
+function eastquay(): MapData {
+  return {
+    id: 'eastquay', name: 'Refshaleøen: East Quay', ...grid([
+      '~~~~~~~~~~~~~~~',
+      'naaaaaaaaaaaaa~',
+      'naaxxxxxaaaxxa~',
+      'naaxxxxxaaaxxa~',
+      'naaaaaaaaaaaaa~',
+      'naaaaaagggaaaa~',
+      'naxxaaagggaaxa~',
+      'naxxaaaaaaaaxa~',
+      'naaaaaxxxaaaaa~',
+      'naaaaaxxxaagga~',
+      'naggaaaaaaagga~',
+      'naggaaxxaaaaaa~',
+      'naaaaaxxaaxxaa~',
+      'naaaaaaaaaxxaa~',
+      'naxxaaaggaaaaa~',
+      'naxxaaaggaaaaaa',
+      'naaaaaaaaaaaaaa',
+      '~ddddddddddddd~',
+      '~~~~~~~~~~~~~~~'
+    ]),
+    ...YARD_WILD,
+    exits: { right: { to: 'copenhill', offset: -5 } }
+  };
+}
+
+const YARD_WILD: Omit<MapData, 'id' | 'name' | 'grid' | 'w' | 'h'> = {
+  battleBg: 'city', bgm: 'overworld', buildings: [],
+  encounters: [[25, 'machoke'], [20, 'gurdurr'], [20, 'magneton'], [15, 'durant'], [10, 'boldore'], [10, 'pelipper']],
+  encountersNight: [[30, 'crobat'], [25, 'durant'], [20, 'magneton'], [15, 'gurdurr'], [10, 'boldore']],
+  levels: [44, 47],
+  fishing: [[50, 'pelipper'], [30, 'kingdra'], [20, 'gyarados']], fishLevels: [42, 46]
+};
+
+// The top of the great gantry crane: a steel walkway over the harbour.
+const cranetop = (): MapData => ({
+  id: 'cranetop', name: 'The Great Crane', ...grid([
+    'nnnnnnnnnnnnnnnn',
+    'nddddddddddddddn',
+    'nddddddddddddddn',
+    'nddddddddddddddn',
+    'nnnnnnnnnnnnnnnn'
+  ]),
+  battleBg: 'city', bgm: 'overworld', buildings: []
+});
+
+// Amager Bakke's lower slope: the power plant with a ski slope on its roof, the Pokémon Center, and the summit lift
+// that stays dark until Chapter 12.
+function copenhill(): MapData {
+  const W = 28, H = 20, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 1, 'T'); fill(g, 0, H - 1, W, 1, 'T'); fill(g, 0, 0, 1, H, 'T'); fill(g, W - 1, 0, 1, H, 'T');
+  fill(g, 0, 10, 1, 2, '=');                  // the quay road west to the shipyards
+  fill(g, 1, 10, 26, 2, '=');
+  fill(g, 14, 7, 1, 3, '=');                  // up to the plant door
+  fill(g, 2, 2, 5, 4, 'g'); fill(g, 21, 2, 5, 5, 'g'); fill(g, 3, 14, 6, 3, 'g'); fill(g, 11, 14, 5, 3, 'g');
+  dots(g, 'f', [[2, 8], [9, 8], [18, 8], [25, 8]]);
+  return {
+    id: 'copenhill', name: 'CopenHill', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld',
+    buildings: [{ s: 'copenhill', x: 8, y: 1, id: 'plant' }, { s: 'pc', x: 19, y: 12, id: 'pc' }],
+    encounters: [[25, 'luxio'], [20, 'magneton'], [20, 'galvantula'], [15, 'kilowattrel'], [10, 'heliolisk'], [10, 'zebstrika']],
+    encountersNight: [[30, 'luxio'], [25, 'crobat'], [20, 'galvantula'], [15, 'magneton'], [10, 'zebstrika']],
+    levels: [44, 47],
+    exits: { left: { to: 'eastquay', offset: 5 } }
+  };
+}
+
+// Gym 8, the turbine hall: three turbines feed three relays; the summit lift wants relays 1 and 3 live and 2 dark.
+const gym8 = () => room('gym8', 'CopenHill: Turbine Hall', [
+  'wwwwwwwwwwwwwwwwwww',
+  'w_______KKK_______w',
+  'w_________________w',
+  'w_________________w',
+  'wwwwwwww___wwwwwwww',
+  'w_________________w',
+  'w_________________w',
+  'w_________________w',
+  'w_________________w',
+  'w_________________w',
+  'w__KK_________KK__w',
+  'w_________________w',
+  'w_________________w',
+  'w________m________w',
+  'wwwwwwwwwwwwwwwwwww'
+], { to: 'copenhill', x: 14, y: 7 }, { theme: 'metal' });
+
 export const MAPS = {
   norrebro: norrebro(), flat: flat(), lukasflat: lukasFlat(), pcnorrebro: center('pcnorrebro', 'Pokémon Center', 'norrebro', 22, 8),
   gym1: gym1(), bridge: bridge(), route1: route1(), garden: garden(), palmhouse: palmhouse(), tunnels: tunnels(),
@@ -1317,5 +1438,6 @@ export const MAPS = {
   lyngby: lyngby(), dyrehaven: dyrehaven(), substation: substation(), bakken: bakken(),
   pcbakken: center('pcbakken', 'Pokémon Center', 'bakken', 4, 8), gym6: gym6(),
   fleetboat: fleetboat(), trekroner: trekroner(), tklighthouse: tklighthouse(), battery: battery(), siphon: siphon(),
-  slotsholmen: slotsholmen(), pcslotsholmen: center('pcslotsholmen', 'Pokémon Center', 'slotsholmen', 21, 17), borsen: borsenHall(), gym7: gym7()
+  slotsholmen: slotsholmen(), pcslotsholmen: center('pcslotsholmen', 'Pokémon Center', 'slotsholmen', 21, 17), borsen: borsenHall(), gym7: gym7(),
+  shipyards: shipyards(), eastquay: eastquay(), cranetop: cranetop(), copenhill: copenhill(), pccopenhill: center('pccopenhill', 'Pokémon Center', 'copenhill', 21, 17), gym8: gym8()
 };

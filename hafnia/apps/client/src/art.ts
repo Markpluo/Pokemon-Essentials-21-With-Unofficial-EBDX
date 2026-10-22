@@ -558,6 +558,19 @@ export function drawBuildingArt(g: G2, kind: string, w: number, h: number) {
     g.fillStyle = '#3b2a22'; g.fillRect(W / 2 - 12, H - 30, 24, 30);
     return;
   }
+  if (kind === 'copenhill') {
+    // Amager Bakke: the aluminium-clad plant, its roof a green ski slope rising to the right, and the smokestack.
+    g.fillStyle = '#8f8a7c'; g.fillRect(0, 30, W, H - 30);
+    g.fillStyle = '#a8a294'; for (let x = 0; x < W; x += 12) g.fillRect(x, 30, 6, H - 30);
+    g.fillStyle = '#4e9a55'; g.beginPath(); g.moveTo(0, 46); g.lineTo(W - 70, 8); g.lineTo(W - 70, 30); g.lineTo(0, 64); g.fill();
+    g.fillStyle = '#e8eef2'; for (let i = 0; i < 4; i++) { const x = 30 + i * 70; g.fillRect(x, 46 - x * 38 / (W - 70) + 4, 22, 3); }
+    g.fillStyle = '#6c7076'; g.fillRect(W - 60, 0, 20, 34);
+    g.fillStyle = 'rgba(230,230,235,0.7)'; g.beginPath(); g.arc(W - 50, -2, 10, 0, 7); g.fill();
+    for (let x = 20; x < W - 20; x += 44) { g.fillStyle = '#3b4a5a'; g.fillRect(x, 92, 22, 30); }
+    g.fillStyle = '#1d6fb8'; g.fillRect(W / 2 - 40, 72, 80, 12); g.fillStyle = '#fff'; g.font = 'bold 8px sans-serif'; g.fillText('TURBINE HALL', W / 2 - 34, 81);
+    g.fillStyle = '#26323a'; g.fillRect(W / 2 - 12, H - 30, 24, 30);
+    return;
+  }
   if (kind === 'palace') {
     // Christiansborg: pale granite, rows of windows, a green copper roof and the tower.
     g.fillStyle = '#d8d2c4'; g.fillRect(0, 40, W, H - 40);

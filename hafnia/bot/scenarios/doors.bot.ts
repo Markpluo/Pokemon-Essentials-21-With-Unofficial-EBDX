@@ -9,7 +9,7 @@ const doors = Object.entries(MAPS).filter(([, m]) => !m.indoor)
   .flatMap(([id, m]) => m.buildings.filter(b => b.id && STAMPS[b.s]?.door).map(b => [id, b.id!] as const));
 
 test('every door leads inside, or says why it is locked @doors', async ({ bot }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(480_000);
   // a strong team, so trainers met on the way can't send the player home
   await bot.loadSave(tweak(afterStarter(), { noEncounters: true, party: [{ species: 'sprigatito', level: 60 }] }));
   const out: string[] = [];
