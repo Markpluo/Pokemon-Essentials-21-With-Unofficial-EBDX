@@ -5,7 +5,7 @@ import { afterStarter, tweak } from '../lib/saves';
 test('lantern walk: wind gust, rhymes, Søren @gym', async ({ bot }) => {
   test.setTimeout(240_000);
   await bot.loadSave(tweak(afterStarter('charmander'), {
-    map: 'assistens', x: 15, y: 3, dir: 'up', party: [{ species: 'houndstone', level: 55, moves: ['crunch', 'shadowball', 'playrough', 'dig'] }, { species: 'charizard', level: 50 }],
+    map: 'assistens', x: 15, y: 3, dir: 'up', party: [{ species: 'houndstone', level: 55, moves: ['crunch', 'shadowball', 'playrough', 'dig'] }, { species: 'charizard', level: 50, moves: ['crunch', 'airslash', 'dragonclaw', 'slash'] }],
     badges: ['spray', 'lily', 'frost'], noEncounters: true,
     flags: { ch3done: true, ch4: true, metSoren: true, litwickBack: true, lanternsLit: true }
   }));

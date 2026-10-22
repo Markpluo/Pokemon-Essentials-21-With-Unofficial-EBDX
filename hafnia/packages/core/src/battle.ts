@@ -396,6 +396,7 @@ export class BattleSession {
           ...(targets.length > 1 && AIMED.has(Dex.moves.get(m.id).target) ? { aim: true } : {})
         })),
       forceSwitch: !!req?.forceSwitch,
+      ...(req?.active?.[0]?.trapped ? { trapped: true } : {}),
       canCatch: this.opts.kind === 'wild',
       canRun: this.opts.kind === 'wild',
       activeUid: (active?.set as any)?.uid ?? '',
@@ -615,7 +616,9 @@ export class BattleSession {
 
   // ---------- EXP ----------
 
-  /** Exp Share is always on: every healthy party member gets the full amount (systems.md §2.6). */
+  /** Exp Share is always on: every healthy party member gets Exp, the ones that didn't fight `benchExp` of it
+   *  (systems.md §2.6). Above the soft cap for the badges held, Exp slows to a trickle so the next leader stays a fight. */
+  private capSaid = false;
   private awardExp(fainted: SimPokemon) {
     const foe = this.monOf(fainted)!;
     const b = speciesExtra(foe.species).baseExp, L = foe.level;
@@ -623,11 +626,14 @@ export class BattleSession {
     const active = this.sim.p1.active[0];
     const team = this.sim.p1.pokemon.filter(p => !p.fainted && p.hp > 0 && this.monOf(p)!.level < 100);
     team.sort((x, y) => Number(y === active) - Number(x === active));
+    const rules = this.host.rules, cap = rules.levelCaps[this.host.badges] ?? Infinity;
     let sharedSaid = false;
     for (const p of team) {
       const m = this.monOf(p)!, Lp = m.level;
-      const amount = Math.max(1, Math.floor((b * L / 5) * trainer * ((2 * L + 10) / (L + Lp + 10)) ** 2.5 + 1));
+      const full = (b * L / 5) * trainer * ((2 * L + 10) / (L + Lp + 10)) ** 2.5 + 1;
+      const amount = Math.max(1, Math.floor(full * (p === active ? 1 : rules.benchExp) * (Lp >= cap ? rules.overCapExp : 1)));
       if (p === active) this.ev({ b: 'text', text: `${p.name} gained ${amount} Exp. Points!` });
+      if (p === active && Lp >= cap && !this.capSaid) { this.capSaid = true; this.ev({ b: 'text', text: `${p.name} is already a match for the next Gym\nLeader, so it learns less from battles now.` }); }
       else if (!sharedSaid) { sharedSaid = true; this.ev({ b: 'text', text: 'The rest of your team gained Exp. Points\nthanks to the Exp. Share!' }); }
       const steps = gainExp(m, amount);
       for (const step of steps) {

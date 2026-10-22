@@ -139,11 +139,16 @@ export class Player {
     return best / (1 + threat) + m.level * 2 + 50 * m.hp / m.maxhp;
   }
 
+  private canHit(m: BattleRequest['party'][number]) {
+    const foe = this.foe[0];
+    return !!foe && m.moves.some(mv => this.score(mv.type, mv.power, mv.category, m.types, foe.species) > 0);
+  }
+
   private battleTurn(r: BattleRequest) {
     const b = this.battle!;
     b.turns++;
     if (b.turns > 400) throw new Error('battle runs forever');
-    const healthy = r.party.filter(p => p.hp > 0 && !p.egg && p.uid !== r.activeUid);
+    const healthy = r.forceSwitch || !r.trapped ? r.party.filter(p => p.hp > 0 && !p.egg && p.uid !== r.activeUid) : [];
     if (r.forceSwitch) {
       const pick = healthy.sort((x, y) => this.matchup(y) - this.matchup(x))[0];
       this.send({ t: 'battle', action: { kind: 'switch', uid: pick.uid } });
@@ -174,6 +179,9 @@ export class Player {
     if (b.kind === 'trainer' && mv.score < 40 && healthy.length && !r.targets) {
       const alt = healthy.sort((x, y) => this.matchup(y) - this.matchup(x))[0];
       if (this.matchup(alt) > this.matchup(active) + 30 && b.items < 50) { b.items += 0; this.send({ t: 'battle', action: { kind: 'switch', uid: alt.uid } }); return; }
+      // Nothing we have even touches it (a Ghost against Normal moves): bring in anyone who can.
+      const hits = mv.score === 0 && healthy.find(m => this.canHit(m));
+      if (hits) { this.send({ t: 'battle', action: { kind: 'switch', uid: hits.uid } }); return; }
     }
     const coil = r.coil;
     const mode = coil && coil.current === null && b.kind === 'trainer' ? 'current' as const : undefined;
@@ -262,7 +270,8 @@ export class Player {
     if (!opts.length) throw new Error(`can't reach ${x},${y} on ${this.mapId}`);
     const map = this.s.map;
     this.walkTo(opts[0].x, opts[0].y);
-    if (this.s.map !== map || this.s.x !== opts[0].x || this.s.y !== opts[0].y) return this.talkTo(x, y);
+    if (this.s.map !== map) return;   // a whiteout or a warp on the way: the caller replans
+    if (this.s.x !== opts[0].x || this.s.y !== opts[0].y) return this.talkTo(x, y);
     this.face(opts[0].d);
     this.send({ t: 'interact' });
   }
@@ -294,6 +303,7 @@ export class Player {
     for (let paces = 0; !done() && this.battles.length - start < maxBattles; paces++) {
       if (paces > 3000) throw new Error(`grind: no wild Pokémon after 3000 paces on ${this.mapId}`);
       if (heal && this.hurt()) { heal(); }
+      if (this.s.map !== m.id && !this.s.map.endsWith(`:${m.id}`)) return;   // whited out, or healed elsewhere
       if (this.s.x !== spot.x || this.s.y !== spot.y) this.walkTo(spot.x, spot.y);
       if (this.s.map !== m.id && !this.s.map.endsWith(`:${m.id}`)) return;
       this.step(spot.d); this.step(BACK[spot.d]);

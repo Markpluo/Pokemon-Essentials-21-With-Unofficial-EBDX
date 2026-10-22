@@ -230,7 +230,7 @@ const sorenGym: Script = function* (s) {
   s.say('c4.soren.gym.1'); s.say('c4.soren.gym.2'); s.say('c4.soren.gym.3');
   const c: number = yield s.ask('Søren: Shall we?', ['Yes', 'Not yet'], 1);
   if (c !== 0) return;
-  const r = yield s.battle({ kind: 'trainer', leader: true, bg: 'field', trainer: { name: 'Søren', title: 'Leader', sprite: 'tr/soren' }, foes: [
+  const r = yield s.battle({ kind: 'trainer', leader: true, ai: 3, bg: 'field', trainer: { name: 'Søren', title: 'Leader', sprite: 'tr/soren' }, foes: [
     { species: 'greavard', level: 26, moves: ['bite', 'roar', 'dig', 'lick'] },
     { species: 'sinistea', level: 26, moves: ['megadrain', 'protect', 'suckerpunch', 'astonish'] },
     { species: 'phantump', level: 27, moves: ['hex', 'leechseed', 'confuseray', 'branchpoke'] },

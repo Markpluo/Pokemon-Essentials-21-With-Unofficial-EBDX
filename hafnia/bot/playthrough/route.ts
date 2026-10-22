@@ -28,22 +28,26 @@ let grindMaps: string[] = ['route1'];
 
 /** Trains on the nearest grind map until the whole team's top level reaches `level`. */
 export function train(p: P, level: number, why: string) {
-  const before = p.leadLevel;
-  if (before >= level) return;
+  // Like a player: train towards the foe's level, but not past the soft cap (Exp is a trickle beyond it),
+  // and bring the rest of the team along to within two levels.
+  const cap = p.game.content.rules.levelCaps[p.s.badges.length] ?? Infinity;
+  level = Math.min(level, cap);
+  const ok = () => p.leadLevel >= level && p.minLevel >= level - 2;
+  const before = `${p.minLevel}-${p.leadLevel}`;
+  if (ok()) return;
   const map = grindMaps.map(m => ({ m, route: plan(p.mapId, m) })).filter(x => x.route).sort((a, b) => a.route!.length - b.route!.length)[0]?.m;
   if (!map) throw new Error('nowhere to train');
   const b0 = p.battles.length;
-  for (let round = 0; round < 12 && p.leadLevel < level; round++) {
-    if (process.env.PT_TRACE) console.error(`[train] round ${round} lead ${p.leadLevel} -> ${level} on ${map}`);
+  for (let round = 0; round < 12 && !ok(); round++) {
+    if (process.env.PT_TRACE) console.error(`[train] round ${round} team ${p.minLevel}-${p.leadLevel} -> ${level} on ${map}`);
     heal(p);
     goto(p, map);
-    p.grind(() => p.leadLevel >= level || p.hurt(), 40);
+    p.grind(() => ok() || p.hurt(), 40);
   }
   heal(p);
-  p.notes.push(`trained ${before} -> ${p.leadLevel} on ${map} (${p.battles.length - b0} wild battles) for ${why}`);
+  p.notes.push(`trained ${before} -> ${p.minLevel}-${p.leadLevel} on ${map} (${p.battles.length - b0} wild battles) for ${why}`);
 }
 
-/** A story step: runs `act` until `done`; after a whiteout, heals, trains and tries again. */
 function goal(p: P, name: string, done: () => boolean, act: () => void) {
   for (let attempt = 0; attempt < 6; attempt++) {
     if (done()) return;

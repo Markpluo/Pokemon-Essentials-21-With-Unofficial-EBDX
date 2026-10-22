@@ -79,6 +79,11 @@ export interface Rules {
   whiteoutBase: number[];              // money lost = base for the badge count × highest party level
   obedienceBase: number;               // other trainers' Pokémon obey up to base + perBadge × badges
   obediencePerBadge: number;
+  /** Exp for party members who didn't fight (the Exp Share), as a share of the full amount. */
+  benchExp: number;
+  /** Soft level caps by badge count (the next leader's ace): Pokémon at or above it get `overCapExp` of the Exp. */
+  levelCaps: number[];
+  overCapExp: number;
   coil: CoilRules;
 }
 
@@ -88,6 +93,8 @@ export const DEFAULT_RULES: Rules = {
   prizeDefault: 24,
   whiteoutBase: [8, 16, 24, 36, 48, 64, 80, 100, 120],
   obedienceBase: 20, obediencePerBadge: 5,
+  benchExp: 0.5,
+  levelCaps: [14, 19, 24, 29, 34, 39, 44, 49, 55, 62], overCapExp: 0.1,
   coil: COIL_DEFAULTS
 };
 

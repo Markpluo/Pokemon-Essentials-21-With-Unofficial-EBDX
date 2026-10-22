@@ -167,6 +167,22 @@ describe('battle rules', () => {
     expect(t.texts().some(x => /Exp. Share/.test(x))).toBe(true);
   });
 
+  it('the bench gets half, and Exp slows to a trickle at the next leader\'s level', () => {
+    // No badges: the soft cap is 14. Gains are below one level, so the Exp formula sees the same levels.
+    const gains = (rules = DEFAULT_RULES) => {
+      const t = battle({ party: [['pikachu', 30, ['thunderbolt']], ['eevee', 13, ['tackle']], ['eevee', 14, ['tackle']]], foes: [{ species: 'magikarp', level: 8, moves: ['splash'] }] });
+      (t.host as { rules: typeof rules }).rules = rules;
+      const before = t.party.map(m => m.exp);
+      t.act({ kind: 'move', index: 0 });
+      return t.party.map((m, i) => m.exp - before[i]);
+    };
+    const [, under, at] = gains();
+    const [, fullUnder] = gains({ ...DEFAULT_RULES, benchExp: 1 });
+    expect(under / fullUnder).toBeCloseTo(0.5, 1);
+    expect(at).toBeLessThan(under * 0.2);
+    expect(at).toBeGreaterThan(0);
+  });
+
   it('asks which move to forget when a full moveset learns a new one', () => {
     // Sprigatito learns Hone Claws at Lv. 10; one knockout of a Lv. 30 Magikarp is plenty of EXP.
     const t = battle({ party: [['sprigatito', 9, ['scratch', 'tailwhip', 'leafage', 'growl']]], foes: [{ species: 'magikarp', level: 30, moves: ['splash'] }] });

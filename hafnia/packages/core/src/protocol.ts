@@ -105,6 +105,8 @@ export interface CoilView { pips: number; max: number; ready: number; used: bool
 export interface BattleRequest {
   moves: MoveView[];
   forceSwitch: boolean;
+  /** The active Pokémon can't switch out (Mean Look, Shadow Tag, a binding move). */
+  trapped?: boolean;
   canCatch: boolean;
   canRun: boolean;
   activeUid: string;
