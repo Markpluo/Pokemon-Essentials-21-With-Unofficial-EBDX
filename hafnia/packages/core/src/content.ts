@@ -125,6 +125,8 @@ export interface Pack {
   textVars?: (flags: FlagReader) => Record<string, string>;
   /** Pokédex entries by species id, in place of the mainline text from PBS. */
   dexText?: Record<string, string>;
+  /** The player's current story goal (a line or a string key), or null when this pack has nothing to say. Later packs win. */
+  goal?: (flags: FlagReader) => string | null;
   /** Balance overrides; only the base pack's are used. */
   rules?: Partial<Rules>;
   /** Only the base game sets this: where a new game begins. */

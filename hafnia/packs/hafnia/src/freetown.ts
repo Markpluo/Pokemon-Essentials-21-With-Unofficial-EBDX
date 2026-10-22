@@ -12,7 +12,7 @@ const enforcer: Script = function* (s) {
   if (!s.flag('copper')) { s.say('Rotom: Bzzt! That barrier is way too strong.\nA Current alone won\'t get us through!'); return; }
   s.say('Grid Enforcer: Wait. You were at the drydock.\nThe Captain\'s little helper. Let\'s see how\nyou handle real power.');
   s.say('c2.enforcer.overcharge');
-  const r = yield s.battle({ kind: 'trainer', ai: 2, overcharge: true, bg: 'city', trainer: { name: 'Sander', title: 'Grid Enforcer', sprite: 'tr/enforcer' },
+  const r = yield s.battle({ kind: 'trainer', ai: 2, overcharge: true, bg: 'city', trainer: { name: 'Kragh', title: 'Grid Enforcer', sprite: 'tr/enforcer' },
     prize: 40, foes: [{ species: 'pawmi', level: 17 }, { species: 'magnemite', level: 18 }] });
   if (r !== 'win') return;
   s.setFlag('enforcer', true);
@@ -189,7 +189,7 @@ const GYM2: MapScripts = {
     { id: 'lily3', sprite: 'obj:lily', x: 4, y: 3, dir: 'down', object: true, floor: true, when: f => !!f('mirror2') },
     trainer({ id: 'g2gardener', x: 6, y: 6, dir: 'left', sprite: 'chars/gardener', sight: 3, cls: 'Gardener', name: 'Henrik',
       foes: [{ species: 'hoppip', level: 16 }, { species: 'combee', level: 16 }], intro: ['c2.gym.gardener.intro'], lose: ['Gardener: You grew on me.'] }),
-    trainer({ id: 'g2christianite', x: 12, y: 2, dir: 'left', sprite: 'chars/picnicker', sight: 4, cls: 'Christianite', name: 'Freya',
+    trainer({ id: 'g2christianite', x: 12, y: 2, dir: 'left', sprite: 'chars/picnicker', sight: 4, cls: 'Christianite', name: 'Solvej',
       foes: [{ species: 'petilil', level: 17 }], intro: ['c2.gym.christ.intro'], lose: ['Christianite: Peace out.'] }),
     sign('g2sign', 13, 9, 'obj:sign', 'c2.gym.sign')
   ]

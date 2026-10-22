@@ -240,6 +240,13 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
     case 'tv': box(3, 8, 26, 18, '#26272c'); box(5, 10, 22, 14, (time >> 4) % 2 ? '#5f8fc4' : '#6f9fd4'); box(12, 26, 8, 4, '#26272c'); break;
     case 'bed': box(2, 2, 28, 28, '#6b4526'); box(4, 4, 24, 8, '#f2efe6'); box(4, 12, 24, 16, '#3a7bd5'); box(4, 12, 24, 2, '#5f8fc4'); break;
     case 'pc': box(4, 8, 24, 22, '#c9ccd2'); box(7, 11, 18, 11, (time >> 5) % 2 ? '#4fd17a' : '#3fb86a'); break;
+    case 'busstop': // a yellow Movia stop sign on its pole, the night-bus N and a little timetable case
+      box(15, -6, 3, 38, '#4a4e54'); box(13, 29, 7, 3, '#3b3f4a');
+      box(6, -12, 21, 16, '#26272c'); box(7, -11, 19, 14, '#f2c33b');
+      box(9, -9, 6, 10, '#1d2b45'); box(11, -7, 1, 6, '#f2c33b'); box(12, -6, 1, 1, '#f2c33b'); box(13, -5, 1, 4, '#f2c33b'); // N
+      box(17, -8, 7, 2, '#26272c'); box(17, -4, 7, 1, '#26272c'); box(17, -1, 5, 1, '#26272c');
+      box(19, 8, 9, 12, '#e8e6e0'); box(20, 9, 7, 10, '#c9d2e3'); box(21, 11, 5, 1, '#55617a'); box(21, 14, 4, 1, '#55617a');
+      break;
     case 'poster': box(6, 2, 20, 26, '#f2efe6'); box(8, 4, 16, 10, '#1d6fb8'); box(8, 16, 16, 2, '#1d6fb8'); box(8, 20, 12, 2, '#1d6fb8'); break;
     case 'vent': {
       box(4, 8, 24, 22, '#3b3f4a'); for (let i = 0; i < 4; i++) box(6, 11 + i * 5, 20, 2, '#26272c');

@@ -9,6 +9,8 @@ import { BAKKEN_SCRIPTS, bakkenGate, ch7Start, langelinieGate } from './bakken';
 import { ASSISTENS_SCRIPTS, MAILBOXES, lanternGate, mailboxNpc, norrebroCh4, norrebroNorth } from './assistens';
 import { CISTERNS_SCRIPTS, ch5Start, frederiksbergGate } from './cisterns';
 import { CITY } from './city';
+import { goal } from './goal';
+import { STOPS, stopNpc } from './natbus';
 import { DRAGOR_SCRIPTS } from './dragor';
 import { FREETOWN } from './freetown';
 import { HOME, intro } from './home';
@@ -77,7 +79,8 @@ const maps: Record<string, MapDef> = {};
 for (const [id, m] of Object.entries(MAPS)) {
   const sc = SCRIPTS[id] ?? {};
   const exits = m.exits && Object.fromEntries(Object.entries(m.exits).map(([d, ex]) => [d, { ...ex, guard: sc.exitGuards?.[d as Dir] }]));
-  maps[id] = { ...m, exits, npcs: sc.npcs ?? [], doors: sc.doors ?? {}, events: sc.events, onEnter: sc.onEnter };
+  const stop = STOPS.find(t => t.map === id);
+  maps[id] = { ...m, exits, npcs: [...(sc.npcs ?? []), ...(stop ? [stopNpc(stop)] : [])], doors: sc.doors ?? {}, events: sc.events, onEnter: sc.onEnter };
 }
 
 export const hafnia: Pack = {
@@ -87,6 +90,7 @@ export const hafnia: Pack = {
   strings,
   textVars: starterVars,
   dexText,
+  goal,
   // Freja's Hisuian Qwilfish: Showdown knows the form, the PBS data only has the base species.
   speciesExtra: { qwilfishhisui: { ...speciesExtra('qwilfish'), key: 'QWILFISH_1', evolutions: [] } },
   newGame: {
