@@ -359,7 +359,8 @@ const CARTS: { id: string; colour: string; x: number; y: number; to: [number, nu
   { id: 'cartP2green', colour: 'green', x: 5, y: 1, to: [17, 2] }, // P2 -> P3 (right)
   { id: 'cartP2yellow', colour: 'yellow', x: 1, y: 3, to: [10, 8] }, // P2 -> back to P1
   { id: 'cartP3blue', colour: 'blue', x: 15, y: 1, to: [10, 3] },  // P3 -> the stage (right)
-  { id: 'cartP3purple', colour: 'purple', x: 19, y: 3, to: [3, 2] } // P3 -> back to P2
+  { id: 'cartP3purple', colour: 'purple', x: 19, y: 3, to: [3, 2] }, // P3 -> back to P2
+  { id: 'cartStage', colour: 'yellow', x: 12, y: 1, to: [10, 13] }  // the stage -> back down to the hall
 ];
 
 const cart = (c: typeof CARTS[number]): NpcDef => ({

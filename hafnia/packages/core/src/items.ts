@@ -64,6 +64,8 @@ export const ITEMS: Record<string, ItemDef> = {
   sifcodes: { name: 'Sif\'s Codes', pocket: 'key', price: 0, desc: 'A strip of paper with shutdown codes for Vanguard sub-station D-7, in Navigator Sif\'s tidy hand.' },
   snorkel: { name: 'Dive Snorkel', pocket: 'key', price: 0, desc: 'A brass snorkel and air bladder for the Cargo-Bike. Lets it dive under deep water.' },
   ferrycharts: { name: 'Old Ferry Charts', pocket: 'key', price: 0, desc: 'The old ferry routes across the harbour, from Pierrot. "Voices can be taken. Not destroyed."' },
+  batterykey: { name: 'Battery Keys', pocket: 'key', price: 0, desc: 'A heavy ring of old iron keys from the Trekroner lighthouse. They open the gun-battery cells.' },
+  siphonkey: { name: 'Siphon Keycard', pocket: 'key', price: 0, desc: 'A Vanguard keycard Maja lifted off a guard. It opens the steel door at Trekroner.' },
   tmdazzlinggleam: { name: 'TM Dazzling Gleam', pocket: 'tms', price: 0, tm: 'dazzlinggleam', desc: 'Teaches Dazzling Gleam. Can be used again and again.' },
   ledgercopy: { name: 'Andersen\'s Ledger', pocket: 'key', price: 0, desc: 'A copy of the Pact ledger from the Sunken Archive, in H.C. Andersen\'s hand.' },
   bike: { name: 'Rotom Cargo-Bike', pocket: 'key', price: 0, desc: 'Ørsted\'s prototype. Ride it from the menu outdoors.' },

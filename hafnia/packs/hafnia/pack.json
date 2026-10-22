@@ -154,7 +154,18 @@
     "machoke",
     "staraptor",
     "dachsbun",
-    "mimejr"
+    "mimejr",
+    "electivire",
+    "hariyama",
+    "lucario",
+    "luxray",
+    "pelipper",
+    "houndoom",
+    "toxicroak",
+    "manectric",
+    "skuntank",
+    "bisharp",
+    "garbodor"
   ],
   "spriteKeys": {
     "qwilfishhisui": "QWILFISH_1"
@@ -287,7 +298,8 @@
     "tr/lady": "Graphics/Trainers/LADY.png",
     "tr/ranger": "Graphics/Trainers/POKEMONRANGER_M.png",
     "chars/stantler": "Graphics/Characters/Followers/STANTLER.png",
-    "tr/commandant": "Graphics/Trainers/GENTLEMAN.png"
+    "tr/commandant": "Graphics/Trainers/GENTLEMAN.png",
+    "tr/kaas": "Graphics/Trainers/ROCKETBOSS.png"
   },
   "audio": {
     "title": "Audio/BGM/Title.ogg",

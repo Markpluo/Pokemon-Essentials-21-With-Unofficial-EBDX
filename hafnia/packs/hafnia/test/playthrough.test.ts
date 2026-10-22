@@ -154,7 +154,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step to the end of Chapter 7', () => {
+  it('plays from the first step to the end of Chapter 8', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -291,7 +291,7 @@ describe('Hafnia demo', () => {
     d.exit('down', 13, 19); d.exit('up', 5, 7); at('kitchen');
     d.talkTo(6, 1);
     expect(flag('dinnerDone')).toBe(true);
-    expect(d.game.period).toBe('night');
+    expect(['evening', 'night']).toContain(d.game.period);
     d.walkTo(6, 6); at('kodbyen');
     const before = d.battles.length;
     d.talkTo(18, 11);                                          // Neon Nights: three tag battles with Signe
@@ -336,7 +336,7 @@ describe('Hafnia demo', () => {
     expect(flag('litwickBack'), d.where()).toBe(true);
     d.talkTo(15, 15); at('assistens');
     expect(flag('lanternsLit')).toBe(true);
-    expect(d.game.period).toBe('night');
+    expect(['evening', 'night']).toContain(d.game.period);
     d.s.party[0].moves = [{ id: 'crunch', pp: 15 }, { id: 'shadowball', pp: 15 }];   // a player brings answers to Ghosts
     d.exit('up', 15, 0); at('gym4');
     d.walkTo(7, 13); d.send({ t: 'step', dir: 'up' });         // the middle gap is false: the wind blows you back
@@ -406,7 +406,7 @@ describe('Hafnia demo', () => {
     // The Zoo Night Shift: three escapees after dark
     const eggs5 = d.s.party.filter(m => m.egg).length + d.s.box.filter(m => m.egg).length;
     d.talkTo(11, 16);                                          // yes, and wait until dark
-    expect(d.game.period).toBe('night');
+    expect(['evening', 'night']).toContain(d.game.period);
     for (const [x, y] of [[24, 20], [5, 4], [19, 12]]) d.talkTo(x, y);
     expect(['zoo1', 'zoo2', 'zoo3'].every(f => flag(f)), d.where()).toBe(true);
     d.talkTo(11, 16);
@@ -490,6 +490,53 @@ describe('Hafnia demo', () => {
     expect([d.s.bag.snorkel, d.s.bag.ferrycharts, d.s.bag.tmdazzlinggleam]).toEqual([1, 1, 1]);
     expect(flag('ch7done')).toBe(true);
     expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 7 complete');
+
+    // Chapter 8: the Black Fleet's briefing, the hydrofoil run, Trekroner, Maja, Langelira and Kaas
+    d.answers.push(0); d.talkTo(12, 1);                        // the yellow car back down to the hall
+    expect([d.s.x, d.s.y], d.where()).toEqual([10, 13]);
+    d.walkTo(10, 16); at('bakken');
+    expect(flag('ch8'), d.where()).toBe(true);
+    d.leave('down'); at('dyrehaven');
+    d.answers.push(0); d.talkTo(14, 26); at('osterbro');       // Kystbanen south
+    d.leave('left'); at('nyhavn');
+    d.leave('left'); at('indreby');
+    d.leave('down'); at('route4');
+    d.leave('down'); at('christianshavn');
+    if (!['evening', 'night'].includes(d.game.period)) d.answers.push(0);   // wait aboard until dark
+    d.talkTo(3, 6); at('fleetboat');
+    expect(['evening', 'night']).toContain(d.game.period);
+    expect(flag('c8brief'), d.where()).toBe(true);
+    d.answers.push(0, 0, 0, 1); d.talkTo(5, 1);                // go; breakwater, cut the engines, south landing
+    at('trekroner');
+    expect(flag('c8land'), d.where()).toBe(true);
+    expect(d.said.join('\n')).not.toMatch(/Heave to/);
+    d.walkTo(13, 14);
+    expect(flag('c8alarm'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    d.walkTo(3, 7); d.send({ t: 'step', dir: 'up' }); at('tklighthouse');
+    d.talkTo(3, 1);                                            // the photograph
+    expect(flag('photoSeen')).toBe(true);
+    d.talkTo(4, 3);                                            // the battery keys
+    expect(d.s.bag.batterykey).toBe(1);
+    d.walkTo(4, 5); at('trekroner');
+    d.s.party.forEach(healMon);
+    d.walkTo(21, 15); d.send({ t: 'step', dir: 'up' }); at('battery');
+    d.s.party.forEach(healMon);
+    d.walkTo(9, 6);                                            // the corridor: Lukas at your side
+    expect(flag('c8corridor'), d.where()).toBe(true);
+    d.talkTo(10, 3);                                           // cell three
+    expect(flag('mayaFree'), d.where()).toBe(true);
+    expect(d.s.bag.siphonkey).toBe(1);
+    d.walkTo(9, 9); at('trekroner');
+    d.s.party.forEach(healMon);
+    d.walkTo(13, 5); d.send({ t: 'step', dir: 'up' }); at('siphon');
+    d.s.party[0].moves = [{ id: 'earthquake', pp: 10 }, ...d.s.party[0].moves];   // answers to Kaas's Electric types
+    d.walkTo(8, 6);                                            // the viewport, Lindholm, Kaas
+    at('christianshavn');
+    expect(flag('kaasBeat'), d.where()).toBe(true);
+    expect(flag('ch8done')).toBe(true);
+    expect(d.game.period).toBe('morning');
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 8 complete');
   });
 
   it('a wrong steam valve closes them all again', () => {

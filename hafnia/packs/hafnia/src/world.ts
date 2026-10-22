@@ -1,4 +1,4 @@
-// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 7). Plain data,
+// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 8). Plain data,
 // so the client can import it for rendering without the scripts.
 // Outdoor tiles: '.' ground, '=' brick path, 'g' tall grass, 'f' flowers, 'T' trees, '~' sea, 'o' still water,
 //   'r' Den Røde Plads, 'k' Den Sorte Plads, 'q' cobbles, 'a' asphalt/concrete, 'l' bike lane, 'd' planks,
@@ -27,7 +27,10 @@ export const STAMPS: Record<string, Stamp> = {
   pyramid: { draw: 'pyramid', w: 3, h: 2, door: [1, 1] },     // the glass entrance to the Cisterns in Søndermarken
   kastellet: { draw: 'kastellet', w: 6, h: 3, door: [3, 2] }, // Kastellet's gate through the ramparts
   substation: { draw: 'substation', w: 4, h: 3, door: [2, 2] }, // Vanguard's hidden sub-station in Dyrehaven
-  circus: { draw: 'circus', w: 6, h: 4, door: [3, 3] }        // Pierrot's striped tent at Bakken
+  circus: { draw: 'circus', w: 6, h: 4, door: [3, 3] },       // Pierrot's striped tent at Bakken
+  lighthouse: { draw: 'lighthouse', w: 3, h: 5, door: [1, 4] }, // Trekroner's dead lighthouse
+  bunker: { draw: 'bunker', w: 5, h: 3, door: [2, 2] },        // the old gun battery, cells below
+  fortgate: { draw: 'fortgate', w: 6, h: 3, door: [3, 2] }     // Vanguard's steel door into the fort
 };
 
 const makeGrid = (w: number, h: number, ch: string) => Array.from({ length: h }, () => Array<string>(w).fill(ch));
@@ -1001,6 +1004,79 @@ const bakery = () => room('bakery', 'Bageriet', [
   'wwwwwwwwwww'
 ], { to: 'vesterbro', x: 18, y: 15 });
 
+// ---------- Chapter 8: Trekroner ----------
+
+// The Black Fleet's houseboat on the Christianshavn canal: chart table, bunks, Freja's map wall.
+const fleetboat = () => room('fleetboat', 'The Black Fleet\'s Houseboat', [
+  'wwwwwwwwwww',
+  'wKK_____KKw',
+  'w_________w',
+  'w__K___K__w',
+  'w_________w',
+  'w____m____w',
+  'wwwwwwwwwww'
+], { to: 'christianshavn', x: 3, y: 7 });
+
+// Trekroner Sea Fort at night: a ring of old ramparts in the harbour mouth. The jetty and the gun battery in
+// the lower yard, a wall with two gaps (each watched by a Grid Enforcer), and the dead lighthouse and
+// Vanguard's steel door in the upper yard. Weeds have taken the old gun pits.
+function trekroner(): MapData {
+  const W = 26, H = 24, g = makeGrid(W, H, 'q');
+  fill(g, 0, 0, W, 1, '~'); fill(g, 0, 0, 1, H, '~'); fill(g, W - 1, 0, 1, H, '~'); fill(g, 0, 19, W, 5, '~');
+  fill(g, 1, 1, W - 2, 1, 'R'); fill(g, 1, 1, 1, 18, 'R'); fill(g, W - 2, 1, 1, 18, 'R'); fill(g, 1, 18, W - 2, 1, 'R');
+  g[18][12] = 'q'; g[18][13] = 'q';           // the sea gate
+  fill(g, 12, 19, 2, 4, 'd');                 // the jetty
+  fill(g, 2, 10, W - 4, 1, 'R'); g[10][5] = 'q'; g[10][20] = 'q';   // the inner wall and its two gaps
+  fill(g, 2, 14, 4, 3, 'g'); fill(g, 19, 16, 4, 2, 'g'); fill(g, 8, 7, 3, 2, 'g'); fill(g, 16, 7, 3, 2, 'g');
+  return {
+    id: 'trekroner', name: 'Trekroner Sea Fort', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
+    buildings: [{ s: 'lighthouse', x: 2, y: 2, id: 'lighthouse' }, { s: 'fortgate', x: 10, y: 2, id: 'siphon' }, { s: 'bunker', x: 19, y: 12, id: 'battery' }],
+    encounters: [[30, 'golbat'], [25, 'pelipper'], [20, 'magneton'], [15, 'murkrow'], [10, 'noibat']],
+    levels: [37, 40]
+  };
+}
+
+const tklighthouse = () => room('tklighthouse', 'Trekroner Lighthouse', [
+  'wwwwwwwww',
+  'wK_____Kw',
+  'w_______w',
+  'w_K___K_w',
+  'w_______w',
+  'w___m___w',
+  'wwwwwwwww'
+], { to: 'trekroner', x: 3, y: 7 });
+
+// The gun battery: three old cells along the top (iron doors), the guard post, the corridor.
+const battery = () => room('battery', 'Trekroner: Gun Battery', [
+  'wwwwwwwwwwwwwwwwwww',
+  'w___w___w___w_____w',
+  'w___w___w___w_____w',
+  'ww_www_www_ww_____w',
+  'w_________________w',
+  'w_________________w',
+  'w_pp__________pp__w',
+  'w_________________w',
+  'w_________________w',
+  'w________m________w',
+  'wwwwwwwwwwwwwwwwwww'
+], { to: 'trekroner', x: 21, y: 15 });
+
+// The siphon chamber: Vanguard's machines, and a viewport into the deep.
+const siphon = () => room('siphon', 'Trekroner: Siphon Chamber', [
+  'wwwwwwwwwwwwwwwww',
+  'wpppp_______ppppw',
+  'w_______________w',
+  'w__K_________K__w',
+  'w_______________w',
+  'w__K_________K__w',
+  'w_______________w',
+  'w_______________w',
+  'w_pp_________pp_w',
+  'w_______________w',
+  'w_______m_______w',
+  'wwwwwwwwwwwwwwwww'
+], { to: 'trekroner', x: 13, y: 5 });
+
 export const MAPS = {
   norrebro: norrebro(), flat: flat(), lukasflat: lukasFlat(), pcnorrebro: center('pcnorrebro', 'Pokémon Center', 'norrebro', 22, 8),
   gym1: gym1(), bridge: bridge(), route1: route1(), garden: garden(), palmhouse: palmhouse(), tunnels: tunnels(),
@@ -1015,5 +1091,6 @@ export const MAPS = {
   rundetarn: rundetarn(), bibliotek: bibliotek(), trinitatis: trinitatis(),
   osterbro: osterbro(), pcosterbro: center('pcosterbro', 'Pokémon Center', 'osterbro', 13, 6), kastellet: kastellet(), route8: route8(),
   lyngby: lyngby(), dyrehaven: dyrehaven(), substation: substation(), bakken: bakken(),
-  pcbakken: center('pcbakken', 'Pokémon Center', 'bakken', 4, 8), gym6: gym6()
+  pcbakken: center('pcbakken', 'Pokémon Center', 'bakken', 4, 8), gym6: gym6(),
+  fleetboat: fleetboat(), trekroner: trekroner(), tklighthouse: tklighthouse(), battery: battery(), siphon: siphon()
 };
