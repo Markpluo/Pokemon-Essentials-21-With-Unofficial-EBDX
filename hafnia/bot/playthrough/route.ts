@@ -12,7 +12,8 @@ type P = Player;
 const HEALERS: [string, number, number, string][] = [
   ['flat', 6, 2, 'starter'], ['pcnorrebro', 2, 2, 'starter'], ['pcindreby', 2, 2, 'c2'], ['pcchristianshavn', 2, 2, 'chrMaja'],
   ['pcvesterbro', 2, 2, 'vbArrive'], ['pcfrederiksberg', 2, 2, 'ch5met'],
-  ['pcosterbro', 2, 2, 'c7met'], ['pcbakken', 2, 2, 'bakkenSeen'], ['trekroner', 12, 21, 'c8land'], ['pcslotsholmen', 2, 2, 'c9arrive']
+  ['pcosterbro', 2, 2, 'c7met'], ['pcbakken', 2, 2, 'bakkenSeen'], ['trekroner', 12, 21, 'c8land'], ['pcslotsholmen', 2, 2, 'c9arrive'],
+  ['shipyards', 2, 4, 'c10arrive'], ['pccopenhill', 2, 2, 'c10hill']
 ];
 
 /** Walks to the nearest open Pokémon Center (or Mum) and heals. */
@@ -306,4 +307,18 @@ export function chapter9(p: P) {
   goal(p, 'the scales', () => !!p.flag('scalesDone'), () => { goto(p, 'gym7'); p.talkTo(9, 7); });
   goal(p, 'Margrethe', () => !!p.flag('spire'), () => { goto(p, 'gym7'); p.walkTo(9, 3); p.talkTo(9, 2); });
   goal(p, 'Lukas on Knippelsbro', () => !!p.flag('ch9done'), () => { goto(p, 'slotsholmen'); goto(p, 'route4'); });
+}
+
+export function chapter10(p: P) {
+  grindMaps = ['shipyards', 'eastquay', 'copenhill', 'slotsholmen'];
+  goal(p, 'the chapter opens', () => !!p.flag('ch10'), () => goto(p, 'indreby'));
+  goal(p, 'the shipyards', () => !!p.flag('c10arrive'), () => goto(p, 'shipyards'));
+  goal(p, 'Brix on the east quay', () => !!p.flag('c10brix'), () => goto(p, 'eastquay'));
+  goal(p, 'Lukas on the great crane', () => !!p.flag('c10lukas'), () => { goto(p, 'cranetop'); p.talkTo(12, 2); });
+  goal(p, 'CopenHill', () => !!p.flag('c10hill'), () => goto(p, 'copenhill'));
+  shopAndHeal(p, 'pccopenhill');
+  // The board: A feeds 1+2, B feeds 2+3, C feeds 1+3. Relays 1 and 3 live, 2 dark: turbine C alone.
+  goal(p, 'the summit lift', () => !!p.flag('liftOn'), () => { goto(p, 'gym8'); p.talkTo(14, 8); });
+  goal(p, 'Astrid', () => !!p.flag('turbine'), () => { goto(p, 'gym8'); p.walkTo(9, 3); p.talkTo(9, 2); });
+  goal(p, 'the broadcast', () => !!p.flag('ch10done'), () => goto(p, 'copenhill'));
 }

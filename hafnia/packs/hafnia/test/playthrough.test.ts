@@ -154,7 +154,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step to the end of Chapter 9', () => {
+  it('plays from the first step to the end of Chapter 10', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -544,7 +544,7 @@ describe('Hafnia demo', () => {
     d.leave('left'); at('slotsholmen');
     expect(flag('c9arrive'), d.where()).toBe(true);
     d.s.party.forEach(healMon);
-    d.s.party[0].moves = [{ id: 'flamethrower', pp: 15 }, ...d.s.party[0].moves];   // answers to Steel types
+    d.s.party[0].moves = [{ id: 'flamethrower', pp: 15 }, ...d.s.party[0].moves].slice(0, 4);   // answers to Steel types
     d.walkTo(19, 6); d.send({ t: 'step', dir: 'up' }); at('borsen');
     d.answers.push(0); d.talkTo(5, 1);                         // show Margrethe Andersen's ledger
     expect(flag('vaultOpen'), d.where()).toBe(true);
@@ -565,7 +565,40 @@ describe('Hafnia demo', () => {
     expect(flag('lukas9'), d.where()).toBe(true);
     expect(flag('ch9done')).toBe(true);
     expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 9 complete');
-  });
+
+    // Chapter 10: the shipyards, Brix, Lukas on the great crane, CopenHill's turbine hall, Astrid, Lindholm's broadcast
+    d.leave('up'); at('indreby');
+    expect(flag('ch10'), d.where()).toBe(true);
+    d.leave('right'); at('nyhavn');
+    d.talkTo(22, 11); at('drydock');                           // Bodil's harbour bus
+    d.leave('right'); at('shipyards');
+    expect(flag('c10arrive'), d.where()).toBe(true);
+    Object.assign(d.s.party[0], { species: 'meowscarada', moves: ['knockoff', 'flamethrower', 'earthquake', 'playrough'].map(id => ({ id, pp: 15 })) });
+    d.s.party.forEach(healMon);
+    d.answers.push(0); d.talkTo(14, 9);                        // the dock crane over the slipway: Brix and the Enforcers
+    expect(flag('c10brix'), d.where()).toBe(true);
+    expect(d.s.bag.shutdownseq).toBe(1);
+    d.s.party.forEach(healMon);
+    at('eastquay');
+    d.talkTo(9, 1); at('cranetop');
+    d.answers.push(0); d.talkTo(12, 2);                        // Lukas
+    expect(flag('c10lukas'), d.where()).toBe(true);
+    d.talkTo(1, 2); at('eastquay');
+    d.leave('right'); at('copenhill');
+    d.s.party.forEach(healMon);
+    d.walkTo(14, 7); d.send({ t: 'step', dir: 'up' }); at('gym8');
+    d.answers.push(0, 0); d.talkTo(4, 8);                      // turbine A: relays 1 and 2, not yet
+    expect(flag('liftOn')).toBeFalsy();
+    d.answers.push(0); d.talkTo(9, 8);                         // and B: 2 cancels, so 1 and 3
+    expect(flag('liftOn'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    d.walkTo(9, 3); d.answers.push(0); d.talkTo(9, 2);         // Astrid
+    expect(d.s.badges.at(-1), d.where()).toBe('hafnia:turbine');
+    expect([d.s.bag.torquegears, d.s.bag.overloaddata]).toEqual([1, 1]);
+    d.walkTo(9, 13); at('copenhill');                          // every screen on Amager
+    expect(flag('ch10done'), d.where()).toBe(true);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 10 complete');
+   }, 30_000);
 
   it('a wrong steam valve closes them all again', () => {
     const d = newGame(3);
