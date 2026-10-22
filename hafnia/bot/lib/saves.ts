@@ -80,7 +80,7 @@ export interface SaveTweaks {
   /** Story flags without the pack prefix: { ch1: true }. */
   flags?: Record<string, unknown>;
   badges?: string[];
-  coil?: { copper?: boolean; current?: boolean };
+  coil?: { copper?: boolean; current?: boolean; harmony?: boolean };
   noEncounters?: boolean;
 }
 

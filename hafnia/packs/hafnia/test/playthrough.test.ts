@@ -166,7 +166,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step to the end of the story', () => {
+  it('plays from the first step through the story and post-game P1', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -684,6 +684,30 @@ describe('Hafnia demo', () => {
     expect(flag('ch13done')).toBe(true);
     expect(d.said.join('\n')).toMatch(/Not tiny/);
     expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('The End');
+
+    // Post-game P1, Morning After: Mum, Ørsted and Brix, the Mermaid's Tear, two Eggs and the first Rift
+    d.walkTo(6, 6); at('norrebro');
+    expect(flag('pg1'), d.where()).toBe(true);
+    d.exit('down', 12, 21); d.exit('down', 9, 15); d.exit('down', 11, 31); d.exit('up', 14, 11); at('palmhouse');
+    expect(flag('pg1palm'), d.where()).toBe(true);
+    expect(d.s.bag.expcandyl).toBe(3);
+    Object.assign(d.s, { map: 'hafnia:osterbro', x: 22, y: 16, dir: 'up' as Dir });
+    const eggCount = () => [...d.s.party, ...d.s.box].filter(m => m.egg).length;
+    const eggsBefore = eggCount();
+    d.talkTo(22, 13);
+    expect(flag('pg1harmony'), d.where()).toBe(true);
+    expect(d.s.coil.harmony).toBe(true);
+    expect(d.s.bag.mermaidtear).toBe(1);
+    expect(eggCount()).toBe(eggsBefore + 2);
+    Object.assign(d.s, { map: 'hafnia:route1', x: 10, y: 12, dir: 'up' as Dir });
+    d.s.party.forEach(healMon);
+    d.s.party[0].moves = [{ id: 'thunderbolt', pp: 99 }];
+    d.talkTo(14, 11);
+    expect(d.battles.at(-1), d.where()).toBe('win');
+    expect(flag('pg1done'), d.where()).toBe(true);
+    expect(d.s.bag.echoshard).toBe(1);
+    d.talkTo(14, 11);                                           // the same time of day: the Echo is still gathering
+    expect(d.said.at(-1)).toMatch(/Echo is dim/);
   }, 30_000);
 
   it('a wrong steam valve closes them all again', () => {

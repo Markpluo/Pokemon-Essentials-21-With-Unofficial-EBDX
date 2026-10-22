@@ -1,7 +1,7 @@
 // The base game, "Copper & Current", as a content pack: the demo from the Prologue in Nørrebro
 // to the end of Chapter 13, the League and the ending. Lines live in strings/en.json (from the demo
 // script); each area's scripts live in their own file.
-import { speciesExtra, type Dir, type MapDef, type Pack, type Script } from '@hafnia/core';
+import { speciesExtra, type Dir, type MapDef, type Pack, type Script, type ScriptApi } from '@hafnia/core';
 import manifest from '../pack.json';
 import strings from '../strings/en.json';
 import { BAKKEN_SCRIPTS, bakkenGate, ch7Start, langelinieGate } from './bakken';
@@ -19,6 +19,7 @@ import { RUNDETARN_SCRIPTS, ch6Start } from './rundetarn';
 import { KRONBORG_SCRIPTS, SLOTSHOLMEN_CH11, broadcast, ch11Start } from './kronborg';
 import { LEAGUE_SCRIPTS, ch13Start, palaceDoor } from './league';
 import { SIM_DATA, SPECIES_EXTRA } from './legends';
+import { OSTERBRO_PG1, PALM_PG1, ROUTE1_PG1, p1Start, statueTear } from './postgame';
 import { REACTOR_SCRIPTS, ch12Start, smokestackGate } from './reactor';
 import { SHIPYARD_SCRIPTS, ch10Start, copenhillGate, shipyardsGate } from './shipyards';
 import { ROUTE4_LUKAS, SPIRE_SCRIPTS, ch9Start, route4Enter, slotsholmenGate } from './spire';
@@ -94,6 +95,23 @@ for (const id of ['stormhill', 'copenhill', 'pccopenhill']) {
   SCRIPTS[id] = { ...SCRIPTS[id], onEnter: function* (s) { if (s.flag('ch12done')) yield* ch13Start(s); if (enter) yield* enter(s); } };
 }
 SCRIPTS.slotsholmen = { ...SCRIPTS.slotsholmen, doors: { ...SCRIPTS.slotsholmen.doors, palace: palaceDoor } };
+// The post-game, "The Long Echo". P1 starts the first time you step outside after the credits.
+{
+  const enter = SCRIPTS.norrebro.onEnter;
+  SCRIPTS.norrebro = { ...SCRIPTS.norrebro, onEnter: function* (s) { if (s.flag('ch13done')) yield* p1Start(s); if (enter) yield* enter(s); } };
+  const palm = SCRIPTS.palmhouse.onEnter;
+  SCRIPTS.palmhouse = {
+    ...SCRIPTS.palmhouse, npcs: [...(SCRIPTS.palmhouse.npcs ?? []), ...PALM_PG1.npcs],
+    onEnter: function* (s) { if (palm) yield* palm(s); yield* PALM_PG1.onEnter(s); }
+  };
+  SCRIPTS.osterbro = {
+    ...SCRIPTS.osterbro,
+    npcs: [...(SCRIPTS.osterbro.npcs ?? []).map(n => n.id !== 'mermaid' ? n : {
+      ...n, talk: function* (s: ScriptApi) { if (!(yield* statueTear(s))) yield* n.talk!(s); }
+    }), ...OSTERBRO_PG1]
+  };
+  SCRIPTS.route1 = { ...SCRIPTS.route1, npcs: [...(SCRIPTS.route1.npcs ?? []), ...ROUTE1_PG1] };
+}
 SCRIPTS.nyhavn.exitGuards = { right: langelinieGate };
 SCRIPTS.dyrehaven.exitGuards = { up: bakkenGate };
 SCRIPTS.assistens.exitGuards = { up: lanternGate };
@@ -118,8 +136,8 @@ export const hafnia: Pack = {
   // Freja's Hisuian Qwilfish: Showdown knows the form, the PBS data only has the base species.
   speciesExtra: { qwilfishhisui: { ...speciesExtra('qwilfish'), key: 'QWILFISH_1', evolutions: [] }, ...SPECIES_EXTRA },
   simData: SIM_DATA,
-  // After the eighth badge, beating Lindholm opens the last cap for the League.
-  rules: { capFlags: ['hafnia:ch12done'] },
+  // After the eighth badge, beating Lindholm opens the last cap for the League; the Champion has no cap.
+  rules: { capFlags: ['hafnia:ch12done', 'hafnia:ch13done'] },
   newGame: {
     map: 'flat', x: 10, y: 2, dir: 'down', intro,
     respawn: { map: 'flat', x: 6, y: 4, dir: 'up', text: 'Mum: There you are. Let me look at your team...\nThere. Right as rain.' }

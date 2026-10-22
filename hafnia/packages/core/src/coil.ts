@@ -123,15 +123,15 @@ export function coilRules() { return rules; }
 export function coilBlock(mode: CoilMode, s: { pips: number; used: boolean; unlocks: CoilUnlocks; enabled: boolean },
   p: Pokemon, moveCategory?: string): string | null {
   if (!s.enabled) return 'The Coil is offline in this battle.';
-  if (!s.unlocks[mode]) return mode === 'copper' ? 'Copper isn\'t unlocked yet.' : 'Current isn\'t unlocked yet.';
+  if (!s.unlocks[mode]) return mode === 'copper' ? 'Copper isn\'t unlocked yet.' : mode === 'current' ? 'Current isn\'t unlocked yet.' : 'Harmony isn\'t unlocked yet.';
   if (s.used) return 'The Coil has already been used.';
   if (s.pips < rules.ready) return 'The Coil isn\'t charged yet.';
-  if (mode === 'copper') {
+  if (mode === 'copper' || mode === 'harmony') {
     if ((p as any).m?.patinated) return 'It already has a patina.';
     const item = p.getItem();
     if (item.forcedForme || (item as any).megaStone || item.id.endsWith('memory')) return 'Its held item stops the patina.';
   }
-  if (mode === 'current' && moveCategory === 'Status') return 'Status moves can\'t carry Current.';
+  if (mode !== 'copper' && moveCategory === 'Status') return 'Status moves can\'t carry Current.';
   return null;
 }
 

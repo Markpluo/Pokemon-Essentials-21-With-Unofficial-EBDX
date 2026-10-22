@@ -29,7 +29,7 @@ export interface Answer { when?: RegExp; pick: Match; once?: boolean }
  *  (Current, else Copper) as soon as it is charged, `catch` throws Poké Balls at wild Pokémon, `run` flees.
  *  A function decides each turn. */
 export type BattlePlan = 'fight' | 'coil' | 'catch' | 'run' | ((s: Probe) => BattleChoice);
-export type BattleChoice = { move: number | string; coil?: 'copper' | 'current'; target?: number } | { ball: string } | { run: true } | { switchTo: number | string };
+export type BattleChoice = { move: number | string; coil?: 'copper' | 'current' | 'harmony'; target?: number } | { ball: string } | { run: true } | { switchTo: number | string };
 
 export interface SettleOptions {
   /** Max time to wait for the overworld to be free again. */
@@ -295,7 +295,7 @@ export class Bot {
       const mi = typeof choice.move === 'number' ? choice.move : moves.findIndex(m => m.name === choice.move || m.id === choice.move);
       if (mi < 0) throw new Error(`No move ${String(choice.move)}: ${moves.map(m => m.name).join(', ')}`);
       if (choice.coil) {
-        const toggle = grid.items.findIndex(it => it.label.startsWith(choice.coil === 'copper' ? 'Copper' : 'Current'));
+        const toggle = grid.items.findIndex(it => it.label.toLowerCase().startsWith(choice.coil!));
         if (toggle < 0) throw new Error(`The Coil is not online in this battle (no ${choice.coil} toggle)`);
         if (!grid.items[toggle].label.includes('✓')) { await this.gridPick(toggle); await this.waitFor(x => !!x.battle?.grid || !!x.text, 5000, 'the move menu'); const again = await this.state(); if (!again.battle?.grid) return; }
       }

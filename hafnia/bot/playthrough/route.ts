@@ -374,3 +374,13 @@ export function chapter13(p: P) {
     goal(p, `Elite Four ${m}`, () => !!p.flag(`e4${m}`), () => { goto(p, map); p.talkTo(5, 2); });
   goal(p, 'the Champions', () => !!p.flag('ch13done'), () => goto(p, 'towerroof'));
 }
+
+export function postgame1(p: P) {
+  grindMaps = ['route1', 'copenhill'];
+  // The morning after: P1 starts the first time you step outside after the credits.
+  if (!p.flag('pg1')) try { goto(p, 'norrebro'); } catch (e) { if (!p.flag('pg1')) throw e; }
+  goal(p, 'Ørsted and Brix', () => !!p.flag('pg1palm'), () => goto(p, 'palmhouse'));
+  goal(p, 'the Mermaid\'s Tear', () => !!p.flag('pg1harmony'), () => { goto(p, 'osterbro'); p.talkTo(22, 13); });
+  p.answers.push({ when: /Touch it with the charged Coil/, pick: 'Touch it' });
+  goal(p, 'the first Resonance Rift', () => !!p.flag('pg1done'), () => { goto(p, 'route1'); p.talkTo(14, 11); });
+}
