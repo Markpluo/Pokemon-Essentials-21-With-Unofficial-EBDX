@@ -385,6 +385,16 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
       g.fillStyle = '#5f9580'; g.beginPath(); g.arc(dx + 17, dy + 9, 4, 0, 7); g.fill();
       if ((time >> 4) % 6 === 0) { g.fillStyle = 'rgba(159,216,255,0.7)'; g.beginPath(); g.arc(dx + 16, dy + 17, 2, 0, 7); g.fill(); }
       break;
+    case 'echo': {
+      // A Sound Echo (post-game): a pocket of frozen song, rings of light that pulse outward.
+      for (let i = 0; i < 3; i++) {
+        const r = ((time / 2 + i * 8) % 24) / 24;
+        g.strokeStyle = `rgba(${i === 1 ? '242,214,140' : '159,216,255'},${0.8 * (1 - r)})`; g.lineWidth = 1.5;
+        g.beginPath(); g.ellipse(dx + 16, dy + 20, 3 + r * 12, 2 + r * 6, 0, 0, 7); g.stroke();
+      }
+      g.fillStyle = `rgba(242,230,184,${0.7 + 0.3 * Math.sin(time / 6)})`; g.beginPath(); g.arc(dx + 16, dy + 14 + Math.sin(time / 10) * 2, 3, 0, 7); g.fill();
+      break;
+    }
     case 'train':
       box(0, 6, 32, 20, '#b8323a'); box(2, 9, 28, 7, '#dfe8f0'); box(0, 26, 32, 3, '#26272c');
       for (let i = 3; i < 30; i += 9) box(i, 10, 6, 5, '#5f8fc4');

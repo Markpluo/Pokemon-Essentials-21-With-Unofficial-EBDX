@@ -153,6 +153,10 @@ export class BattleSession {
     if (mode === 'overcharge') {
       applyPatina(p); applyCurrent(p); applyOvercharge(p);
       out.push({ b: 'overcharge', side, text: `${who} is Overcharged!\nCopper and Current at once, but it burns!` });
+    } else if (mode === 'harmony') {
+      // Harmony (post-game): both modes on one Pokémon, with no Overcharge drain.
+      applyPatina(p); applyCurrent(p);
+      out.push({ b: 'harmony', side, text: `Copper and Current in harmony!\n${who} is patinated and charged at once!` });
     } else if (mode === 'copper') {
       applyPatina(p);
       out.push({ b: 'copper', side, text: `${who} is coated in a copper patina!` });
@@ -227,6 +231,12 @@ export class BattleSession {
     this.sim.p1.pokemonLeft = this.sim.p1.pokemon.filter(p => !p.fainted).length;
     for (const side of [this.sim.p1, this.sim.p2]) side.addSideCondition('hafniacoil', side.active[0]);
     if (o.tutorial) this.sim.p1.active[0].addVolatile('hafniaguard');
+    if (o.echo) {
+      // A Resonance Rift: the Echo's frozen song lifts every stat of the wild Pokémon by one stage.
+      const p = this.sim.p2.active[0];
+      this.sim.add('-activate', p, 'Echo');
+      this.sim.boost({ atk: 1, def: 1, spa: 1, spd: 1, spe: 1 }, p, p);
+    }
     this.advance();
   }
 
@@ -408,7 +418,8 @@ export class BattleSession {
     };
     const c = this.coil.ally;
     if (c.enabled && active && !req?.forceSwitch) {
-      out.coil = { ...this.coilView('ally'), copper: coilBlock('copper', c, active), current: coilBlock('current', c, active) };
+      out.coil = { ...this.coilView('ally'), copper: coilBlock('copper', c, active), current: coilBlock('current', c, active),
+        ...(c.unlocks.harmony ? { harmony: coilBlock('harmony', c, active) } : {}) };
     }
     this.host.emit({ t: 'battleRequest', request: out });
   }
@@ -837,6 +848,7 @@ export class BattleSession {
           else if (eff === 'Attract') evs.push({ b: 'text', text: `${this.nameOf(a1)} is in love with ${this.nameOf(kw('of') ?? a1, false)}!` });
           else if (eff === 'Protect') evs.push({ b: 'text', text: `${this.nameOf(a1)} protected itself!` });
           else if (eff === 'Patina') evs.push({ b: 'text', text: `${this.nameOf(a1)}'s patina kept its defenses\nfrom dropping!` });
+          else if (eff === 'Echo') evs.push({ b: 'text', text: `The Echo's frozen song warps\n${this.nameOf(a1, false)}!` });
           else if (eff === 'Live Wire') evs.push({ b: 'text', text: `Live Wire! The Coil's spark jolts\n${this.nameOf(a1, false)} into action!` });
           break;
         }
