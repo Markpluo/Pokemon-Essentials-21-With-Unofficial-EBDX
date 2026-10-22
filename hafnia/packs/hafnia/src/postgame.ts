@@ -149,7 +149,7 @@ export const ROUTE1_PG1: NpcDef[] = [
 // ---------- P2, The Guardian's Oath: Kronborg ----------
 // Kronvakt went home to the casemates after the storm, and he won't fight an untested trainer. Kaas, a harbour guard
 // now, runs three Oath Trials with his old Enforcer squad: Copper (a team that hits hard and super-effectively),
-// Current (an ace behind Protect) and the Oath (three battles in a row with no healing, against Overcharge). Then
+// Current (an ace behind Protect) and the Oath (three battles in a row with no healing, the last against Overcharge). Then
 // the Guardian's Test: Kronvakt at Lv 70, catchable. Kaas stays for a rematch, once per time of day.
 
 /** Runs on the way into Helsingør once P1 is done. */
@@ -163,21 +163,21 @@ export function* p2Start(s: ScriptApi): Step {
 
 const TRIALS: { flag: string; key: string; name: string; sprite: string; opts: Partial<BattleOptions>; foes: FoeSpec[] }[] = [
   { flag: 'oathCopper', key: 'copper', name: 'Gorm', sprite: 'tr/enforcer', opts: { foeCoil: { current: true } }, foes: [
-    { species: 'magnezone', level: 66, moves: ['thunderbolt', 'flashcannon', 'bodypress', 'voltswitch'] },
-    { species: 'hariyama', level: 66, moves: ['closecombat', 'knockoff', 'bulletpunch', 'heavyslam'] },
-    { species: 'luxray', level: 67, moves: ['wildcharge', 'crunch', 'icefang', 'playrough'], item: 'sitrusberry' }
+    { species: 'magnezone', level: 64, moves: ['thunderbolt', 'flashcannon', 'bodypress', 'voltswitch'] },
+    { species: 'hariyama', level: 64, moves: ['closecombat', 'knockoff', 'bulletpunch', 'heavyslam'] },
+    { species: 'luxray', level: 65, moves: ['wildcharge', 'crunch', 'icefang', 'playrough'], item: 'sitrusberry' }
   ] },
   { flag: 'oathCurrent', key: 'current', name: 'Bjørn', sprite: 'tr/enforcer', opts: { foeCoil: { copper: true } }, foes: [
-    { species: 'klinklang', level: 66, moves: ['geargrind', 'wildcharge', 'shiftgear', 'protect'] },
-    { species: 'lucario', level: 67, moves: ['aurasphere', 'flashcannon', 'protect', 'nastyplot'] },
-    { species: 'aegislash', level: 68, moves: ['kingsshield', 'shadowball', 'flashcannon', 'sacredsword'], item: 'sitrusberry' }
+    { species: 'klinklang', level: 64, moves: ['geargrind', 'wildcharge', 'shiftgear', 'protect'] },
+    { species: 'lucario', level: 65, moves: ['aurasphere', 'flashcannon', 'protect', 'nastyplot'] },
+    { species: 'aegislash', level: 66, moves: ['kingsshield', 'shadowball', 'flashcannon', 'sacredsword'], item: 'sitrusberry' }
   ] }
 ];
 
 const OATH_CHAIN: { name: string; foes: FoeSpec[] }[] = [
-  { name: 'Lone', foes: [{ species: 'electivire', level: 66, moves: ['wildcharge', 'icepunch', 'crosschop', 'earthquake'] }, { species: 'conkeldurr', level: 66, moves: ['drainpunch', 'machpunch', 'knockoff', 'icepunch'] }] },
-  { name: 'Dorte', foes: [{ species: 'magnezone', level: 67, moves: ['thunderbolt', 'flashcannon', 'triattack', 'protect'] }, { species: 'toxicroak', level: 67, moves: ['drainpunch', 'gunkshot', 'suckerpunch', 'icepunch'] }] },
-  { name: 'Søs', foes: [{ species: 'luxray', level: 67, moves: ['wildcharge', 'crunch', 'icefang', 'firefang'] }, { species: 'lucario', level: 68, moves: ['aurasphere', 'flashcannon', 'darkpulse', 'vacuumwave'], item: 'sitrusberry' }] }
+  { name: 'Lone', foes: [{ species: 'electivire', level: 63, moves: ['wildcharge', 'icepunch', 'crosschop', 'earthquake'] }, { species: 'hariyama', level: 62, moves: ['closecombat', 'knockoff', 'bulletpunch', 'heavyslam'] }] },
+  { name: 'Dorte', foes: [{ species: 'magnezone', level: 64, moves: ['thunderbolt', 'flashcannon', 'triattack', 'protect'] }, { species: 'toxicroak', level: 64, moves: ['drainpunch', 'gunkshot', 'suckerpunch', 'icepunch'] }] },
+  { name: 'Søs', foes: [{ species: 'luxray', level: 64, moves: ['wildcharge', 'crunch', 'icefang', 'firefang'] }, { species: 'lucario', level: 65, moves: ['aurasphere', 'flashcannon', 'darkpulse', 'vacuumwave'], item: 'sitrusberry' }] }
 ];
 
 const trialTalk = (t: (typeof TRIALS)[number]): Script => function* (s) {
@@ -202,7 +202,8 @@ const kaasTalk: Script = function* (s) {
     if (c !== 0) return;
     for (const [i, e] of OATH_CHAIN.entries()) {
       if (i) s.say(`pg2.trial.oath.next${i}`);
-      const r = yield s.battle({ kind: 'trainer', ai: 3, bg: 'indoor1', prize: 0, overcharge: true, trainer: { name: e.name, title: 'Oath Trial', sprite: 'tr/enforcer' }, foes: e.foes });
+      // Only Søs, the last, still Overcharges: a whole chain of it with no healing was a wall.
+      const r = yield s.battle({ kind: 'trainer', ai: 2, bg: 'indoor1', prize: 0, overcharge: i === 2, trainer: { name: e.name, title: 'Oath Trial', sprite: 'tr/enforcer' }, foes: e.foes });
       if (r !== 'win') return;
     }
     s.setFlag('oathOath', true);
