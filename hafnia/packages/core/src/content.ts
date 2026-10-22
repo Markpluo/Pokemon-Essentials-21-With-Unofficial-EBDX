@@ -134,6 +134,9 @@ export const WATER_TILES = new Set(['~', 'o']);
 export const GRASS_TILE = 'g';
 /** Ice: the player slides until something stops them (Gym 3). */
 export const ICE_TILES = new Set(['i']);
+/** Trick Room floor: while standing on it, every step goes the opposite way to the one pressed (Gym 5). */
+export const TRICK_TILES = new Set(['z']);
+export const OPPOSITE: Record<'up' | 'down' | 'left' | 'right', 'up' | 'down' | 'left' | 'right'> = { up: 'down', down: 'up', left: 'right', right: 'left' };
 
 export const ns = (pack: string, id: string) => (id.includes(':') ? id : `${pack}:${id}`);
 

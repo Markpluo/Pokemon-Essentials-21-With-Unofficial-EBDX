@@ -4,7 +4,7 @@
 import { BattleSession } from './battle';
 import { DAYCARE_SLOTS, breed, compatText, compatibility, daycareStep, eggStepValue, emptyDaycare, giftEgg, hatch, type DaycareState } from './breeding';
 import type { CoilUnlocks } from './coil';
-import { Content, GRASS_TILE, ICE_TILES, SOLID_TILES, WATER_TILES, ns, type MapDef, type MapEvent, type NpcDef, type Period, type Respawn } from './content';
+import { Content, GRASS_TILE, ICE_TILES, OPPOSITE, SOLID_TILES, TRICK_TILES, WATER_TILES, ns, type MapDef, type MapEvent, type NpcDef, type Period, type Respawn } from './content';
 import { dexEntries, emptyDex, markCaught, markSeen, type DexState } from './dex';
 import { ITEMS, itemEffect } from './items';
 import {
@@ -214,6 +214,7 @@ export class Game {
 
   private step(dir: Dir) {
     const s = this.state, m = this.map;
+    if (TRICK_TILES.has(this.tile(m, s.x, s.y) ?? '')) dir = OPPOSITE[dir];   // Trick Room: everything goes backwards
     s.dir = dir;
     const [dx, dy] = DIRS[dir], nx = s.x + dx, ny = s.y + dy;
     if (nx < 0 || ny < 0 || nx >= m.w || ny >= m.h) {

@@ -106,7 +106,18 @@
     "raichu",
     "jolteon",
     "magnezone",
-    "bellibolt"
+    "bellibolt",
+    "espurr",
+    "meowstic",
+    "drowzee",
+    "hypno",
+    "xatu",
+    "kirlia",
+    "gardevoir",
+    "espathra",
+    "bronzong",
+    "staryu",
+    "starmie"
   ],
   "spriteKeys": {
     "qwilfishhisui": "QWILFISH_1"
@@ -224,7 +235,14 @@
     "chars/phanpy": "Graphics/Characters/Followers/PHANPY.png",
     "chars/pancham": "Graphics/Characters/Followers/PANCHAM.png",
     "chars/skiddo": "Graphics/Characters/Followers/SKIDDO.png",
-    "tr/scientist": "Graphics/Trainers/SCIENTIST.png"
+    "tr/scientist": "Graphics/Trainers/SCIENTIST.png",
+    "chars/psychic": "Graphics/Characters/trainer_PSYCHIC_F.png",
+    "chars/psychicm": "Graphics/Characters/trainer_PSYCHIC_M.png",
+    "tr/psychic": "Graphics/Trainers/PSYCHIC_F.png",
+    "tr/psychicm": "Graphics/Trainers/PSYCHIC_M.png",
+    "tr/tycho": "Graphics/Trainers/GENTLEMAN.png",
+    "chars/bronzor": "Graphics/Characters/Followers/BRONZOR.png",
+    "chars/murkrow": "Graphics/Characters/Followers/MURKROW.png"
   },
   "audio": {
     "title": "Audio/BGM/Title.ogg",

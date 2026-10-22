@@ -3,6 +3,7 @@
 import type { NpcDef, Script, ScriptApi } from '@hafnia/core';
 import { centerNpcs } from './home';
 import { itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
+import { TOWER6 } from './rundetarn';
 import { majaStarter } from './starters';
 
 // ---------- Indre By ----------
@@ -41,7 +42,8 @@ const INDREBY: MapScripts = {
 };
 
 const TOWER: MapScripts = {
-  npcs: [{ id: 'tycho', sprite: 'chars/scientist', x: 6, y: 2, dir: 'down', talk: talk('c2.rund.tycho', 'c2.rund.tycho.2') }]
+  ...TOWER6,
+  npcs: [{ id: 'tycho', sprite: 'chars/scientist', x: 6, y: 2, dir: 'down', when: f => !f('ch6'), talk: talk('c2.rund.tycho', 'c2.rund.tycho.2') }, ...TOWER6.npcs!]
 };
 
 // ---------- Nyhavn ----------

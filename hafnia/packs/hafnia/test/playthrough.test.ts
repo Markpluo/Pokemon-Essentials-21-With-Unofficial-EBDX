@@ -1,7 +1,7 @@
 // Plays the whole prologue through game-core with no client: new game, starter, rival battle,
 // Route 1, Maja, the gym and the chapter end. Also checks saves round-trip.
 import { describe, expect, it } from 'vitest';
-import { Content, Game, LocalServer, healMon, type Dir, type SaveData, type ServerEvent } from '@hafnia/core';
+import { Content, Game, LocalServer, OPPOSITE, TRICK_TILES, healMon, type Dir, type SaveData, type ServerEvent } from '@hafnia/core';
 import { hafnia } from '../src';
 
 const content = new Content([hafnia]);
@@ -51,9 +51,10 @@ class Driver {
       if (!path) throw new Error(`No path to ${tx},${ty}: ${this.where()}`);
       const map = this.s.map;
       const before = [this.s.x, this.s.y];
-      this.send({ t: 'step', dir: path[0] });
+      const dir = TRICK_TILES.has(this.game.content.map(map).grid[this.s.y][this.s.x]) ? OPPOSITE[path[0]] : path[0]; // Trick Room floor
+      this.send({ t: 'step', dir });
       if (this.s.map !== map) return; // a warp, or a script moved us (whiteout)
-      if (before[0] === this.s.x && before[1] === this.s.y) this.send({ t: 'step', dir: path[0] });
+      if (before[0] === this.s.x && before[1] === this.s.y) this.send({ t: 'step', dir });
       if (this.s.map !== map) return;
     }
   }
@@ -100,6 +101,17 @@ class Driver {
     this.walkTo(x, y);
     this.send({ t: 'step', dir });
   }
+
+  /** Walks off the map edge on the `dir` side, at the first open tile it can reach. */
+  leave(dir: Dir) {
+    const m = this.game.content.map(this.s.map);
+    const edge: [number, number][] = dir === 'up' || dir === 'down'
+      ? Array.from({ length: m.w }, (_, x): [number, number] => [x, dir === 'up' ? 0 : m.h - 1])
+      : Array.from({ length: m.h }, (_, y): [number, number] => [dir === 'left' ? 0 : m.w - 1, y]);
+    const spot = edge.find(([x, y]) => !this.game.solid(x, y) && this.path(x, y));
+    if (!spot) throw new Error(`No way off ${this.s.map} going ${dir}: ${this.where()}`);
+    this.exit(dir, spot[0], spot[1]);
+  }
 }
 
 function newGame(seed = 7) {
@@ -142,7 +154,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step to the end of Chapter 5', () => {
+  it('plays from the first step to the end of Chapter 6', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -401,6 +413,38 @@ describe('Hafnia demo', () => {
     expect(flag('zooDone')).toBe(true);
     expect(d.s.party.filter(m => m.egg).length + d.s.box.filter(m => m.egg).length).toBe(eggs5 + 1);
     expect(d.s.bag.ultraball).toBeGreaterThanOrEqual(3);
+
+    // Chapter 6: Rundetårn, the two lenses, the Trick Room ramp, the brass rings and Tycho
+    d.leave('down'); at('route2');
+    expect(flag('ch6'), d.where()).toBe(true);
+    d.leave('right'); at('norrebro');
+    d.exit('down', 12, 21); d.exit('down', 9, 15); d.exit('down', 11, 31); at('garden');
+    d.leave('right'); at('indreby');
+    d.exit('up', 21, 5); at('towerin');
+    expect(flag('ch6met')).toBe(true);
+    d.walkTo(6, 2); at('rundetarn');
+    d.walkTo(0, 11); at('bibliotek');                          // the library hall, past Psychic Ida
+    expect(flag('tr.rtPsy1'), d.where()).toBe(true);
+    d.talkTo(1, 6);                                            // the Bronzor and the objective lens
+    expect(d.s.bag.lensobjective, d.where()).toBe(1);
+    d.walkTo(13, 4); at('rundetarn');
+    d.walkTo(22, 11); at('trinitatis');                        // across the Trick Room floor to the church loft
+    d.talkTo(12, 1);                                           // the Murkrow's nest
+    expect(d.s.bag.lenseyepiece, d.where()).toBe(1);
+    d.walkTo(0, 4); at('rundetarn');
+    d.answers.push(2); d.talkTo(8, 11);                        // west: the Lion
+    d.answers.push(0); d.talkTo(12, 8);                        // north: the Great Bear
+    expect(flag('ringsDone')).toBeFalsy();
+    d.answers.push(1); d.talkTo(14, 11);                       // east: the Swan
+    expect(flag('ringsDone'), d.where()).toBe(true);
+    d.talkTo(11, 11);                                          // Tycho
+    expect(d.s.badges.at(-1), d.where()).toBe('hafnia:orrery');
+    expect([d.s.bag.gyro, d.s.bag.tmpsyshock, d.s.bag.lensobjective ?? 0]).toEqual([1, 1, 0]);
+    expect(flag('ch6done')).toBe(true);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 6 complete');
+    d.answers.push(0); d.talkTo(12, 10);                       // the orrery: morning
+    expect(d.game.period).toBe('morning');
+    d.talkTo(10, 10); at('towerin');                           // the staff stairs
   });
 
   it('a wrong steam valve closes them all again', () => {

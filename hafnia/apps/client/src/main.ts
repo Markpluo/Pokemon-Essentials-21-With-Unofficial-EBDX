@@ -809,6 +809,8 @@ async function overworldTick() {
   if (menu) { await startMenu(); return; }
   if (a) { await send({ t: 'interact' }); return; }
   const dir = (['up', 'down', 'left', 'right'] as Dir[]).find(d => input.held[d]);
+  // Trick Room floor: no turning on the spot, every press is a (backwards) step.
+  if (tileAt(p.x, p.y) === 'z') { if (dir ?? tapped) await walk((dir ?? tapped)!); return; }
   if (!dir) {
     turnDelay = 0;
     if (tapped && tapped !== p.dir) { p.dir = tapped; conn.send({ t: 'turn', dir: tapped }); }
