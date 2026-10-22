@@ -1,4 +1,4 @@
-// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 4). Plain data,
+// Maps and building stamps for the Hafnia demo (Prologue to the end of Chapter 5). Plain data,
 // so the client can import it for rendering without the scripts.
 // Outdoor tiles: '.' ground, '=' brick path, 'g' tall grass, 'f' flowers, 'T' trees, '~' sea, 'o' still water,
 //   'r' Den Røde Plads, 'k' Den Sorte Plads, 'q' cobbles, 'a' asphalt/concrete, 'l' bike lane, 'd' planks,
@@ -23,7 +23,8 @@ export const STAMPS: Record<string, Stamp> = {
   mural: { draw: 'mural', w: 6, h: 2 },                      // Tariq's mural wall at Superkilen
   tower: { draw: 'roundTower', w: 4, h: 5, door: [1, 4] },   // Rundetårn
   cafe: { draw: 'cafe', w: 4, h: 3, door: [1, 2] },          // a gabled Nyhavn house with a café door
-  houseboat: { draw: 'houseboat', w: 6, h: 3, door: [2, 2] } // Alva's gym on the moat
+  houseboat: { draw: 'houseboat', w: 6, h: 3, door: [2, 2] }, // Alva's gym on the moat
+  pyramid: { draw: 'pyramid', w: 3, h: 2, door: [1, 1] }      // the glass entrance to the Cisterns in Søndermarken
 };
 
 const makeGrid = (w: number, h: number, ch: string) => Array.from({ length: h }, () => Array<string>(w).fill(ch));
@@ -507,13 +508,14 @@ function route2(): MapData {
   fill(g, 15, 10, 4, 2, 'g'); fill(g, 7, 11, 3, 2, 'g'); fill(g, 2, 7, 2, 2, 'g');
   fill(g, 7, 5, 2, 2, 'T'); fill(g, 19, 5, 2, 2, 'T'); fill(g, 9, 8, 5, 2, 'T'); fill(g, 21, 8, 4, 2, 'T');
   fill(g, 22, 4, 4, 2, 'a');                  // under the Frederiksberg overpass
+  fill(g, 22, 0, 2, 4, 'a');                  // ...and the stairs up to Frederiksberg (Ch5)
   dots(g, 'f', [[10, 1], [13, 1], [16, 2], [11, 7], [25, 7], [23, 11], [12, 12]]);
   return {
     id: 'route2', name: 'Route 2: Den Grønne Sti', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld', buildings: [],
     encounters: [[30, 'skwovet'], [25, 'nickit'], [20, 'combee'], [15, 'shroodle'], [10, 'flittle']],
     encountersNight: [[35, 'nickit'], [25, 'hoothoot'], [20, 'shroodle'], [20, 'stunky']],
     levels: [17, 20],
-    exits: { right: { to: 'norrebro', offset: 5 }, down: { to: 'vesterbro', offset: 9 } }
+    exits: { right: { to: 'norrebro', offset: 5 }, down: { to: 'vesterbro', offset: 9 }, up: { to: 'frederiksberg', offset: -9 } }
   };
 }
 
@@ -685,6 +687,67 @@ function gym4(): MapData {
   };
 }
 
+// ---------- Chapter 5: The Cisterns ----------
+
+// Frederiksberg: the palace at the top of the avenue, the zoo fence, and Søndermarken's lawns with the
+// glass pyramid over the old royal reservoir. In from Den Grønne Sti's overpass stairs at the bottom.
+function frederiksberg(): MapData {
+  const W = 28, H = 24, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 2, 'T'); fill(g, 0, 22, W, 2, 'T'); fill(g, 0, 0, 2, H, 'T'); fill(g, 26, 0, 2, H, 'T');
+  fill(g, 13, 6, 2, 18, 'q');                 // Frederiksberg Allé, up to the palace
+  fill(g, 9, 2, 10, 3, 'H');                  // Frederiksberg Palace (the cadet academy)
+  fill(g, 7, 5, 14, 2, 'q');                  // the palace forecourt
+  fill(g, 5, 14, 8, 1, '=');                  // to the Pokémon Center
+  fill(g, 15, 15, 7, 1, '=');                 // into Søndermarken, to the pyramid
+  fill(g, 2, 17, 9, 1, 'n'); fill(g, 2, 18, 9, 4, 'g');   // the zoo fence; the paddock behind it
+  fill(g, 17, 9, 4, 3, 'g'); fill(g, 22, 17, 3, 3, 'g'); fill(g, 16, 18, 3, 3, 'g'); fill(g, 3, 2, 4, 2, 'g');
+  fill(g, 23, 9, 2, 2, 'T'); fill(g, 17, 13, 2, 1, 'T'); fill(g, 24, 13, 2, 2, 'T'); fill(g, 21, 2, 3, 2, 'T');
+  dots(g, 'f', [[8, 4], [19, 4], [16, 7], [11, 7], [4, 8], [22, 21], [15, 20], [25, 16]]);
+  return {
+    id: 'frederiksberg', name: 'Frederiksberg', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld',
+    buildings: [{ s: 'pc', x: 3, y: 9, id: 'pc' }, { s: 'pyramid', x: 20, y: 13, id: 'cisterns' }],
+    encounters: [[25, 'deerling'], [25, 'fletchling'], [20, 'pikipek'], [15, 'skwovet'], [10, 'hoppip'], [5, 'buneary']],
+    encountersNight: [[30, 'noibat'], [25, 'hoothoot'], [20, 'deerling'], [15, 'murkrow'], [10, 'stunky']],
+    levels: [25, 28],
+    exits: { down: { to: 'route2', offset: 9 } }
+  };
+}
+
+// The Cisterns under Søndermarken, pitch dark. Hall A has the mirror pool and the false wall; the
+// reservoir (Hall B) is mostly deep water, with two stone causeways that surface as the sluice wheels
+// lower the level (the client draws flood covers over them until then). Hall C has Brix's drones, and
+// the Sunken Archive lies west of it.
+function cisterns(): MapData {
+  return {
+    id: 'cisterns', name: 'The Cisterns', ...grid([
+      'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
+      'RcccccccccccRccuuuuuuuuuuuuucR',
+      'RcccccccccccRccccccccccccccccR',
+      'RccRcRcRcRccRccuuuuuuuuuuucuuR',
+      'RcccccccccccRccuuuuuuuuuuucuuR',
+      'RccccccccccccccuuRuuRuuRuucuuR',
+      'RcccccccccccRccuuuuuuuuuuucuuR',
+      'RccRcRcRcRccRccuuuuuuuuuuucuuR',
+      'RcccccccccccRccuuRuuRuuuuucuuR',
+      'RcccccccccccRccuuuuuuccccccuuR',
+      'RRRRRRRRRRRRRRRuuuuuucuuuuuuuR',
+      'RRRRRRRRRRRRRRRRRRRRRcRRRRRRRR',
+      'RcKKKKKKKKKcRccccccccccccccccR',
+      'RcccccccccccRccccccccccccccccR',
+      'RcccccccccccRcccRcccRcccRccccR',
+      'RcccccccccccRccccccccccccccccR',
+      'RccccccccccccccccccccccccccccR',
+      'RcccccccccccRccccccccccccccccR',
+      'RcccccccccccRcccRcccRcccRccccR',
+      'RcccccccccccRccccccccccccccccR',
+      'RcccccccccccRccccccccccccccccR',
+      'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRR'
+    ]),
+    battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true, dark: true,
+    encounterTile: 'c', encounters: [[35, 'zubat'], [25, 'wooper'], [25, 'dewpider'], [10, 'sableye'], [5, 'golbat']], levels: [26, 29]
+  };
+}
+
 const bakery = () => room('bakery', 'Bageriet', [
   'wwwwwwwwwww',
   'wKKK___KKKw',
@@ -704,5 +767,6 @@ export const MAPS = {
   stadsgraven: stadsgraven(), gym2: gym2(), dragor: dragor(),
   route2: route2(), vesterbro: vesterbro(), cafevb: vbCafe(), pcvesterbro: center('pcvesterbro', 'Pokémon Center', 'vesterbro', 18, 8),
   kodbyen: kodbyen(), kitchen: kitchen(), gym3: gym3(), route3: route3(), islandsbrygge: islandsbrygge(),
-  assistens: assistens(), stormdrain: stormdrain(), gym4: gym4(), bakery: bakery()
+  assistens: assistens(), stormdrain: stormdrain(), gym4: gym4(), bakery: bakery(),
+  frederiksberg: frederiksberg(), pcfrederiksberg: center('pcfrederiksberg', 'Pokémon Center', 'frederiksberg', 5, 14), cisterns: cisterns()
 };
