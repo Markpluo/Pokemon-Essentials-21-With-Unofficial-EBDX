@@ -16,7 +16,7 @@ describe("Hafnia's own Pokémon", () => {
   });
 
   it("Siren's Requiem hits, lowers the target's Sp. Atk and brings the rain", () => {
-    const b = new Battle({ formatid: 'gen9customgame' as never, seed: [1, 2, 3, 4] });
+    const b = new Battle({ formatid: 'gen9customgame' as never, seed: [1, 2, 3, 4] as never });
     b.setPlayer('p1', { team: [{ species: 'Langelira', moves: ['sirensrequiem'], level: 55, ability: 'Swift Swim', name: 'Langelira', item: '', nature: 'Modest', gender: 'N', evs: {} as never, ivs: {} as never }] as never });
     b.setPlayer('p2', { team: [{ species: 'Snorlax', moves: ['splash'], level: 55, ability: 'Thick Fat', name: 'Snorlax', item: '', nature: 'Hardy', gender: 'M', evs: {} as never, ivs: {} as never }] as never });
     if (b.requestState === 'teampreview') b.makeChoices('team 1', 'team 1');
