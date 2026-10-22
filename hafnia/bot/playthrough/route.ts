@@ -11,7 +11,8 @@ type P = Player;
 /** Where the player can heal, once the story has taken them there (the flag). */
 const HEALERS: [string, number, number, string][] = [
   ['flat', 6, 2, 'starter'], ['pcnorrebro', 2, 2, 'starter'], ['pcindreby', 2, 2, 'c2'], ['pcchristianshavn', 2, 2, 'chrMaja'],
-  ['pcvesterbro', 2, 2, 'vbArrive'], ['pcfrederiksberg', 2, 2, 'ch5met']
+  ['pcvesterbro', 2, 2, 'vbArrive'], ['pcfrederiksberg', 2, 2, 'ch5met'],
+  ['pcosterbro', 2, 2, 'c7met'], ['pcbakken', 2, 2, 'bakkenSeen']
 ];
 
 /** Walks to the nearest open Pokémon Center (or Mum) and heals. */
@@ -225,4 +226,30 @@ export function chapter6(p: P) {
     for (const [x, y, sign] of [[8, 11, 'Lion'], [12, 8, 'Great Bear'], [14, 11, 'Swan']] as const) { p.queue.push(sign); p.talkTo(x, y); }
   });
   goal(p, 'Tycho', () => !!p.flag('orrery'), () => { goto(p, 'rundetarn'); p.walkTo(11, 12); p.talkTo(11, 11); });
+}
+
+// ---------- Chapter 7: North by Kystbanen ----------
+
+export function chapter7(p: P) {
+  grindMaps = ['osterbro', 'route8', 'lyngby', 'dyrehaven'];
+  goal(p, 'the chapter opens', () => !!p.flag('ch7'), () => goto(p, 'indreby'));
+  goal(p, 'Maja at Langelinie', () => !!p.flag('c7met'), () => goto(p, 'osterbro'));
+  goal(p, 'the Little Mermaid', () => !!p.flag('statueHeard'), () => { goto(p, 'osterbro'); p.talkTo(22, 13); });
+  shopAndHeal(p, 'pcosterbro');
+  goal(p, 'the Kastellet gauntlet', () => !!p.flag('gauntletDone'), () => { goto(p, 'kastellet'); p.talkTo(11, 2); });
+  goal(p, 'Ingrid\'s legend', () => !!p.flag('ingridTold'), () => { goto(p, 'lyngby'); p.talkTo(9, 8); });
+  goal(p, 'Dyrehaven at sundown', () => !!p.flag('dyrehavenSeen'), () => goto(p, 'dyrehaven'));
+  goal(p, 'Sif', () => !!p.flag('sifMet'), () => { goto(p, 'dyrehaven'); p.walkTo(26, 8); });
+  goal(p, 'the substation', () => !!p.flag('lightsOn'), () => { goto(p, 'substation'); p.talkTo(7, 1); });
+  goal(p, 'Bakken', () => !!p.flag('bakkenSeen'), () => goto(p, 'bakken'));
+  shopAndHeal(p, 'pcbakken');
+  // The weeping mirror is the true one; then red, green and blue carts to the stage.
+  goal(p, 'the mirror', () => !!p.flag('mirrorDone'), () => { goto(p, 'gym6'); p.talkTo(12, 11); });
+  goal(p, 'Pierrot', () => !!p.flag('harlequin'), () => {
+    goto(p, 'gym6');
+    if (p.s.y > 9) p.walkTo(10, 9);
+    if (p.s.y > 3 || p.s.x !== 10) { p.talkTo(8, 7); p.talkTo(5, 1); p.talkTo(15, 1); }
+    p.talkTo(10, 1);
+  });
+  goal(p, 'Maja after the show', () => !!p.flag('ch7done'), () => goto(p, 'bakken'));
 }
