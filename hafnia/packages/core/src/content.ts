@@ -104,6 +104,8 @@ export interface PackManifest {
   /** Regional Pokédex order (defaults to `species`); level evolutions are slotted in after each. */
   dex?: string[];
   images: Record<string, string>;   // asset key -> path inside the Essentials repo
+  /** Sprites and cries for the pack's own Pokémon, by key (LANGELIRA); "pack:" paths are inside the pack. */
+  pokemon?: Record<string, { front: string; back: string; icons: string; cry: string }>;
   audio: Record<string, string>;
 }
 

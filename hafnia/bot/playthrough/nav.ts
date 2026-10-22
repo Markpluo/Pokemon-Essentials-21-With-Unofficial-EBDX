@@ -23,7 +23,8 @@ const DOORS: Record<string, Record<string, string>> = {
   bakken: { gym: 'gym6', pc: 'pcbakken' },
   trekroner: { lighthouse: 'tklighthouse', battery: 'battery', siphon: 'siphon' },
   slotsholmen: { borsen: 'borsen', pc: 'pcslotsholmen' },
-  copenhill: { plant: 'gym8', pc: 'pccopenhill' }
+  copenhill: { plant: 'gym8', pc: 'pccopenhill' },
+  helsingor: { kronborg: 'casemates', pc: 'pchelsingor' }
 };
 /** Things you talk to that move you. */
 const TALK: Record<string, { to: string; x: number; y: number }[]> = {
@@ -42,7 +43,11 @@ const TALK: Record<string, { to: string; x: number; y: number }[]> = {
   gym7: [{ to: 'borsen', x: 9, y: 13 }],
   shipyards: [{ to: 'eastquay', x: 14, y: 9 }],
   eastquay: [{ to: 'shipyards', x: 1, y: 10 }, { to: 'cranetop', x: 9, y: 1 }],
-  cranetop: [{ to: 'eastquay', x: 1, y: 2 }]
+  cranetop: [{ to: 'eastquay', x: 1, y: 2 }],
+  floodnyhavn: [{ to: 'metro', x: 12, y: 12 }],
+  metro: [{ to: 'slotsholmen', x: 26, y: 1 }],
+  slotsholmen: [{ to: 'ruins', x: 8, y: 6 }],
+  ruins: [{ to: 'slotsholmen', x: 1, y: 4 }]
 };
 /** Tiles you step on that move you (step events, not warps). */
 const STEP: Record<string, { to: string; x: number; y: number }[]> = {
