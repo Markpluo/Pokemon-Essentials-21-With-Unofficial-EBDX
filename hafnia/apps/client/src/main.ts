@@ -1231,7 +1231,7 @@ interface BattleState {
   /** ally and foe; in a multi battle also ally2 (the partner) and foe2 (the second trainer). */
   spots: Record<Spot, SpotState>;
   trainerShown: boolean; trainerOffset: number; playerBackShown: boolean; playerOffset: number;
-  ballFx: { x: number; y: number; dy?: number } | null; grid: GridState | null; lastIdx: Record<string, number>; foeLeft: number; foeLeft2: number;
+  ballFx: BallFx | null; grid: GridState | null; lastIdx: Record<string, number>; foeLeft: number; foeLeft2: number;
   savedBgm: string | null;
   coil: { ally?: CoilView; foe?: CoilView }; patina: Set<string>; overcharged: Set<string>; arc: { side: BattleSide; t: number } | null;
   request: BattleRequest | null;
@@ -1360,6 +1360,39 @@ function teamBalls(count: number, left: number, x: number, y: number) {
     ctx.globalAlpha = 1;
   }
 }
+/** The thrown ball: position, strip frame (EBDX Pokeballs: 0 closed, 1-9 spin, 10 open, 11-13 tilt left,
+ *  14-16 tilt right), and once caught a dimmed ball with a few sparkles. */
+interface BallFx { x: number; y: number; frame: number; ball: string; dim?: boolean; sparkle?: number; flash?: number }
+const BALL_W = 41, BALL_H = 40;
+function drawBall(f: BallFx) {
+  const im = packImg(`balls/${f.ball}`).naturalWidth ? packImg(`balls/${f.ball}`) : packImg('balls/pokeball');
+  if (!im.naturalWidth) return;
+  const x = Math.round(f.x - BALL_W / 2), y = Math.round(f.y - BALL_H / 2);
+  if (f.dim) ctx.filter = 'brightness(0.72)';   // a caught ball goes dark, like the handhelds
+  ctx.drawImage(im, 0, f.frame * BALL_H, BALL_W, BALL_H, x, y, BALL_W, BALL_H);
+  ctx.filter = 'none';
+  if (f.flash) {
+    // The white burst when the ball opens: a ring that grows and fades.
+    ctx.globalAlpha = Math.max(0, 1 - f.flash / 14);
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(f.x, f.y - 6, 8 + f.flash * 4, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(f.x, f.y - 6, Math.max(0, 14 - f.flash), 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  if (f.sparkle !== undefined) {
+    // Three little stars pop out above the ball when it clicks shut.
+    const t = f.sparkle;
+    ctx.globalAlpha = Math.max(0, 1 - t / 30); ctx.fillStyle = '#ffe680';
+    for (const [dx, k] of [[-22, 0.8], [0, 1.1], [22, 0.8]] as const) {
+      const sx = f.x + dx * (0.5 + t / 30), sy = f.y - 18 - t * k * 1.2, r = 5;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, rr = i % 2 ? r * 0.4 : r; ctx.lineTo(sx + Math.cos(a) * rr, sy + Math.sin(a) * rr); }
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
 function drawBattle() {
   const b = B!, bg = b.start.bg, multi = b.start.multi;
   ctx.save();
@@ -1385,13 +1418,13 @@ function drawBattle() {
     if (!st.mon || !st.shown) continue;
     const p = place(s), foe = s.startsWith('foe');
     drawMonSprite(st.mon.key, foe ? 'front' : 'back', p.x + (foe ? slide : -slide), p.foot, p.scale, true, spotFx(s));
-    if (s === 'foe' && b.ballFx) ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, b.ballFx.x - 16, b.ballFx.y - 16 + (b.ballFx.dy || 0), 32, 32);
   }
-  if (b.ballFx && !b.spots.foe.shown) ctx.drawImage(packImg('chars/ball'), 0, 0, 32, 32, b.ballFx.x - 16, b.ballFx.y - 16 + (b.ballFx.dy || 0), 32, 32);
+  if (b.ballFx) drawBall(b.ballFx);
   anim.draw(ctx);
   ctx.restore();
   if (b.arc) drawArc(b.arc.side, b.arc.t);
-  const box = (s: Spot, x: number, y: number, nums: boolean) => { const st = b.spots[s]; if (st.mon && st.shown) databox(st.mon, x, y, nums, st.hp); };
+  // The foe's box stays up while it sits in a wobbling ball.
+  const box = (s: Spot, x: number, y: number, nums: boolean) => { const st = b.spots[s]; if (st.mon && (st.shown || (s === 'foe' && b.ballFx))) databox(st.mon, x, y, nums, st.hp); };
   if (multi) {
     box('foe', 16, 12, false); box('foe2', 16, 70, false);
     box('ally2', VW - 246, 146, false); box('ally', VW - 246, 206, true);
@@ -1556,22 +1589,60 @@ async function battleEvent(e: BattleEvent) {
       break;
     }
     case 'throw': {
-      const foe = b.spots.foe, to = place('foe');
+      // Gen 3-style: an arc with the ball spinning, it opens on the Pokémon, which turns to light and is
+      // pulled in, the ball shuts, drops and bounces on the base, wobbles once per shake check, then
+      // clicks shut (sparkles) or bursts open.
+      const foe = b.spots.foe, to = place('foe'), ball = e.ball && ITEMS[e.ball]?.ball ? e.ball : 'pokeball';
+      const hitY = to.foot - 70, ground = to.foot - 14;
       Sound.se('throw');
-      for (let i = 0; i <= 24; i++) {
-        const t = i / 24; b.ballFx = { x: 120 + (to.x - 120) * t, y: 260 - 200 * t + 260 * t * t - 60 * t };
+      const fx: BallFx = { x: 96, y: 250, frame: 1, ball };
+      b.ballFx = fx;
+      for (let i = 0; i <= 26; i++) {
+        const t = i / 26;
+        fx.x = 96 + (to.x - 96) * t;
+        fx.y = 250 + (hitY - 250) * t - 150 * Math.sin(Math.PI * t);
+        fx.frame = 1 + (i % 9);
         await nextFrame();
       }
-      for (let i = 0; i <= 10; i++) { foe.fx = { shrink: 1 - i / 10 }; await nextFrame(); }
-      foe.shown = false; foe.fx = {};
-      for (let i = 0; i <= 10; i++) { b.ballFx!.y += 3; await nextFrame(); }
-      for (let s = 0; s < e.shakes; s++) {
-        await wait(18); Sound.se('shake');
-        for (const d of [-4, -8, -4, 0, 4, 8, 4, 0]) { b.ballFx!.x += d / 2; await nextFrame(); }
+      fx.frame = 10; Sound.se('recall');
+      for (let i = 0; i <= 14; i++) {
+        const k = 1 - i / 14;
+        fx.flash = i;
+        foe.fx = { shrink: Math.max(0.05, k), dy: -(to.foot - hitY) * (1 - k), tint: '#ffffff', tintA: Math.min(1, i / 6), alpha: Math.max(0, k * 1.2) };
+        await nextFrame();
       }
-      await wait(20);
-      if (!e.caught) { b.ballFx = null; foe.shown = true; }
-      else b.ballFx = { ...b.ballFx!, dy: 0 };
+      foe.shown = false; foe.fx = {}; fx.flash = undefined; fx.frame = 0;
+      await wait(6);
+      // Drop to the base, then two small bounces.
+      for (let i = 1; i <= 12; i++) { const t = i / 12; fx.y = hitY + (ground - hitY) * t * t; await nextFrame(); }
+      Sound.se('shake', 0.5);
+      for (const [peak, n] of [[16, 10], [6, 6]] as const) {
+        for (let i = 1; i <= n; i++) { fx.y = ground - peak * Math.sin(Math.PI * i / n); await nextFrame(); }
+      }
+      fx.y = ground;
+      await wait(14);
+      for (let s = 0; s < e.shakes; s++) {
+        Sound.se('shake');
+        for (const f of [11, 12, 13, 13, 12, 11, 0, 14, 15, 16, 16, 15, 14, 0]) { fx.frame = f; await wait(2); }
+        await wait(22);
+      }
+      if (!e.caught) {
+        fx.frame = 10; Sound.se('recall');
+        foe.shown = true;
+        for (let i = 0; i <= 12; i++) {
+          const k = i / 12;
+          fx.flash = i;
+          foe.fx = { shrink: Math.max(0.05, k), dy: -(to.foot - ground) * (1 - k), tint: '#ffffff', tintA: 1 - k, alpha: Math.min(1, k * 1.5) };
+          await nextFrame();
+        }
+        foe.fx = {};
+        b.ballFx = null;
+      } else {
+        Sound.se('select');
+        fx.frame = 0; fx.dim = true;
+        for (let i = 0; i <= 30; i++) { fx.sparkle = i; await nextFrame(); }
+        fx.sparkle = undefined;
+      }
       break;
     }
     case 'flee': Sound.se('flee'); break;

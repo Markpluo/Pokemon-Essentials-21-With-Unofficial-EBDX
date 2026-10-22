@@ -32,6 +32,24 @@ function battle(s: Setup) {
   return { b, sim, party, events, lastRequest, act, battleEvents, texts, host };
 }
 
+describe('fainted Pokémon', () => {
+  it('a team that starts the battle with fainted members still loses when the last one faints', () => {
+    // Walking on after a wild battle with two of three knocked out, then a trainer spots you.
+    const rng = new Rng(1);
+    const party: Mon[] = [0, 1, 2].map(() => makeMon('magikarp', 5, rng, { moves: ['splash'] }));
+    party[1].hp = 0; party[2].hp = 0;
+    const events: ServerEvent[] = [];
+    const host: BattleHost = {
+      rng, party, bag: {}, playerName: 'Tester', rules: DEFAULT_RULES, badges: 0, coil: {},
+      emit: e => events.push(e), whiteout: () => 0, addMon: () => 'party', giveMoney: () => {}
+    };
+    const b = new BattleSession(host, { kind: 'trainer', trainer: { name: 'Foe', title: 'Youngster', sprite: '' }, foes: [{ species: 'machop', level: 40, moves: ['karatechop'] }] });
+    b.start();
+    for (let i = 0; i < 5 && !events.some(e => e.t === 'battleEnd'); i++) b.act({ kind: 'move', index: 0 });
+    expect(events.find(e => e.t === 'battleEnd')).toMatchObject({ result: 'lose' });
+  });
+});
+
 describe('Copper & Current: the Coil', () => {
   it('starts at 2 pips in wild battles and 0 in trainer battles', () => {
     const wild = battle({ party: [['pikachu', 20, ['growl']]], foes: [{ species: 'magikarp', level: 5, moves: ['splash'] }], opts: { kind: 'wild', trainer: undefined } });
@@ -147,6 +165,22 @@ describe('battle rules', () => {
     expect(t.party[0].exp).toBeGreaterThan(a);
     expect(t.party[1].exp).toBeGreaterThan(b);
     expect(t.texts().some(x => /Exp. Share/.test(x))).toBe(true);
+  });
+
+  it('the bench gets half, and Exp slows to a trickle at the next leader\'s level', () => {
+    // No badges: the soft cap is 14. Gains are below one level, so the Exp formula sees the same levels.
+    const gains = (rules = DEFAULT_RULES) => {
+      const t = battle({ party: [['pikachu', 30, ['thunderbolt']], ['eevee', 13, ['tackle']], ['eevee', 14, ['tackle']]], foes: [{ species: 'magikarp', level: 8, moves: ['splash'] }] });
+      (t.host as { rules: typeof rules }).rules = rules;
+      const before = t.party.map(m => m.exp);
+      t.act({ kind: 'move', index: 0 });
+      return t.party.map((m, i) => m.exp - before[i]);
+    };
+    const [, under, at] = gains();
+    const [, fullUnder] = gains({ ...DEFAULT_RULES, benchExp: 1 });
+    expect(under / fullUnder).toBeCloseTo(0.5, 1);
+    expect(at).toBeLessThan(under * 0.2);
+    expect(at).toBeGreaterThan(0);
   });
 
   it('asks which move to forget when a full moveset learns a new one', () => {

@@ -220,6 +220,9 @@ export class BattleSession {
     if (o.multi && o.trainer) this.ev({ b: 'text', text: `${o.trainer.title} ${o.trainer.name} and ${o.multi.second.title} ${o.multi.second.name}\nwould like to battle!` });
     else if (o.trainer) this.ev({ b: 'text', text: `${o.trainer.title} ${o.trainer.name} would like to battle!` });
     for (const side of this.sides) this.sim.choose(side.id, 'default');
+    // Pokémon that come in already fainted don't count (the simulator counts the whole team at the
+    // start): otherwise it waits forever for a switch-in that doesn't exist once the last one faints.
+    this.sim.p1.pokemonLeft = this.sim.p1.pokemon.filter(p => !p.fainted).length;
     for (const side of [this.sim.p1, this.sim.p2]) side.addSideCondition('hafniacoil', side.active[0]);
     if (o.tutorial) this.sim.p1.active[0].addVolatile('hafniaguard');
     this.advance();
@@ -267,7 +270,7 @@ export class BattleSession {
         this.host.bag[action.item]--;
         const before = target.fainted ? 0 : target.hp;
         this.ev({ b: 'text', text: `${this.host.playerName} used a ${item.name}!` });
-        if (target.fainted) { target.fainted = false; target.faintQueued = false; (target as any).status = ''; target.hp = fx.hp; }
+        if (target.fainted) { target.fainted = false; target.faintQueued = false; (target as any).status = ''; target.hp = fx.hp; p1.pokemonLeft++; }
         else target.hp = fx.hp;
         if (fx.cure && target.status) {
           target.cureStatus(true);
@@ -393,6 +396,7 @@ export class BattleSession {
           ...(targets.length > 1 && AIMED.has(Dex.moves.get(m.id).target) ? { aim: true } : {})
         })),
       forceSwitch: !!req?.forceSwitch,
+      ...(req?.active?.[0]?.trapped ? { trapped: true } : {}),
       canCatch: this.opts.kind === 'wild',
       canRun: this.opts.kind === 'wild',
       activeUid: (active?.set as any)?.uid ?? '',
@@ -553,7 +557,7 @@ export class BattleSession {
       while (shakes < 3 && this.host.rng.int(65536) < b) shakes++;
     }
     const caught = shakes === 3;
-    this.ev({ b: 'throw', shakes, caught });
+    this.ev({ b: 'throw', shakes, caught, ball: ballId });
     if (!caught) {
       this.ev({ b: 'text', text: ['Oh no! The Pokémon broke free!', 'Aww! It appeared to be caught!', 'Aargh! Almost had it!'][shakes] });
       return false;
@@ -612,7 +616,9 @@ export class BattleSession {
 
   // ---------- EXP ----------
 
-  /** Exp Share is always on: every healthy party member gets the full amount (systems.md §2.6). */
+  /** Exp Share is always on: every healthy party member gets Exp, the ones that didn't fight `benchExp` of it
+   *  (systems.md §2.6). Above the soft cap for the badges held, Exp slows to a trickle so the next leader stays a fight. */
+  private capSaid = false;
   private awardExp(fainted: SimPokemon) {
     const foe = this.monOf(fainted)!;
     const b = speciesExtra(foe.species).baseExp, L = foe.level;
@@ -620,11 +626,14 @@ export class BattleSession {
     const active = this.sim.p1.active[0];
     const team = this.sim.p1.pokemon.filter(p => !p.fainted && p.hp > 0 && this.monOf(p)!.level < 100);
     team.sort((x, y) => Number(y === active) - Number(x === active));
+    const rules = this.host.rules, cap = rules.levelCaps[this.host.badges] ?? Infinity;
     let sharedSaid = false;
     for (const p of team) {
       const m = this.monOf(p)!, Lp = m.level;
-      const amount = Math.max(1, Math.floor((b * L / 5) * trainer * ((2 * L + 10) / (L + Lp + 10)) ** 2.5 + 1));
+      const full = (b * L / 5) * trainer * ((2 * L + 10) / (L + Lp + 10)) ** 2.5 + 1;
+      const amount = Math.max(1, Math.floor(full * (p === active ? 1 : rules.benchExp) * (Lp >= cap ? rules.overCapExp : 1)));
       if (p === active) this.ev({ b: 'text', text: `${p.name} gained ${amount} Exp. Points!` });
+      if (p === active && Lp >= cap && !this.capSaid) { this.capSaid = true; this.ev({ b: 'text', text: `${p.name} is already a match for the next Gym\nLeader, so it learns less from battles now.` }); }
       else if (!sharedSaid) { sharedSaid = true; this.ev({ b: 'text', text: 'The rest of your team gained Exp. Points\nthanks to the Exp. Share!' }); }
       const steps = gainExp(m, amount);
       for (const step of steps) {

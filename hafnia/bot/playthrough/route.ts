@@ -1,0 +1,210 @@
+// The story route, chapter by chapter, as a first-time player would take it: goals in story order,
+// each one retried after training if the player loses. Each chapter starts from the previous
+// chapter's save, so a run can resume anywhere (npm run playthrough -- --from ch3).
+import type { Player } from './driver';
+import { goto, plan } from './nav';
+
+type P = Player;
+
+// ---------- shared ----------
+
+/** Where the player can heal, once the story has taken them there (the flag). */
+const HEALERS: [string, number, number, string][] = [
+  ['flat', 6, 2, 'starter'], ['pcnorrebro', 2, 2, 'starter'], ['pcindreby', 2, 2, 'c2'], ['pcchristianshavn', 2, 2, 'chrMaja'],
+  ['pcvesterbro', 2, 2, 'vbArrive'], ['pcfrederiksberg', 2, 2, 'ch5met']
+];
+
+/** Walks to the nearest open Pokémon Center (or Mum) and heals. */
+export function heal(p: P) {
+  const best = HEALERS.filter(h => p.flag(h[3])).map(([m, x, y]) => ({ m, x, y, route: plan(p.mapId, m) })).filter(h => h.route)
+    .sort((a, b) => a.route!.length - b.route!.length)[0];
+  if (!best) throw new Error(`no healer reachable from ${p.mapId}`);
+  goto(p, best.m);
+  if (best.m === 'flat') p.talkTo(...p.npcPos('mum')); else p.talkTo(best.x, best.y);
+}
+
+/** Maps with wild Pokémon the player trains on, by chapter. */
+let grindMaps: string[] = ['route1'];
+
+/** Trains on the nearest grind map until the whole team's top level reaches `level`. */
+export function train(p: P, level: number, why: string) {
+  // Like a player: train towards the foe's level, but not past the soft cap (Exp is a trickle beyond it),
+  // and bring the rest of the team along to within two levels.
+  const cap = p.game.content.rules.levelCaps[p.s.badges.length] ?? Infinity;
+  level = Math.min(level, cap);
+  const ok = () => p.leadLevel >= level && p.minLevel >= level - 2;
+  const before = `${p.minLevel}-${p.leadLevel}`;
+  if (ok()) return;
+  const map = grindMaps.map(m => ({ m, route: plan(p.mapId, m) })).filter(x => x.route).sort((a, b) => a.route!.length - b.route!.length)[0]?.m;
+  if (!map) throw new Error('nowhere to train');
+  const b0 = p.battles.length;
+  for (let round = 0; round < 12 && !ok(); round++) {
+    if (process.env.PT_TRACE) console.error(`[train] round ${round} team ${p.minLevel}-${p.leadLevel} -> ${level} on ${map}`);
+    heal(p);
+    goto(p, map);
+    p.grind(() => ok() || p.hurt(), 40);
+  }
+  heal(p);
+  p.notes.push(`trained ${before} -> ${p.minLevel}-${p.leadLevel} on ${map} (${p.battles.length - b0} wild battles) for ${why}`);
+}
+
+function goal(p: P, name: string, done: () => boolean, act: () => void) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (done()) return;
+    if (p.flag("starter") && p.hurt()) heal(p);       // a careful player heals before moving on
+    if (process.env.PT_TRACE) console.error(`[goal] ${name} (try ${attempt + 1}) at ${p.mapId} ${p.s.x},${p.s.y} team ${p.s.party.map(m => `${m.species} ${m.level} ${m.hp}`).join(', ')}`);
+    const l0 = p.losses;
+    try { act(); } catch (e) { if (p.losses === l0) throw new Error(`${name}: ${(e as Error).message}`); }
+    if (done()) return;
+    if (p.losses === l0) throw new Error(`${name}: did not happen`);
+    const lost = p.battles.filter(b => b.result === 'lose').at(-1)!;
+    const top = Math.max(...lost.foes.split(', ').map(f => Number(f.split(' ').at(-1)) || 0));
+    p.notes.push(`lost to ${lost.trainer || `wild ${lost.foes}`} (${lost.foes}) with [${lost.team}] during "${name}"`);
+    train(p, Math.max(p.leadLevel + 2, top + 2), name);
+  }
+  throw new Error(`${name}: gave up after 6 tries`);
+}
+
+/** Before a big fight, a careful player tops up: heal and buy balls/potions with spare money. */
+function shopAndHeal(p: P, pc: string) {
+  goto(p, pc);
+  const balls = p.s.badges.length >= 2 ? 'Great Ball' : 'Poké Ball';
+  const money = p.s.money;
+  const buys: [string, 1 | 5 | 10][] = [];
+  if ((p.s.bag.potion ?? 0) + (p.s.bag.superpotion ?? 0) < 5 && money > 2000) buys.push([p.s.badges.length >= 1 ? 'Super Potion' : 'Potion', 5]);
+  if ((p.s.bag.pokeball ?? 0) + (p.s.bag.greatball ?? 0) < 6 && money > 4000) buys.push([balls, 5]);
+  if (buys.length) p.buy(buys);
+  p.talkTo(2, 2);
+}
+
+// ---------- Prologue ----------
+
+export function prologue(p: P) {
+  grindMaps = ['route1'];
+  p.answers.push({ when: /^Choose /, pick: 'Yes' }, { when: /nickname/i, pick: 'No' });
+  goal(p, 'starter', () => !!p.flag('beatLukas'), () => goto(p, 'palmhouse'));
+  p.catchAll = true;                      // a new player catches what they meet
+  goal(p, 'Maja on Route 1', () => !!p.flag('beatMaja'), () => { goto(p, 'route1'); p.walkTo(12, 24); });
+  goal(p, 'home for Chapter 1', () => !!p.flag('ch1'), () => goto(p, 'flat'));
+}
+
+// ---------- Chapter 1: The Red Streak ----------
+
+export function chapter1(p: P) {
+  grindMaps = ['route1', 'garden', 'norrebro'];
+  goal(p, 'Kaas at Superkilen', () => !!p.flag('kaas'), () => { goto(p, 'norrebro'); p.walkTo(7, 15); });
+  goal(p, 'Ørsted sends you to the tunnels', () => !!p.flag('tunnelQuest'), () => { goto(p, 'palmhouse'); p.talkTo(8, 7); });
+  goal(p, 'open the valve', () => !!p.flag('valve'), () => { goto(p, 'tunnels'); p.talkTo(20, 13); });
+  goal(p, 'the Grimer swarm', () => !!p.flag('swarm'), () => { goto(p, 'tunnels'); p.walkTo(17, 11); p.walkTo(18, 13); p.walkTo(17, 11); });
+  goal(p, 'back to Ørsted', () => !!p.flag('tunnelsDone'), () => { goto(p, 'palmhouse'); p.talkTo(8, 7); });
+  goal(p, 'Tariq: the mural quest', () => !!p.flag('muralQuest'), () => { goto(p, 'norrebro'); p.talkTo(6, 13); });
+  goal(p, 'green paint', () => !!p.flag('paintGreen'), () => { goto(p, 'norrebro'); p.talkTo(3, 9); });
+  goal(p, 'silver paint', () => !!p.flag('paintSilver'), () => { goto(p, 'norrebro'); p.talkTo(16, 9); });
+  goal(p, 'purple paint', () => !!p.flag('paintPurple'), () => {
+    goto(p, 'norrebro');
+    if (!p.s.bag.oranberry) { if (!p.flag('item.nb1')) p.talkTo(2, 5); else { goto(p, 'flat'); p.talkTo(2, 5); goto(p, 'norrebro'); } }
+    p.talkTo(25, 6);
+  });
+  goal(p, 'gold paint', () => !!p.flag('paintGold'), () => {
+    goto(p, 'norrebro'); p.talkTo(19, 15);
+    if (!p.flag('paintGold') && p.flag('tr.yusuf')) throw new Error('BLOCKER: Yusuf was beaten before the mural quest, so the gold paint can never be found');
+  });
+  goal(p, 'finish the mural', () => !!p.flag('mural'), () => { goto(p, 'norrebro'); p.talkTo(6, 13); });
+  shopAndHeal(p, 'pcnorrebro');
+  goal(p, 'gym 1 vents', () => !!p.flag('vents'), () => {
+    goto(p, 'gym1');
+    for (const x of [4, 10, 12, 2]) p.talkTo(x, 5);
+  });
+  goal(p, 'Tariq', () => !!p.flag('badge'), () => { goto(p, 'gym1'); p.talkTo(7, 2); });
+  goal(p, 'Lukas and the blackout', () => !!p.flag('c1done'), () => { goto(p, 'norrebro'); });
+}
+
+
+// ---------- Chapter 2: Harbour Saboteurs ----------
+
+export function chapter2(p: P) {
+  grindMaps = ['garden', 'route4', 'christianshavn', 'stadsgraven'];
+  goal(p, 'Indre By', () => !!p.flag('c2'), () => goto(p, 'indreby'));
+  goal(p, 'the Nyhavn attack', () => !!p.flag('nyAttack'), () => goto(p, 'nyhavn'));
+  shopAndHeal(p, 'pcindreby');
+  goal(p, 'harbour bus to the drydock', () => p.mapId === 'drydock' || !!p.flag('ivar'), () => goto(p, 'drydock'));
+  p.answers.push({ when: /Slide the hook/, pick: /^Right/ });
+  goal(p, 'the crane', () => !!p.flag('crane'), () => { goto(p, 'drydock'); p.talkTo(20, 9); });
+  goal(p, 'Ivar and Copper', () => !!p.flag('copper'), () => { goto(p, 'drydock'); p.talkTo(...p.npcPos('ivar')); });
+  goal(p, 'the Grid Enforcer', () => !!p.flag('enforcer'), () => { goto(p, 'route4'); p.talkTo(8, 14); });
+  goal(p, 'Christianshavn', () => !!p.flag('chrMaja'), () => goto(p, 'christianshavn'));
+  goal(p, 'Old Knud\'s rod', () => !!p.flag('rod'), () => { goto(p, 'christianshavn'); p.talkTo(9, 9); });
+  goal(p, 'the overheard secret', () => !!p.flag('overhear'), () => { goto(p, 'christianshavn'); p.walkTo(16, 9); });
+  goal(p, 'meet Alva', () => !!p.flag('alvaMet'), () => { goto(p, 'stadsgraven'); p.talkTo(10, 5); });
+  for (const [id, x, y] of [['boom1', 14, 4], ['boom2', 21, 6], ['boom3', 18, 8]] as const) {
+    goal(p, id, () => !!p.flag(id), () => { goto(p, 'stadsgraven'); p.talkTo(x, y); });
+  }
+  goal(p, 'booms done', () => !!p.flag('boomsDone'), () => { goto(p, 'stadsgraven'); p.talkTo(10, 5); });
+  shopAndHeal(p, 'pcchristianshavn');
+  goal(p, 'mirror 1', () => !!p.flag('mirror1'), () => { goto(p, 'gym2'); p.talkTo(5, 8); });
+  goal(p, 'mirror 2', () => !!p.flag('mirror2'), () => { goto(p, 'gym2'); p.talkTo(1, 5); });
+  goal(p, 'Alva', () => !!p.flag('lily'), () => { goto(p, 'gym2'); p.talkTo(8, 1); });
+  goal(p, 'the bridge at dusk', () => !!p.flag('demoEnd'), () => goto(p, 'bridge'));
+}
+
+// ---------- Chapter 3: The White Butchery ----------
+
+export function chapter3(p: P) {
+  grindMaps = ['route2', 'islandsbrygge', 'christianshavn'];
+  goal(p, 'Den Grønne Sti', () => !!p.flag('ch3'), () => goto(p, 'route2'));
+  goal(p, 'Vesterbro', () => !!p.flag('vbArrive'), () => goto(p, 'vesterbro'));
+  goal(p, 'Kasper\'s dinner quest', () => !!p.flag('dinnerQuest'), () => { goto(p, 'kitchen'); p.talkTo(6, 1); });
+  goal(p, 'ice salt', () => !!p.s.bag.icesalt || !!p.flag('dinnerDone'), () => { goto(p, 'kodbyen'); p.talkTo(7, 11); });
+  goal(p, 'mussels', () => !!p.s.bag.mussels || !!p.flag('dinnerDone'), () => { goto(p, 'islandsbrygge'); p.talkTo(7, 3); });
+  goal(p, 'sea buckthorn', () => !!p.s.bag.buckthorn || !!p.flag('dinnerDone'), () => { goto(p, 'islandsbrygge'); p.talkTo(19, 17); });
+  goal(p, 'the Empty-Sea Dinner', () => !!p.flag('dinnerDone'), () => { goto(p, 'kitchen'); p.talkTo(6, 1); });
+  shopAndHeal(p, 'pcvesterbro');
+  goal(p, 'gym 3 valves', () => !!p.flag('steam'), () => {
+    goto(p, 'gym3');
+    if (p.s.x !== 7 || p.s.y !== 10) { p.walkTo(7, 11); goto(p, 'gym3'); }
+    for (const d of ['up', 'right', 'down', 'left', 'up', 'right'] as const) p.step(d);
+    p.face('right'); p.send({ t: 'interact' });
+    for (const d of ['left', 'up', 'left', 'up', 'left', 'down'] as const) p.step(d);
+    p.face('left'); p.send({ t: 'interact' });
+    for (const d of ['up', 'right', 'down', 'right', 'up', 'right'] as const) p.step(d);
+    p.face('right'); p.send({ t: 'interact' });
+  });
+  goal(p, 'Kasper', () => !!p.flag('frost'), () => {
+    goto(p, 'gym3');
+    if (p.s.y > 3) { if (p.s.x !== 7 || p.s.y !== 10) { p.walkTo(7, 11); goto(p, 'gym3'); } for (const d of ['up', 'right', 'down', 'left', 'up', 'right'] as const) p.step(d); for (const d of ['left', 'up', 'left', 'up', 'left', 'down'] as const) p.step(d); for (const d of ['up', 'right', 'down', 'right', 'up', 'right'] as const) p.step(d); for (const d of ['left', 'down', 'left', 'up', 'left', 'up', 'right', 'up'] as const) p.step(d); }
+    p.talkTo(7, 1);
+  });
+  // Side trip: the ferry down to Dragør and Vuggestuen (needs three badges).
+  goal(p, 'Vuggestuen', () => !!p.flag('vuggestuen'), () => { goto(p, 'dragor'); p.queue.push('Goodbye'); p.enter('vuggestuen'); });
+  goto(p, 'islandsbrygge');
+  goal(p, 'Maja on Cykelslangen', () => !!p.flag('ch3done'), () => goto(p, 'route3'));
+}
+
+// ---------- Chapter 4: Lanterns Out ----------
+
+export function chapter4(p: P) {
+  grindMaps = ['assistens', 'route2', 'islandsbrygge'];
+  goal(p, 'Tariq\'s message', () => !!p.flag('ch4'), () => goto(p, 'norrebro'));
+  goal(p, 'Søren at Assistens', () => !!p.flag('metSoren'), () => goto(p, 'assistens'));
+  goal(p, 'the storm drain Lampent', () => !!p.flag('litwickBack'), () => { goto(p, 'stormdrain'); p.talkTo(12, 15); });
+  goal(p, 'back up the ladder', () => !!p.flag('lanternsLit'), () => { goto(p, 'stormdrain'); p.talkTo(15, 15); });
+  shopAndHeal(p, 'pcnorrebro');
+  const traps: [number, number][] = [[7, 12], [12, 12], [2, 8], [7, 8], [2, 4], [12, 4]];
+  goal(p, 'Søren', () => !!p.flag('lantern'), () => { goto(p, 'gym4'); p.walkTo(7, 3, traps); p.talkTo(7, 2); });
+}
+
+// ---------- Chapter 5: The Cisterns ----------
+
+export function chapter5(p: P) {
+  grindMaps = ['frederiksberg', 'assistens', 'route2'];
+  goal(p, 'Ørsted\'s call', () => !!p.flag('ch5'), () => goto(p, 'norrebro'));
+  goal(p, 'the briefing', () => !!p.flag('ch5met'), () => goto(p, 'frederiksberg'));
+  shopAndHeal(p, 'pcfrederiksberg');
+  goal(p, 'into the Cisterns', () => !!p.flag('cisArrive'), () => goto(p, 'cisterns'));
+  goal(p, 'the mirror pool', () => !!p.flag('cisMirror'), () => { goto(p, 'cisterns'); p.talkTo(6, 5); });
+  goal(p, 'wheel 1', () => (p.flag('cisLevel') as number) >= 1, () => { goto(p, 'cisterns'); p.talkTo(13, 1); });
+  goal(p, 'wheel 2', () => (p.flag('cisLevel') as number) >= 2, () => { goto(p, 'cisterns'); p.talkTo(28, 1); });
+  goal(p, 'the drone swarm', () => !!p.flag('swarmDone'), () => { goto(p, 'cisterns'); p.walkTo(21, 12); p.walkTo(14, 16); });
+  goal(p, 'the Sunken Archive', () => !!p.flag('archiveDone'), () => { goto(p, 'cisterns'); p.walkTo(11, 16); });
+  goal(p, 'Lukas at the pyramid', () => !!p.flag('ch5done'), () => { goto(p, 'cisterns'); p.talkTo(1, 20); });
+}

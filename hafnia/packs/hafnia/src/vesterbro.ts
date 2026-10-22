@@ -2,6 +2,7 @@
 // Empty-Sea Dinner, the neon square at night, Gym 3 on sea ice), Cykelslangen and Islands Brygge.
 import type { NpcDef, Script, ScriptApi } from '@hafnia/core';
 import { centerNpcs } from './home';
+import { ferry } from './dragor';
 import { findItem, grown, itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
 import { majaStarter } from './starters';
 
@@ -308,7 +309,7 @@ const ROUTE3: MapScripts = {
     { id: 'majar', sprite: 'chars/maja', x: 12, y: 2, dir: 'down', hidden: true },
     trainer({ id: 'r3cyclist', x: 13, y: 3, dir: 'up', sprite: 'chars/biker', sight: 1, cls: 'Cyclist', name: 'Freja B.',
       foes: [{ species: 'wattrel', level: 20 }, { species: 'starly', level: 20 }],
-      intro: ['Cyclist: The tailwind up here is free speed! / Battle me before it changes!'], lose: ['Cyclist: Headwind. Emotionally.'] })
+      intro: ['Cyclist: The tailwind up here is free speed!\nBattle me before it changes!'], lose: ['Cyclist: Headwind. Emotionally.'] })
   ]
 };
 
@@ -340,7 +341,8 @@ const ISLANDSBRYGGE: MapScripts = {
     } },
     sign('wildssign', 13, 19, 'obj:sign', 'c3.ib.wilds'),
     { id: 'ranger', sprite: 'chars/ranger', x: 20, y: 12, dir: 'left', talk: talk('c3.ib.ranger') },
-    itemBall('item.ib1', 21, 19, 'revive', 1, 'a Revive'),
+    { id: 'skipper', sprite: 'chars/sailor', x: 2, y: 11, dir: 'right', talk: ferry('dragor') },
+    itemBall('item.ib3', 21, 19, 'revive', 1, 'a Revive'),
     itemBall('item.ib2', 3, 18, 'netball', 2, 'Net Balls')
   ]
 };

@@ -45,6 +45,8 @@ export interface TrainerSpec {
   battle?: Partial<BattleOptions>;
   /** Runs after the player wins (rewards). */
   reward?: (s: ScriptApi) => Generator<any, void, any> | void;
+  /** Runs when the player talks to them again after beating them (a reward that has to wait for a quest). */
+  again?: (s: ScriptApi) => Generator<any, void, any> | void;
 }
 
 /** A route trainer: spots the player, battles once, then says its after line. */
@@ -54,7 +56,11 @@ export function trainer(t: TrainerSpec): NpcDef {
     id: t.id, sprite: t.sprite, x: t.x, y: t.y, dir: t.dir, when: t.when, period: t.period,
     trainer: t.sight === 0 ? undefined : { sight: t.sight ?? 3, flag },
     talk: function* (s) {
-      if (s.flag(flag)) { for (const l of t.after ?? t.lose) s.say(l); return; }
+      if (s.flag(flag)) {
+        for (const l of t.after ?? t.lose) s.say(l);
+        if (t.again) { const g = t.again(s); if (g) yield* g; }
+        return;
+      }
       for (const l of t.intro) s.say(l);
       const r = yield s.battle({ kind: 'trainer', trainer: { name: t.name, title: t.cls, sprite: TR[t.cls] ?? 'tr/biker' }, foes: t.foes, ...t.battle });
       if (r !== 'win') return;

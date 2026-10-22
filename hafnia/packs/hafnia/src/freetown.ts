@@ -159,9 +159,10 @@ const alvaGym: Script = function* (s) {
   s.say('c2.alva.intro.1'); s.say('c2.alva.intro.2');
   const c: number = yield s.ask('Alva: Shall we?', ['Yes', 'Not yet'], 1);
   if (c !== 0) return;
-  const r = yield s.battle({ kind: 'trainer', leader: true, bg: 'field', trainer: { name: 'Alva', title: 'Leader', sprite: 'tr/alva' }, foes: [
+  const r = yield s.battle({ kind: 'trainer', leader: true, ai: 3, bg: 'field', trainer: { name: 'Alva', title: 'Leader', sprite: 'tr/alva' }, foes: [
     { species: 'smoliv', level: 17, moves: ['razorleaf', 'tackle', 'helpinghand', 'sweetscent'] },
     { species: 'bounsweet', level: 17, moves: ['magicalleaf', 'playnice', 'rapidspin', 'splash'] },
+    { species: 'skiddo', level: 18, moves: ['razorleaf', 'takedown', 'leechseed', 'growth'] },
     { species: 'lilligant', level: 19, moves: ['magicalleaf', 'sleeppowder', 'teeterdance', 'sunnyday'], ability: 'chlorophyll', item: 'sitrusberry' }
   ] });
   if (r !== 'win') return;
