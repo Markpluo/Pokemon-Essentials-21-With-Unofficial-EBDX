@@ -116,7 +116,7 @@ const lens = (id: string, item: string, guard: { npc: string; species: string; m
 };
 
 const tychoGym: Script = function* (s) {
-  if (s.flag('orrery')) { s.say('c6.tycho.after'); return; }
+  if (s.flag('orrery')) { s.say('c6.tycho.after'); s.say('c6.tycho.hven'); return; }
   const lenses = s.hasItem('lensobjective') + s.hasItem('lenseyepiece');
   if (!s.flag('tychoLenses')) {
     if (lenses < 2) { s.say(lenses ? 'c6.tycho.onelens' : 'c6.tycho.nolens'); return; }
