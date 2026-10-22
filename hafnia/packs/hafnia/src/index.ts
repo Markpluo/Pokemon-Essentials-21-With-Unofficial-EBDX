@@ -1,5 +1,5 @@
 // The base game, "Copper & Current", as a content pack: the demo from the Prologue in Nørrebro
-// to the end of Chapter 10 at CopenHill. Lines live in strings/en.json (from the demo
+// to the end of Chapter 12 on CopenHill. Lines live in strings/en.json (from the demo
 // script); each area's scripts live in their own file.
 import { speciesExtra, type Dir, type MapDef, type Pack, type Script } from '@hafnia/core';
 import manifest from '../pack.json';
@@ -16,13 +16,16 @@ import type { MapScripts } from './lib';
 import { starterVars } from './starters';
 import { VESTERBRO_SCRIPTS, norrebroWest } from './vesterbro';
 import { RUNDETARN_SCRIPTS, ch6Start } from './rundetarn';
+import { KRONBORG_SCRIPTS, SLOTSHOLMEN_CH11, broadcast, ch11Start } from './kronborg';
+import { SIM_DATA, SPECIES_EXTRA } from './legends';
+import { REACTOR_SCRIPTS, ch12Start, smokestackGate } from './reactor';
 import { SHIPYARD_SCRIPTS, ch10Start, copenhillGate, shipyardsGate } from './shipyards';
 import { ROUTE4_LUKAS, SPIRE_SCRIPTS, ch9Start, route4Enter, slotsholmenGate } from './spire';
 import { DAWN_NPCS, FLEET_DECKHAND, TREKRONER_SCRIPTS, ch8Start } from './trekroner';
 import { MAPS, STAMPS } from './world';
 
 const SCRIPTS: Record<string, MapScripts & { exitGuards?: Partial<Record<Dir, Script>> }> = {
-  ...HOME, ...LAKES, ...CITY, ...FREETOWN, ...DRAGOR_SCRIPTS, ...VESTERBRO_SCRIPTS, ...ASSISTENS_SCRIPTS, ...CISTERNS_SCRIPTS, ...RUNDETARN_SCRIPTS, ...BAKKEN_SCRIPTS, ...TREKRONER_SCRIPTS, ...SPIRE_SCRIPTS, ...SHIPYARD_SCRIPTS
+  ...HOME, ...LAKES, ...CITY, ...FREETOWN, ...DRAGOR_SCRIPTS, ...VESTERBRO_SCRIPTS, ...ASSISTENS_SCRIPTS, ...CISTERNS_SCRIPTS, ...RUNDETARN_SCRIPTS, ...BAKKEN_SCRIPTS, ...TREKRONER_SCRIPTS, ...SPIRE_SCRIPTS, ...SHIPYARD_SCRIPTS, ...KRONBORG_SCRIPTS, ...REACTOR_SCRIPTS
 };
 const homeEnter = SCRIPTS.norrebro.onEnter;
 SCRIPTS.norrebro = {
@@ -64,6 +67,25 @@ for (const id of ['indreby', 'christianshavn', 'slotsholmen', 'pcslotsholmen', '
 }
 SCRIPTS.drydock.exitGuards = { right: shipyardsGate };
 SCRIPTS.eastquay.exitGuards = { right: copenhillGate };
+// Chapter 11 starts on the next map you enter after Lindholm's broadcast; Maja's broadcast waits on Slotsholmen.
+for (const id of ['eastquay', 'pccopenhill', 'gym8', 'shipyards', 'drydock', 'cranetop']) {
+  const enter = SCRIPTS[id]?.onEnter;
+  SCRIPTS[id] = { ...SCRIPTS[id], onEnter: function* (s) { if (s.flag('ch10done')) yield* ch11Start(s); if (enter) yield* enter(s); } };
+}
+{
+  const enter = SCRIPTS.slotsholmen.onEnter;
+  SCRIPTS.slotsholmen = {
+    ...SCRIPTS.slotsholmen, npcs: [...(SCRIPTS.slotsholmen.npcs ?? []), ...SLOTSHOLMEN_CH11],
+    onEnter: function* (s) { if (enter) yield* enter(s); if (s.flag('c11metro') && !s.flag('c11broadcast')) yield* broadcast(s); }
+  };
+}
+// Chapter 12 starts on the way out of Kronborg, once Holger Danske is awake.
+for (const id of ['helsingor', 'pchelsingor']) {
+  const enter = SCRIPTS[id]?.onEnter;
+  SCRIPTS[id] = { ...SCRIPTS[id], onEnter: function* (s) { if (s.flag('ch11done')) yield* ch12Start(s); if (enter) yield* enter(s); } };
+}
+SCRIPTS.stormhill.exitGuards = { up: smokestackGate };
+SCRIPTS.copenhill = { ...SCRIPTS.copenhill, exitGuards: { ...SCRIPTS.copenhill?.exitGuards, up: function* (s) { if (s.flag('ch12')) return true; s.say('c12.sl.closed'); return false; } } };
 SCRIPTS.nyhavn.exitGuards = { right: langelinieGate };
 SCRIPTS.dyrehaven.exitGuards = { up: bakkenGate };
 SCRIPTS.assistens.exitGuards = { up: lanternGate };
@@ -86,7 +108,8 @@ export const hafnia: Pack = {
   strings,
   textVars: starterVars,
   // Freja's Hisuian Qwilfish: Showdown knows the form, the PBS data only has the base species.
-  speciesExtra: { qwilfishhisui: { ...speciesExtra('qwilfish'), key: 'QWILFISH_1', evolutions: [] } },
+  speciesExtra: { qwilfishhisui: { ...speciesExtra('qwilfish'), key: 'QWILFISH_1', evolutions: [] }, ...SPECIES_EXTRA },
+  simData: SIM_DATA,
   newGame: {
     map: 'flat', x: 10, y: 2, dir: 'down', intro,
     respawn: { map: 'flat', x: 6, y: 4, dir: 'up', text: 'Mum: There you are. Let me look at your team...\nThere. Right as rain.' }

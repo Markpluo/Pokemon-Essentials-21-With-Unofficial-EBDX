@@ -1,5 +1,10 @@
 {
   "moves": {
+    "sirensrequiem": [
+      { "do": "particles", "preset": "notes", "at": "user", "color": "#9be7d8", "ms": 500, "count": 10 },
+      { "do": "wave", "from": "user", "to": "target", "color": "#5fd3c2", "ms": 600, "rings": 4 },
+      { "do": "par", "steps": [{ "do": "particles", "preset": "rain", "at": "screen", "ms": 700 }, { "do": "shake", "who": "target", "ms": 300 }] }
+    ],
     "tackle": [
       { "do": "lunge", "who": "user", "ms": 220, "dist": 40 },
       { "do": "par", "steps": [{ "do": "burst", "color": "#ffffff", "ms": 240 }, { "do": "shake", "ms": 260 }, { "do": "sfx", "name": "hit", "vol": 0.3 }] }

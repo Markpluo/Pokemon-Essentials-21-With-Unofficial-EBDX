@@ -12,6 +12,9 @@ class Driver {
   battles: string[] = [];
   /** Prompt answers to use before falling back to the first option. */
   answers: number[] = [];
+  /** A ball to throw instead of attacking in wild battles (catching a legendary). */
+  ball: string | null = null;
+  private wild = false;
   constructor(public game: Game, first: ServerEvent[]) { this.take(first); }
 
   /** Sends an intent, then answers every prompt and battle request that follows (always the first option). */
@@ -21,6 +24,7 @@ class Driver {
     this.log.push(...evs);
     for (const e of evs) if (e.t === 'error') throw new Error(e.message);
     for (const e of evs) if (e.t === 'battleEnd') this.battles.push(e.result);
+    for (const e of evs) if (e.t === 'battleStart') this.wild = e.battle.kind === 'wild';
     const last = [...evs].reverse().find(e => ['prompt', 'pickSpecies', 'battleRequest', 'askName', 'pickLook'].includes(e.t));
     if (!last) return;
     if (last.t === 'askName') this.send({ t: 'answer', index: 0, text: last.suggestions[0] });
@@ -31,6 +35,8 @@ class Driver {
       if (r.forceSwitch) {
         const next = r.party.find(p => p.hp > 0 && p.uid !== r.activeUid)!;
         this.send({ t: 'battle', action: { kind: 'switch', uid: next.uid } });
+      } else if (this.ball && this.wild) {
+        this.send({ t: 'battle', action: { kind: 'ball', item: this.ball } });
       } else {
         // Strongest usable move, like a sensible player.
         const best = r.moves.map((m, i) => ({ m, i })).filter(x => !x.m.disabled)
@@ -89,6 +95,7 @@ class Driver {
     const spots: [Dir, number, number][] = [['up', x, y + 1], ['down', x, y - 1], ['left', x + 1, y], ['right', x - 1, y]];
     for (const [dir, sx, sy] of spots) {
       if (this.game.solid(sx, sy) && !(this.s.x === sx && this.s.y === sy)) continue;
+      if (!this.path(sx, sy)) continue;                   // the far side of a door or a dead end
       this.walkTo(sx, sy);
       this.send({ t: 'turn', dir });
       this.send({ t: 'interact' });
@@ -154,7 +161,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step to the end of Chapter 10', () => {
+  it('plays from the first step to the end of Chapter 12', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -587,7 +594,7 @@ describe('Hafnia demo', () => {
     d.leave('right'); at('copenhill');
     d.s.party.forEach(healMon);
     d.walkTo(14, 7); d.send({ t: 'step', dir: 'up' }); at('gym8');
-    d.answers.push(0, 0); d.talkTo(4, 8);                      // turbine A: relays 1 and 2, not yet
+    d.answers.push(0); d.talkTo(4, 8);                         // turbine A: relays 1 and 2, not yet
     expect(flag('liftOn')).toBeFalsy();
     d.answers.push(0); d.talkTo(9, 8);                         // and B: 2 cancels, so 1 and 3
     expect(flag('liftOn'), d.where()).toBe(true);
@@ -598,7 +605,60 @@ describe('Hafnia demo', () => {
     d.walkTo(9, 13); at('copenhill');                          // every screen on Amager
     expect(flag('ch10done'), d.where()).toBe(true);
     expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 10 complete');
-   }, 30_000);
+
+    // Chapter 11: the Mermaid shatters, the flood, the M-Ring, Maja's broadcast, Absalon's ruins, Kronborg
+    d.leave('left'); at('floodnyhavn');                         // the next map: the statue cracks, Ivar's hydrofoil
+    expect(flag('ch11'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    d.talkTo(3, 3); d.talkTo(13, 6); d.talkTo(22, 3);          // Fru Jensen, the pølse man, Captain Bodil
+    expect([flag('resJensen'), flag('resPolse'), flag('resBodil')], d.where()).toEqual([true, true, true]);
+    d.talkTo(12, 12); at('metro');
+    d.s.party.forEach(healMon);
+    d.talkTo(26, 1); at('slotsholmen');                        // Maja's broadcast, Vinther resigns
+    expect(flag('c11broadcast'), d.where()).toBe(true);
+    d.talkTo(8, 6); at('ruins');
+    d.answers.push(1); d.talkTo(4, 2);                         // the wrong badge: the door stays shut
+    expect(flag('ruinsDoor0')).toBeFalsy();
+    d.answers.push(0); d.talkTo(4, 2);                         // Spray
+    d.answers.push(1); d.talkTo(8, 2);                         // Lantern
+    d.answers.push(1); d.talkTo(12, 2);                        // Orrery
+    d.answers.push(3); d.talkTo(16, 2);                        // Turbine
+    expect([0, 1, 2, 3].map(i => flag(`ruinsDoor${i}`)), d.where()).toEqual([true, true, true, true]);
+    d.talkTo(18, 1); at('helsingor');                          // Absalon's altar: Kronvakt's Key, then Kystbanen north
+    expect(d.s.bag.kronkey).toBe(1);
+    d.s.party.forEach(healMon);
+    d.walkTo(15, 7); d.send({ t: 'step', dir: 'up' }); at('casemates');
+    d.walkTo(14, 8);                                           // Kaas and Bjørn, with Maja
+    expect(flag('c11kaas'), d.where()).toBe(true);
+    d.talkTo(16, 1);                                           // Holger Danske wakes
+    expect(flag('kronvakt'), d.where()).toBe(true);
+    expect(d.s.bag.pactsong).toBe(1);
+    expect(flag('ch11done')).toBe(true);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 11 complete');
+
+    // Chapter 12: the slope in the storm, Lindholm on the Smokestack Ring, the city's song, Langelira
+    d.walkTo(4, 9); d.send({ t: 'step', dir: 'down' }); at('stormhill');   // out of Kronborg: the last train south
+    expect(flag('ch12'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    d.talkTo(1, 18); d.talkTo(1, 12);                          // Kronvakt breaks the black ice
+    d.s.party.forEach(healMon);
+    d.talkTo(1, 6);
+    expect([flag('c12iceA'), flag('c12iceB'), flag('c12iceC')], d.where()).toEqual([true, true, true]);
+    d.s.party.forEach(healMon);
+    d.walkTo(7, 2);                                            // the Enforcer captains, with Lukas
+    expect(flag('c12lift'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    d.walkTo(7, 0); d.send({ t: 'step', dir: 'up' }); at('smokestack');   // Lindholm, Reactor Rotom, the plea
+    expect([flag('c12phase1'), flag('c12phase2'), flag('c12song')], d.where()).toEqual([true, true, true]);
+    expect(d.said.join('\n')).toMatch(/whole city sings/);
+    Object.assign(d.s.party[0], { level: 100, exp: 100 ** 3 }); d.s.party.forEach(healMon);
+    d.s.bag.ultraball = 60; d.ball = 'ultraball';
+    d.talkTo(12, 1);                                           // Langelira waits to be caught
+    d.ball = null;
+    expect([...d.s.party, ...d.s.box].some(m => m.species === 'langelira'), d.where()).toBe(true);
+    expect(flag('ch12done')).toBe(true);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 12 complete');
+  }, 30_000);
 
   it('a wrong steam valve closes them all again', () => {
     const d = newGame(3);
