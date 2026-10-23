@@ -5,7 +5,7 @@
 //   'H' house fronts, 'x' shipping containers, 'n' railings.
 // Indoor and tunnels: '_' floor, 'w' wall, 'K' furniture, 'm' doormat, 'c' tunnel floor, 'R' rock, 'p' pipes, 'P' planters,
 //   'u' drain water, 'i' ice, 'z' Trick Room floor (steps go the opposite way), 'j' coaster track.
-import type { MapDef, Stamp, Warp } from '@hafnia/core';
+import type { Dir, MapDef, Stamp, Warp } from '@hafnia/core';
 
 type MapData = Omit<MapDef, 'npcs' | 'doors' | 'events' | 'onEnter'>;
 
@@ -1476,6 +1476,45 @@ const towerroof = (): MapData => ({ ...room('towerroof', 'Christiansborg Tower',
   'wwwwwmwwwww'
 ], { to: 'towerstairs', x: 5, y: 1 }), battleBg: 'city' });
 
+// ---------- Post-game P3: the Øresund Bridge and Peberholm ----------
+
+// Route 13: the Øresund Bridge deck in a gale. A road lane, two bike lanes and railings over the Sound;
+// the ramp down to Peberholm halfway, and the Swedish end closed ("season opens soon").
+function oresund(): MapData {
+  const W = 44, H = 11, g = makeGrid(W, H, '~');
+  fill(g, 0, 2, W, 1, 'n'); fill(g, 0, 7, W, 1, 'n');
+  fill(g, 0, 3, W - 1, 1, 'a'); fill(g, 0, 4, W - 1, 2, 'l'); fill(g, 0, 6, W - 1, 1, 'a');
+  fill(g, W - 1, 3, 1, 4, 'n');
+  g[7][22] = 'a';                                // the ramp down to Peberholm
+  return {
+    id: 'oresund', name: 'Route 13: Øresund Bridge', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld', buildings: [],
+    encounters: [[35, 'wattrel'], [30, 'kilowattrel'], [20, 'skarmory'], [15, 'bombirdier']], levels: [60, 63],
+    encounterTile: 'l',
+    warps: [
+      ...[0, 1, 2, 3].map(i => ({ x: 0, y: 3 + i, to: 'dragor', tx: 19, ty: 17, dir: 'left' as Dir })),
+      { x: 22, y: 7, to: 'peberholm', tx: 12, ty: 3, dir: 'down' }
+    ]
+  };
+}
+
+// Peberholm: the island nature built alone, from the bridge's spoil. A Ranger hut, no Pokémon Center, and an
+// ecosystem that grew wrong around a huge Echo. Lumen Nord's drones are mapping it.
+function peberholm(): MapData {
+  const W = 26, H = 20, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 2, '~'); fill(g, 0, 18, W, 2, '~'); fill(g, 0, 0, 2, H, '~'); fill(g, 24, 0, 2, H, '~');
+  dots(g, '~', [[2, 2], [3, 2], [22, 2], [23, 2], [2, 17], [23, 17], [2, 16], [23, 16]]);
+  fill(g, 3, 4, 6, 4, 'g'); fill(g, 16, 4, 6, 4, 'g'); fill(g, 4, 10, 5, 5, 'g'); fill(g, 17, 10, 5, 4, 'g');
+  fill(g, 9, 9, 2, 2, 'T'); fill(g, 15, 9, 2, 2, 'T'); fill(g, 3, 15, 2, 2, 'T'); fill(g, 20, 15, 2, 2, 'T');
+  dots(g, 'f', [[11, 6], [14, 6], [6, 9], [19, 9], [10, 16], [15, 16]]);
+  return {
+    id: 'peberholm', name: 'Peberholm Reserve', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld', buildings: [],
+    encounters: [[18, 'greattusk'], [18, 'irontreads'], [16, 'screamtail'], [16, 'ironbundle'], [12, 'brutebonnet'], [12, 'ironhands'], [8, 'sandyshocks']],
+    encountersNight: [[22, 'fluttermane'], [20, 'ironjugulis'], [18, 'slitherwing'], [18, 'ironmoth'], [12, 'screamtail'], [10, 'ironthorns']],
+    levels: [62, 66],
+    warps: [{ x: 12, y: 2, to: 'oresund', tx: 22, ty: 6, dir: 'up' }]
+  };
+}
+
 export const MAPS = {
   norrebro: norrebro(), flat: flat(), lukasflat: lukasFlat(), pcnorrebro: center('pcnorrebro', 'Pokémon Center', 'norrebro', 22, 8),
   gym1: gym1(), bridge: bridge(), route1: route1(), garden: garden(), palmhouse: palmhouse(), tunnels: tunnels(),
@@ -1497,5 +1536,6 @@ export const MAPS = {
   floodnyhavn: floodnyhavn(), metro: metro(), ruins: ruins(), helsingor: helsingor(),
   pchelsingor: center('pchelsingor', 'Pokémon Center', 'helsingor', 5, 14), casemates: casemates(),
   stormhill: stormhill(), smokestack: smokestack(),
+  oresund: oresund(), peberholm: peberholm(),
   leaguehall: leaguehall(), stables: stables(), admiral: admiral(), greathall: greathall(), towerstairs: towerstairs(), towerroof: towerroof()
 };

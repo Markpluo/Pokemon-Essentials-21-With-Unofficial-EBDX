@@ -19,7 +19,7 @@ import { RUNDETARN_SCRIPTS, ch6Start } from './rundetarn';
 import { KRONBORG_SCRIPTS, SLOTSHOLMEN_CH11, broadcast, ch11Start } from './kronborg';
 import { LEAGUE_SCRIPTS, ch13Start, palaceDoor } from './league';
 import { SIM_DATA, SPECIES_EXTRA } from './legends';
-import { CASEMATES_PG2, HELSINGOR_PG2, OSTERBRO_PG1, PALM_PG1, ROUTE1_PG1, p1Start, p2Start, statueTear } from './postgame';
+import { CASEMATES_PG2, DRAGOR_PG3, HELSINGOR_PG2, ORESUND_SCRIPTS, OSTERBRO_PG1, PEBERHOLM_SCRIPTS, PALM_PG1, ROUTE1_PG1, p1Start, p2Start, statueTear } from './postgame';
 import { REACTOR_SCRIPTS, ch12Start, smokestackGate } from './reactor';
 import { SHIPYARD_SCRIPTS, ch10Start, copenhillGate, shipyardsGate } from './shipyards';
 import { ROUTE4_LUKAS, SPIRE_SCRIPTS, ch9Start, route4Enter, slotsholmenGate } from './spire';
@@ -119,6 +119,10 @@ SCRIPTS.slotsholmen = { ...SCRIPTS.slotsholmen, doors: { ...SCRIPTS.slotsholmen.
   SCRIPTS.helsingor = { ...SCRIPTS.helsingor, npcs: [...(SCRIPTS.helsingor.npcs ?? []), ...HELSINGOR_PG2], onEnter: function* (s) { if (enter) yield* enter(s); yield* p2Start(s); } };
   SCRIPTS.casemates = { ...SCRIPTS.casemates, npcs: [...(SCRIPTS.casemates.npcs ?? []), ...CASEMATES_PG2] };
 }
+// P3, the Bridge and the Island: the toll booth on Dragør's south quay opens the Øresund Bridge.
+SCRIPTS.dragor = { ...SCRIPTS.dragor, npcs: [...(SCRIPTS.dragor.npcs ?? []), ...DRAGOR_PG3] };
+SCRIPTS.oresund = ORESUND_SCRIPTS;
+SCRIPTS.peberholm = PEBERHOLM_SCRIPTS;
 SCRIPTS.nyhavn.exitGuards = { right: langelinieGate };
 SCRIPTS.dyrehaven.exitGuards = { up: bakkenGate };
 SCRIPTS.assistens.exitGuards = { up: lanternGate };

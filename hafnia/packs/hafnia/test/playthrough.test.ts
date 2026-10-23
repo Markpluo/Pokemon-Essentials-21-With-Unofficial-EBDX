@@ -166,7 +166,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step through the story and post-game P1-P2', () => {
+  it('plays from the first step through the story and post-game P1-P3', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -732,6 +732,27 @@ describe('Hafnia demo', () => {
     d.ball = null;
     expect([...d.s.party, ...d.s.box].some(m => m.species === 'kronvakt'), d.where()).toBe(true);
     expect(flag('pg2done')).toBe(true);
+
+    // Post-game P3, the Bridge and the Island: the toll, the bridge deck in a gale, Bjørk's permit, Lumen Nord, the big Echo
+    d.s.party.splice(0, 6, makeMon('mew', 100, new Rng(9), { moves: ['psychic', 'earthquake'] }));
+    Object.assign(d.s, { map: 'hafnia:dragor', x: 19, y: 17, dir: 'up' as Dir });
+    d.talkTo(19, 16); at('oresund');
+    expect(flag('pg3'), d.where()).toBe(true);
+    d.walkTo(21, 6);
+    expect(flag('pg3gust1'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    d.talkTo(22, 6);                                            // Bjørk, the reserve's ranger
+    expect(flag('pg3permit'), d.where()).toBe(true);
+    expect(d.s.bag.rangerpermit).toBe(1);
+    d.walkTo(22, 6); d.send({ t: 'step', dir: 'down' }); at('peberholm');
+    d.s.party.forEach(healMon);
+    d.talkTo(12, 13);                                           // Lumen Nord's field lead, then Vinther
+    expect(flag('pg3lead'), d.where()).toBe(true);
+    expect(d.said.join('\n')).toMatch(/Think of it as recycling/);
+    d.s.party.forEach(healMon);
+    d.answers.push(0); d.talkTo(12, 16);                       // the great Echo opens on a Paradox Pokémon
+    expect(flag('pg3done'), d.where()).toBe(true);
+    expect(d.s.bag.echoshard).toBeGreaterThanOrEqual(3);
   }, 30_000);
 
   it('a wrong steam valve closes them all again', () => {
