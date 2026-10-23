@@ -67,6 +67,11 @@ export interface MapDef {
   onEnter?: Script;
   indoor?: boolean;            // no day-night tint
   dark?: boolean;              // tunnels: lit only around the player
+  /** Look of the floor, walls and house fronts (client art only), e.g. 'home', 'center', 'brick'. */
+  theme?: string;
+  /** Furniture and wall decorations drawn over the grid, one char per tile ('.' for none). Purely visual:
+   *  the grid alone decides what is solid, so solid furniture sits on 'K' tiles. */
+  decor?: string[][];
   battleBg: string;
   bgm: string;
 }
@@ -122,6 +127,10 @@ export interface Pack {
   /** Text by key ("p.mum.1"). say() and ask() look keys up here; `{player}` and textVars are filled in. */
   strings?: Record<string, string>;
   textVars?: (flags: FlagReader) => Record<string, string>;
+  /** Pokédex entries by species id, in place of the mainline text from PBS. */
+  dexText?: Record<string, string>;
+  /** The player's current story goal (a line or a string key), or null when this pack has nothing to say. Later packs win. */
+  goal?: (flags: FlagReader) => string | null;
   /** Balance overrides; only the base pack's are used. */
   rules?: Partial<Rules>;
   /** Only the base game sets this: where a new game begins. */

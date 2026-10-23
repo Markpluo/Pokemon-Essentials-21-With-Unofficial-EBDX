@@ -8,7 +8,8 @@ import type {
 import { ITEMS } from '@hafnia/core/src/items';
 import hafniaManifest from '@hafnia/pack-hafnia/pack.json';
 import { MAPS as HAFNIA_MAPS, STAMPS as HAFNIA_STAMPS } from '@hafnia/pack-hafnia/world';
-import { drawBuildingArt, drawObject, drawTile } from './art';
+import { BUILDING_WINDOWS, drawBuildingArt, drawObject, drawTile, litWindow } from './art';
+import { THEMES, drawDecor, plainFurniture } from './interiors';
 import { connectSolo } from './connection';
 import { AnimPlayer, type Spot } from './anim';
 import { ANIM_TYPES, CRIT, HEAL, RESIDUAL, SEND_OUT, STATUS_ANIM, STAT_DOWN, STAT_UP, WEATHER_ANIM, animatedMoves, moveAnim, registerAnims, userPart } from './anim-data';
@@ -127,12 +128,12 @@ const Sound = {
 };
 
 // ---------- input ----------
-type Key = Dir | 'A' | 'B' | 'MENU';
+type Key = Dir | 'A' | 'B' | 'MENU' | 'BIKE';
 const input = { held: {} as Partial<Record<Key, boolean>>, queue: new Set<Key>(), pressed: new Set<Key>() };
 const KEYMAP: Record<string, Key> = {
   ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
   w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right',
-  z: 'A', Z: 'A', ' ': 'A', Enter: 'A', x: 'B', X: 'B', Escape: 'B', Backspace: 'B', c: 'MENU', C: 'MENU', m: 'MENU', M: 'MENU'
+  z: 'A', Z: 'A', ' ': 'A', Enter: 'A', x: 'B', X: 'B', Escape: 'B', Backspace: 'B', c: 'MENU', C: 'MENU', m: 'MENU', M: 'MENU', r: 'BIKE', R: 'BIKE'
 };
 // Overworld presses that land while a request is in flight are kept until the overworld can use them.
 const sticky = new Set<Key>();
@@ -281,7 +282,7 @@ function placeNpc(e: Extract<ServerEvent, { t: 'place' }>) {
 
 const WALK_FRAMES = 12;
 /** Hold B to run; ride the Cargo-Bike from the menu (outdoors). */
-const playerFrames = () => (G.biking ? 6 : input.held.B ? 7 : WALK_FRAMES);
+const playerFrames = () => (G.biking ? (input.held.B ? 4 : 6) : input.held.B ? 7 : WALK_FRAMES); // B: run, or pedal harder on the bike
 async function stepActor(a: Actor, dir: Dir, frames = WALK_FRAMES) {
   a.dir = dir; a.moving = true;
   if (a.arrivedAt === G.t) await nextFrame(); // a scripted walk straight after another: show the tile it reached
@@ -392,15 +393,88 @@ async function pickSpecies(opts: Extract<ServerEvent, { t: 'pickSpecies' }>['spe
   } finally { G.overlays.pop(); G.ui.text = null; G.ui.picker = null; }
 }
 
-/** Name entry: pick a suggestion or type one (window.prompt keeps phones' own keyboards working). */
+/** Name entry: pick a suggestion or spell one on the keyboard screen. */
 async function askName(suggestions: string[]): Promise<string> {
   const opts = [...suggestions, 'Type a name...'];
   for (;;) {
     const i = await choose(opts, -1);
     if (i >= 0 && i < suggestions.length) return suggestions[i];
-    const typed = window.prompt('Name (up to 10 letters)', suggestions[0] ?? '')?.trim().slice(0, 10);
+    const typed = await nameKeyboard(suggestions[0] ?? '');
     if (typed) return typed;
   }
+}
+
+// The name keyboard: letters (Danish ones too) picked with the d-pad, tapped on the screen, or typed on a
+// real keyboard. Up to 10 letters; B or DEL rubs one out, OK (or Enter) is done, an empty OK goes back.
+const NAME_MAX = 10;
+const KB_ROWS = [['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'], ['K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'], ['U', 'V', 'W', 'X', 'Y', 'Z', 'Æ', 'Ø', 'Å', '-'], ['abc', 'space', 'DEL', 'OK']];
+const KB_X0 = 56, KB_Y0 = 132, KB_W = 40, KB_H = 38;
+function kbKeyRect(r: number, c: number): [number, number, number, number] {
+  if (r < 3) return [KB_X0 + c * KB_W, KB_Y0 + r * KB_H, KB_W - 4, KB_H - 4];
+  return [KB_X0 + c * 100, KB_Y0 + 3 * KB_H + 6, 96, KB_H - 4];
+}
+async function nameKeyboard(initial: string): Promise<string> {
+  let name = '', r = 0, c = 0, lower = true, done: string | null = null;
+  void initial;
+  const label = (k: string) => (k.length === 1 && lower ? k.toLowerCase() : k === 'abc' ? (lower ? 'ABC' : 'abc') : k);
+  const add = (ch: string) => { if (name.length < NAME_MAX) { name += ch; lower = true; Sound.se('cursor'); } };   // capital first letter, then small ones
+  const rub = () => { if (name) { name = name.slice(0, -1); Sound.se('cursor'); } };
+  const pressKey = (k: string) => {
+    if (k === 'OK') { Sound.se('select'); done = name.trim(); return; }
+    if (k === 'DEL') return rub();
+    if (k === 'space') return add(' ');
+    if (k === 'abc') { lower = !lower; Sound.se('cursor'); return; }
+    add(label(k));
+  };
+  lower = false;
+  const ov = () => {
+    ctx.fillStyle = 'rgba(10,20,40,0.78)'; ctx.fillRect(0, 0, VW, VH);
+    panel(40, 24, VW - 80, VH - 48);
+    text('What\'s your name?', VW / 2, 60, 18, '#26324a', 'center');
+    ctx.fillStyle = '#e8e2d6'; roundRect(116, 74, VW - 232, 40, 8); ctx.fill();
+    for (let i = 0; i < NAME_MAX; i++) { ctx.fillStyle = i < name.length ? '#26324a' : '#b8b0a0'; ctx.fillRect(132 + i * 25, 106, 18, 2); }
+    for (let i = 0; i < name.length; i++) text(name[i], 141 + i * 25, 102, 20, '#26324a', 'center');
+    if (name.length < NAME_MAX && (G.t >> 4) % 2) { ctx.fillStyle = '#d9473a'; ctx.fillRect(132 + name.length * 25, 84, 2, 20); }
+    KB_ROWS.forEach((row, ri) => row.forEach((k, ci) => {
+      const [x, y, w, h] = kbKeyRect(ri, ci), sel = ri === r && ci === c;
+      ctx.fillStyle = sel ? '#ffe9a8' : k === 'OK' ? '#d9473a' : '#ffffff'; roundRect(x, y, w, h, 6); ctx.fill();
+      ctx.strokeStyle = sel ? '#d9473a' : '#c9c1b0'; ctx.lineWidth = sel ? 2 : 1; roundRect(x, y, w, h, 6); ctx.stroke();
+      text(label(k), x + w / 2, y + h / 2 + 6, ri < 3 ? 17 : 14, k === 'OK' && !sel ? '#ffffff' : '#26324a', 'center');
+    }));
+    text('Type it, or pick letters with A (Space). Enter or OK when done.', VW / 2, VH - 38, 12, '#55617a', 'center');
+  };
+  // Typing on a real keyboard: caught before the game's key map so letters don't count as A/B/menu.
+  const onKey = (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Backspace') { rub(); } else if (e.key === 'Enter') { pressKey('OK'); }
+    else if (e.key.length === 1 && /[\p{L}-]/u.test(e.key)) { add(e.key); }   // space stays A: it picks the highlighted key
+    else return;
+    e.preventDefault(); e.stopImmediatePropagation();
+  };
+  const onTap = (e: PointerEvent) => {
+    const b = canvas.getBoundingClientRect(), px = (e.clientX - b.left) * VW / b.width, py = (e.clientY - b.top) * VH / b.height;
+    KB_ROWS.forEach((row, ri) => row.forEach((k, ci) => {
+      const [x, y, w, h] = kbKeyRect(ri, ci);
+      if (px >= x && px < x + w && py >= y && py < y + h) { r = ri; c = ci; pressKey(k); }
+    }));
+  };
+  window.addEventListener('keydown', onKey, true);
+  canvas.addEventListener('pointerdown', onTap);
+  const question = G.ui.text; G.ui.text = null;   // the keyboard asks the question itself
+  G.overlays.push(ov);
+  try {
+    while (done === null) {
+      await nextFrame();   // one frame at a time, so a tap or a typed key can finish the loop too
+      const k = (['up', 'down', 'left', 'right', 'A', 'B'] as Key[]).find(just);
+      if (!k) continue;
+      if (k === 'B') { rub(); continue; }
+      if (k === 'A') { pressKey(KB_ROWS[r][c]); continue; }
+      if (k === 'up' || k === 'down') { r = (r + (k === 'up' ? 3 : 1)) % 4; c = Math.min(c, KB_ROWS[r].length - 1); if (r === 3 && c > 3) c = 3; }
+      else c = (c + (k === 'left' ? KB_ROWS[r].length - 1 : 1)) % KB_ROWS[r].length;
+      Sound.se('cursor');
+    }
+  } finally { G.overlays.pop(); G.ui.text = question; window.removeEventListener('keydown', onKey, true); canvas.removeEventListener('pointerdown', onTap); }
+  return done;
 }
 
 async function pickLook(str: string, options: Extract<ServerEvent, { t: 'pickLook' }>['options']) {
@@ -727,7 +801,7 @@ function drawOverworld() {
   for (let y = y0; y < y0 + 14; y++) for (let x = x0; x < x0 + 18; x++) {
     const t = tileAt(x, y); if (t === null) continue;
     const dx = x * TILE - cx, dy = y * TILE - cy;
-    if (drawTile(ctx, t, x, y, dx, dy, tileAt, G.t)) continue;
+    if (drawTile(ctx, t, x, y, dx, dy, tileAt, G.t, m.theme)) continue;
     drawGrass(dx, dy, x, y);
     if (AUTO[t]) drawAuto(t, x, y, dx, dy);
     else if (t === 'g') drawOutsideTile(6, 0, dx, dy);
@@ -738,6 +812,7 @@ function drawOverworld() {
       drawOutsideTile(treeHalf(x, y), [53, 54, 52][k % 3], dx, dy);
     }
   }
+  drawRoomDecor(m, cx, cy, x0, y0);
   for (const b of m.buildings) {
     const st = stamps[b.s];
     if (st.draw) { ctx.drawImage(customBuilding(st.draw), b.x * TILE - cx, b.y * TILE - cy); continue; }
@@ -768,12 +843,74 @@ function drawOverworld() {
   } else if (!m.indoor && G.world) {
     const tint = { morning: 'rgba(255,200,150,0.08)', day: '', evening: 'rgba(240,120,60,0.2)', night: 'rgba(16,24,72,0.45)' }[G.world.period];
     if (tint) { ctx.fillStyle = tint; ctx.fillRect(0, 0, VW, VH); }
+    if (G.world.period === 'night' || G.world.period === 'evening') drawCityLights(m, stamps, cx, cy, x0, y0, G.world.period === 'night' ? 1 : 0.55);
   }
   if (G.mapBanner > 0) {
     const a = Math.min(1, G.mapBanner / 20);
     ctx.globalAlpha = a; panel(8, 8, Math.max(180, m.name.length * 11 + 40), 46); text(m.name, 28, 39, 18, '#26324a'); ctx.globalAlpha = 1;
     G.mapBanner--;
   }
+}
+// Furniture and wall decorations (MapDef.decor), after the floor so tall pieces can reach into the row above.
+// Outdoors, house fronts that face a street get a wall lantern every few tiles.
+function drawRoomDecor(m: MapDef | Omit<MapDef, 'npcs' | 'doors'>, cx: number, cy: number, x0: number, y0: number) {
+  const th = THEMES[m.theme ?? 'home'];
+  const decorAt = (x: number, y: number) => m.decor?.[y]?.[x] ?? null;
+  const night = !!G.world && (G.world.period === 'night' || G.world.period === 'evening');
+  for (let y = y0; y < y0 + 14; y++) for (let x = x0; x < x0 + 18; x++) {
+    const t = tileAt(x, y); if (t === null) continue;
+    const dx = x * TILE - cx, dy = y * TILE - cy;
+    if (m.indoor) {
+      const d = decorAt(x, y);
+      if (d && d !== '.') drawDecor(ctx, d, th, x, y, dx, dy, decorAt, G.t, night, t === 'w');
+      else if (t === 'K' && m.theme) plainFurniture(ctx, th, dx, dy);
+    } else if (streetLantern(x, y)) {
+      ctx.fillStyle = '#26272c'; ctx.fillRect(dx + 14, dy + 10, 4, 3); ctx.fillRect(dx + 15, dy + 8, 2, 4);
+      ctx.fillStyle = night ? '#ffe7a0' : '#d8d2c4'; ctx.fillRect(dx + 13, dy + 13, 6, 8);
+      ctx.fillStyle = '#26272c'; ctx.fillRect(dx + 12, dy + 12, 8, 2); ctx.fillRect(dx + 15, dy + 21, 2, 2);
+    }
+  }
+}
+/** A house-front tile just above the street, every fourth one along the row. */
+function streetLantern(x: number, y: number) {
+  const below = tileAt(x, y + 1);
+  return tileAt(x, y) === 'H' && tileAt(x, y - 1) === 'H' && below !== null && below !== 'H' && hash(Math.floor(x / 4), y) % 4 === x % 4;
+}
+// Night in the city: about half the windows lit, wall lanterns and the lamps over every door glow.
+function drawCityLights(m: MapDef | Omit<MapDef, 'npcs' | 'doors'>, stamps: Record<string, Stamp>, cx: number, cy: number, x0: number, y0: number, k: number) {
+  const glow = (x: number, y: number, r: number, a: number) => {
+    const gr = ctx.createRadialGradient(x, y, 1, x, y, r);
+    gr.addColorStop(0, `rgba(255,214,130,${a * k})`); gr.addColorStop(1, 'rgba(255,214,130,0)');
+    ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  };
+  ctx.save();
+  for (let y = y0; y < y0 + 14; y++) for (let x = x0; x < x0 + 18; x++) {
+    const dx = x * TILE - cx, dy = y * TILE - cy;
+    const w = litWindow(x, y, tileAt, m.theme);
+    if (w && hash(x * 7 + 3, y * 11) % 100 < 55) {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = `rgba(255,222,140,${0.85 * k})`; ctx.fillRect(dx + w[0], dy + w[1], w[2], w[3]);
+      ctx.globalCompositeOperation = 'lighter'; glow(dx + w[0] + w[2] / 2, dy + w[1] + w[3] / 2, 18, 0.25);
+    }
+    if (streetLantern(x, y)) { ctx.globalCompositeOperation = 'lighter'; glow(dx + 16, dy + 18, 46, 0.42); }
+  }
+  for (const b of m.buildings) {
+    const st = stamps[b.s];
+    BUILDING_WINDOWS[st?.draw ?? '']?.forEach(([wx, wy, ww, wh], i) => {
+      if (hash(b.x * 5 + i, b.y * 3) % 100 >= 60) return;
+      const x = b.x * TILE - cx + wx, y = b.y * TILE - cy + wy;
+      ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = `rgba(255,222,140,${0.85 * k})`; ctx.fillRect(x, y, ww, wh);
+      ctx.globalCompositeOperation = 'lighter'; glow(x + ww / 2, y + wh / 2, 18, 0.25);
+    });
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  for (const b of m.buildings) {
+    const st = stamps[b.s]; if (!st?.door) continue;
+    const x = (b.x + st.door[0]) * TILE - cx + 16, y = (b.y + st.door[1]) * TILE - cy + 4;
+    if (x < -60 || y < -60 || x > VW + 60 || y > VH + 60) continue;
+    glow(x, y, 40, 0.45);
+  }
+  ctx.restore();
 }
 function bubble(x: number, y: number) {
   ctx.fillStyle = '#fff'; roundRect(x - 10, y - 14, 20, 24, 6); ctx.fill();
@@ -802,11 +939,15 @@ let turnDelay = 0;
 async function overworldTick() {
   if (queuedStep) { const q = queuedStep; queuedStep = null; await walk(G.player.dir, q); return; }
   const p = G.player;
-  const menu = sticky.has('MENU'), a = sticky.has('A');
+  const menu = sticky.has('MENU'), a = sticky.has('A'), bike = sticky.has('BIKE');
   // A quick tap shorter than a frame still turns the player, or steps if already facing that way.
   const tapped = (['up', 'down', 'left', 'right'] as Dir[]).find(d => sticky.has(d));
   sticky.clear();
   if (menu) { await startMenu(); return; }
+  if (bike) { // R: hop on or off without opening the menu
+    if (G.world?.bag.bike && !mapOf(G.mapKey).map.indoor) { G.biking = !G.biking; Sound.se('select'); }
+    return;
+  }
   if (a) { await send({ t: 'interact' }); return; }
   const dir = (['up', 'down', 'left', 'right'] as Dir[]).find(d => input.held[d]);
   // Trick Room floor: no turning on the spot, every press is a (backwards) step.
@@ -837,7 +978,15 @@ async function startMenu() {
     const w = G.world;
     const canBike = !!w?.bag.bike && !mapOf(G.mapKey).map.indoor;
     const items = [...(w?.dex.seen ? ['Pokédex'] : []), 'Pokémon', 'Bag', ...(canBike ? [G.biking ? 'Get off bike' : 'Ride bike'] : []), 'Save', 'Options', ...(w?.debug ? ['Debug'] : []), 'Close'];
-    const ov = () => { if (w) { panel(8, 8, 200, 58); text(`${w.money} kr.`, 28, 34, 16, '#26324a'); text(`Badges: ${w.badges}`, 28, 54, 14, '#55617a'); } };
+    const ov = () => {
+      if (!w) return;
+      panel(8, 8, 200, 58); text(`${w.money} kr.`, 28, 34, 16, '#26324a'); text(`Badges: ${w.badges}`, 28, 54, 14, '#55617a');
+      if (w.goal) { // the next story step, so a returning player knows where to go
+        const lines = w.goal.split('\n');
+        panel(8, 72, 328, 34 + lines.length * 18); text('Current goal', 24, 94, 13, '#a0612a');
+        lines.forEach((l, i) => text(l, 24, 114 + i * 18, 13, '#26324a'));
+      }
+    };
     G.overlays.push(ov);
     let c: number;
     try { c = await choose(items, items.length - 1, { x: VW - 168, y: 8, w: 160 }); } finally { G.overlays.pop(); }
@@ -1317,9 +1466,10 @@ function databox(m: BattleMonView, x: number, y: number, showNums: boolean, disp
     }
   }
 }
+const coilWidth = (c: CoilView) => 26 + c.max * 18;
 /** The Coil gauge: copper pips that light up one by one, pulse when ready and go dark once spent. */
 function drawCoil(c: CoilView, x: number, y: number) {
-  ctx.fillStyle = 'rgba(29,43,69,0.9)'; roundRect(x, y, 26 + c.max * 18, 16, 8); ctx.fill();
+  ctx.fillStyle = 'rgba(29,43,69,0.9)'; roundRect(x, y, coilWidth(c), 16, 8); ctx.fill();
   ctx.fillStyle = c.overcharge ? '#ff6b5a' : CURRENT; ctx.font = `10px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText('⚡', x + 6, y + 12);
   const pulse = !c.used && c.pips >= c.ready ? 0.65 + 0.35 * Math.sin(G.t / 6) : 1;
   for (let i = 0; i < c.max; i++) {
@@ -1429,13 +1579,13 @@ function drawBattle() {
   const box = (s: Spot, x: number, y: number, nums: boolean) => { const st = b.spots[s]; if (st.mon && (st.shown || (s === 'foe' && b.ballFx))) databox(st.mon, x, y, nums, st.hp); };
   if (multi) {
     box('foe', 16, 12, false); box('foe2', 16, 70, false);
-    box('ally2', VW - 246, 146, false); box('ally', VW - 246, 206, true);
+    box('ally2', VW - 246, 138, false); box('ally', VW - 246, 210, true);
     if (b.coil.foe && !b.trainerShown) drawCoil(b.coil.foe, 16, 128);
-    if (b.coil.ally && b.spots.ally.shown) drawCoil(b.coil.ally, VW - 42 - b.coil.ally.max * 18, 126);
+    if (b.coil.ally && b.spots.ally.shown) drawCoil(b.coil.ally, VW - 30 - coilWidth(b.coil.ally), 194);   // a tab on the box, clear of the foe's platform
   } else {
     box('foe', 16, 20, false); box('ally', VW - 246, 196, true);
     if (b.coil.foe && !b.trainerShown) drawCoil(b.coil.foe, 16, 78);
-    if (b.coil.ally && b.spots.ally.shown) drawCoil(b.coil.ally, VW - 42 - b.coil.ally.max * 18, 174);
+    if (b.coil.ally && b.spots.ally.shown) drawCoil(b.coil.ally, VW - 30 - coilWidth(b.coil.ally), 188);   // a tab on the box, clear of the foe's platform
   }
   if (b.start.trainer && b.trainerShown) {
     teamBalls(b.start.foeCount, b.foeLeft, 16, 20);
@@ -1863,7 +2013,18 @@ async function animPreview(exitable = false) {
 
 // ---------- main loop ----------
 let loadP = 0;
+// The touch Bike button shows once the bike is yours, outdoors, and names what a tap will do.
+const bikeBtn = document.getElementById('bikebtn');
+function syncBikeButton() {
+  if (!bikeBtn) return;
+  const show = G.scene === 'overworld' && !!G.world?.bag.bike && !!G.mapKey && !mapOf(G.mapKey).map.indoor;
+  if (bikeBtn.hidden === show) bikeBtn.hidden = !show;
+  const label = G.biking ? 'Get off' : 'Bike';
+  if (bikeBtn.textContent !== label) bikeBtn.textContent = label;
+}
+
 function render() {
+  syncBikeButton();
   ctx.textAlign = 'left';
   if (G.scene === 'loading') {
     ctx.fillStyle = '#0e2148'; ctx.fillRect(0, 0, VW, VH);
@@ -1904,7 +2065,7 @@ function present() {
   screenCtx.drawImage(sharp, 0, 0, screenW, screenH);
 }
 
-// Gamepad: d-pad or left stick to move, A/B as usual, Start or Y for the menu.
+// Gamepad: d-pad or left stick to move, A/B as usual, Start or Y for the menu, X for the bike.
 const padHeld: Partial<Record<Key, boolean>> = {};
 function pollGamepad() {
   const pad = navigator.getGamepads?.().find(p => p && p.connected);
@@ -1912,7 +2073,7 @@ function pollGamepad() {
   const b = (i: number) => !!pad.buttons[i]?.pressed, ax = pad.axes[0] ?? 0, ay = pad.axes[1] ?? 0;
   const now: Record<Key, boolean> = {
     up: b(12) || ay < -0.5, down: b(13) || ay > 0.5, left: b(14) || ax < -0.5, right: b(15) || ax > 0.5,
-    A: b(0), B: b(1), MENU: b(9) || b(3)
+    A: b(0), B: b(1), MENU: b(9) || b(3), BIKE: b(2)
   };
   for (const k of Object.keys(now) as Key[]) {
     if (now[k] && !padHeld[k]) press(k);

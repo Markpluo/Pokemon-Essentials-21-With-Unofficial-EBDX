@@ -1,6 +1,8 @@
 // Hand-drawn placeholder art for the demo maps: city, indoor and tunnel tiles the Essentials
 // tilesets don't have in a usable form, story objects (switches, valves, lily pads...) and a few
 // buildings. Everything is plain canvas drawing, so Mark's own art can replace it piece by piece.
+import { THEMES, plainFurniture, themedFloor, themedWall } from './interiors';
+
 type G2 = CanvasRenderingContext2D;
 type TileAt = (x: number, y: number) => string | null;
 
@@ -24,15 +26,42 @@ function floor(g: G2, dx: number, dy: number, x: number, y: number) {
   }
 }
 
+function mat(g: G2, dx: number, dy: number) {
+  g.fillStyle = '#9b3b33'; g.fillRect(dx + 2, dy + 8, 28, 18);
+  g.fillStyle = '#c9574b'; g.fillRect(dx + 4, dy + 10, 24, 14);
+}
+
+/** Vesterbro's red-brick courtyard blocks: brick courses, white-framed sash windows, a cornice along the top. */
+function brickFacade(g: G2, x: number, y: number, dx: number, dy: number, tileAt: TileAt) {
+  const above = tileAt(x, y - 1), below = tileAt(x, y + 1);
+  g.fillStyle = (hash(Math.floor(x / 4), 3) & 1) ? '#a5462f' : '#9b4030'; g.fillRect(dx, dy, 32, 32);
+  g.fillStyle = 'rgba(60,20,12,0.35)';
+  for (let j = 0; j < 8; j++) { g.fillRect(dx, dy + j * 4 + 3, 32, 1); for (let i = (j % 2) * 4; i < 32; i += 8) g.fillRect(dx + i, dy + j * 4, 1, 3); }
+  if (above !== 'H') { g.fillStyle = '#5a5e66'; g.fillRect(dx, dy, 32, 6); g.fillStyle = '#e8e2d6'; g.fillRect(dx, dy + 6, 32, 2); }
+  else if (litWindow(x, y, tileAt) !== null) { g.fillStyle = '#f2efe6'; g.fillRect(dx + 9, dy + 5, 14, 20); g.fillStyle = '#3a4a5e'; g.fillRect(dx + 11, dy + 7, 10, 16); g.fillStyle = '#f2efe6'; g.fillRect(dx + 11, dy + 14, 10, 2); }
+  if (below !== null && below !== 'H') { g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(dx, dy + 28, 32, 4); }
+}
+
+/** Which house-front tiles have a window (and so can light up at night): not the roof row. Returns the window
+ *  rect inside the tile, or null. */
+export function litWindow(x: number, y: number, tileAt: TileAt, theme?: string): [number, number, number, number] | null {
+  if (tileAt(x, y) !== 'H' || tileAt(x, y - 1) !== 'H') return null;
+  return theme === 'brick' ? [11, 7, 10, 16] : [8, 6, 10, 14];
+}
+
 /** Draws one of the hand-drawn tiles. Returns false for tiles the caller draws from the tileset. */
-export function drawTile(g: G2, t: string, x: number, y: number, dx: number, dy: number, tileAt: TileAt, time: number): boolean {
+export function drawTile(g: G2, t: string, x: number, y: number, dx: number, dy: number, tileAt: TileAt, time: number, theme?: string): boolean {
+  const th = theme ? THEMES[theme] : undefined;
+  if (th) {
+    if (t === '_') { themedFloor(g, th, dx, dy, x, y); return true; }
+    if (t === 'K') { themedFloor(g, th, dx, dy, x, y); return true; }   // the furniture itself is drawn with the decor
+    if (t === 'm') { themedFloor(g, th, dx, dy, x, y); mat(g, dx, dy); return true; }
+    if (t === 'w') { themedWall(g, th, dx, dy, x, y, tileAt(x, y + 1)); return true; }
+  }
+  if (t === 'H' && theme === 'brick') { brickFacade(g, x, y, dx, dy, tileAt); return true; }
   switch (t) {
     case '_': floor(g, dx, dy, x, y); return true;
-    case 'm':
-      floor(g, dx, dy, x, y);
-      g.fillStyle = '#9b3b33'; g.fillRect(dx + 2, dy + 8, 28, 18);
-      g.fillStyle = '#c9574b'; g.fillRect(dx + 4, dy + 10, 24, 14);
-      return true;
+    case 'm': floor(g, dx, dy, x, y); mat(g, dx, dy); return true;
     case 'w': {
       const below = tileAt(x, y + 1);
       if (below !== null && below !== 'w') {
@@ -211,6 +240,13 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
     case 'tv': box(3, 8, 26, 18, '#26272c'); box(5, 10, 22, 14, (time >> 4) % 2 ? '#5f8fc4' : '#6f9fd4'); box(12, 26, 8, 4, '#26272c'); break;
     case 'bed': box(2, 2, 28, 28, '#6b4526'); box(4, 4, 24, 8, '#f2efe6'); box(4, 12, 24, 16, '#3a7bd5'); box(4, 12, 24, 2, '#5f8fc4'); break;
     case 'pc': box(4, 8, 24, 22, '#c9ccd2'); box(7, 11, 18, 11, (time >> 5) % 2 ? '#4fd17a' : '#3fb86a'); break;
+    case 'busstop': // a yellow Movia stop sign on its pole, the night-bus N and a little timetable case
+      box(15, -6, 3, 38, '#4a4e54'); box(13, 29, 7, 3, '#3b3f4a');
+      box(6, -12, 21, 16, '#26272c'); box(7, -11, 19, 14, '#f2c33b');
+      box(9, -9, 6, 10, '#1d2b45'); box(11, -7, 1, 6, '#f2c33b'); box(12, -6, 1, 1, '#f2c33b'); box(13, -5, 1, 4, '#f2c33b'); // N
+      box(17, -8, 7, 2, '#26272c'); box(17, -4, 7, 1, '#26272c'); box(17, -1, 5, 1, '#26272c');
+      box(19, 8, 9, 12, '#e8e6e0'); box(20, 9, 7, 10, '#c9d2e3'); box(21, 11, 5, 1, '#55617a'); box(21, 14, 4, 1, '#55617a');
+      break;
     case 'poster': box(6, 2, 20, 26, '#f2efe6'); box(8, 4, 16, 10, '#1d6fb8'); box(8, 16, 16, 2, '#1d6fb8'); box(8, 20, 12, 2, '#1d6fb8'); break;
     case 'vent': {
       box(4, 8, 24, 22, '#3b3f4a'); for (let i = 0; i < 4; i++) box(6, 11 + i * 5, 20, 2, '#26272c');
@@ -446,6 +482,18 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
 
 // ---------- buildings ----------
 
+const brickWindows = (gate: boolean) => [0, 1].flatMap(r => [0, 1, 2, 3].filter(c => !(r === 1 && (c === 1 || (gate && c === 2))))
+  .map(c => [10 + c * 30, 24 + r * 30, 10, 16] as [number, number, number, number]));
+/** Window panes of the hand-drawn buildings, in pixels from the stamp's top-left, that light up at night. */
+export const BUILDING_WINDOWS: Record<string, [number, number, number, number][]> = {
+  brickBlock: brickWindows(false), brickGate: brickWindows(true),
+  cafe: [[14, 36, 14, 18], [86, 36, 14, 18], [104, 36, 14, 18]],
+  coldStores: [[14, 68, 16, 8], [46, 68, 16, 8], [162, 68, 16, 8], [194, 68, 16, 8]],
+  roundTower: [[22, 40, 12, 18], [94, 40, 12, 18], [22, 80, 12, 18], [94, 80, 12, 18]],
+  borsen: [[40, 60, 14, 20], [90, 60, 14, 20], [200, 60, 14, 20], [250, 60, 14, 20]],
+  houseboat: [[36, 24, 16, 14], [140, 24, 16, 14]]
+};
+
 /** Draws a hand-drawn building into a canvas of its stamp size (w×h tiles). */
 export function drawBuildingArt(g: G2, kind: string, w: number, h: number) {
   const W = w * 32, H = h * 32;
@@ -599,6 +647,49 @@ export function drawBuildingArt(g: G2, kind: string, w: number, h: number) {
     g.fillStyle = '#6c7076'; g.fillRect(W / 2 - 1, 26, 2, H - 26);
     g.fillStyle = '#1d6fb8'; g.fillRect(W / 2 - 40, 14, 30, 10); g.fillStyle = '#fff'; g.font = 'bold 7px sans-serif'; g.fillText('VANGUARD', W / 2 - 39, 22);
     g.fillStyle = '#d9473a'; g.fillRect(W / 2 + 22, 40, 6, 8);
+    return;
+  }
+  if (kind === 'coldStores') {
+    // Gym 3: one of Kødbyen's white-tiled cold stores. Flat roof with a frosted cooling unit, the steel loading
+    // bay with its canopy, a frost-blue band and the gym's snowflake sign.
+    g.fillStyle = '#5a5e66'; g.fillRect(0, 14, W, 8);
+    g.fillStyle = '#8a8d93'; g.fillRect(W - 70, 0, 50, 16); g.fillStyle = '#c9ccd2'; for (let x = W - 66; x < W - 24; x += 6) g.fillRect(x, 3, 3, 10);
+    g.fillStyle = '#f4f4f0'; g.fillRect(0, 22, W, H - 22);
+    g.fillStyle = '#d8d8d2'; for (let y = 30; y < H; y += 8) g.fillRect(0, y, W, 1); for (let x = 0; x < W; x += 8) g.fillRect(x, 22, 1, H - 22);
+    g.fillStyle = '#8fc3df'; g.fillRect(0, 52, W, 6);
+    for (const x of [12, 44, 160, 192]) { g.fillStyle = '#3a4a5e'; g.fillRect(x, 66, 20, 22); g.fillStyle = '#b5d8ec'; g.fillRect(x + 2, 68, 16, 8); }
+    g.fillStyle = '#6c7076'; g.fillRect(84, 88, 56, 6);                          // the canopy over the loading bay
+    g.fillStyle = '#9aa0a6'; g.fillRect(88, 94, 48, H - 94);
+    g.fillStyle = '#7d828a'; for (let y = 98; y < H; y += 6) g.fillRect(88, y, 48, 1);
+    g.fillStyle = '#3b3f4a'; g.fillRect(100, H - 30, 24, 30);                   // the door (tile 3,4)
+    g.fillStyle = '#1d4f8a'; g.fillRect(70, 26, 84, 20);
+    g.fillStyle = '#f2efe6'; g.font = 'bold 9px sans-serif'; g.fillText('COLD STORES', 80, 40);
+    g.strokeStyle = '#cfe8f5'; g.lineWidth = 2;
+    for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; g.beginPath(); g.moveTo(58 + Math.cos(a) * 7, 36 + Math.sin(a) * 7); g.lineTo(58 - Math.cos(a) * 7, 36 - Math.sin(a) * 7); g.stroke(); }
+    return;
+  }
+  if (kind === 'brickBlock' || kind === 'brickGate') {
+    // A Vesterbro block: four storeys of red brick, white sash windows, a slate roof, and either a stairwell
+    // door or the arched gateway into the courtyard (iron gate, a tree behind it).
+    g.fillStyle = '#4a4e54'; g.beginPath(); g.moveTo(0, 14); g.lineTo(8, 0); g.lineTo(W - 8, 0); g.lineTo(W, 14); g.fill();
+    g.fillStyle = '#a5462f'; g.fillRect(0, 14, W, H - 14);
+    g.fillStyle = 'rgba(60,20,12,0.35)';
+    for (let y = 16; y < H; y += 4) { g.fillRect(0, y + 3, W, 1); for (let x = (y / 4) % 2 * 4; x < W; x += 8) g.fillRect(x, y, 1, 3); }
+    g.fillStyle = '#e8e2d6'; g.fillRect(0, 14, W, 3);
+    for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) {
+      if (r === 1 && (c === 1 || (kind === 'brickGate' && c === 2))) continue;
+      const x = 8 + c * 30, y = 22 + r * 30;
+      g.fillStyle = '#f2efe6'; g.fillRect(x, y, 14, 20); g.fillStyle = '#3a4a5e'; g.fillRect(x + 2, y + 2, 10, 16); g.fillStyle = '#f2efe6'; g.fillRect(x + 2, y + 9, 10, 2);
+    }
+    if (kind === 'brickBlock') {
+      g.fillStyle = '#e8e2d6'; g.fillRect(36, H - 34, 24, 4);
+      g.fillStyle = '#2f4a3a'; g.fillRect(38, H - 30, 20, 30); g.fillStyle = '#e8c35a'; g.fillRect(53, H - 16, 2, 3);
+    } else {
+      g.fillStyle = '#e8e2d6'; g.beginPath(); g.arc(64, H - 22, 22, Math.PI, 0); g.fill(); g.fillRect(42, H - 22, 44, 22);
+      g.fillStyle = '#6b8a5a'; g.beginPath(); g.arc(64, H - 22, 19, Math.PI, 0); g.fill(); g.fillRect(45, H - 22, 38, 22);
+      g.fillStyle = '#3f6b47'; g.beginPath(); g.arc(70, H - 22, 9, 0, 7); g.fill();
+      g.fillStyle = '#26272c'; for (let x = 46; x < 84; x += 5) g.fillRect(x, H - 36, 2, 36); g.fillRect(45, H - 20, 38, 2);
+    }
     return;
   }
   if (kind === 'houseboat') {

@@ -82,6 +82,8 @@ export interface SaveTweaks {
   badges?: string[];
   coil?: { copper?: boolean; current?: boolean; harmony?: boolean };
   noEncounters?: boolean;
+  /** World clock in minutes since midnight (02:00 is 120). */
+  clock?: number;
 }
 
 /** Changes a save: put the player anywhere, with any team and bag. Good for feature scenarios (daycare, gyms, PC...). */
@@ -112,5 +114,6 @@ export async function tweak(save: SaveData | Promise<SaveData>, t: SaveTweaks): 
   if (t.badges) s.badges = t.badges.map(b => (b.includes(':') ? b : `hafnia:${b}`));
   if (t.coil) s.coil = { ...s.coil, ...t.coil };
   if (t.noEncounters !== undefined) s.flags['debug:noEncounters'] = t.noEncounters;
+  if (t.clock !== undefined) s.clock = t.clock;
   return s;
 }
