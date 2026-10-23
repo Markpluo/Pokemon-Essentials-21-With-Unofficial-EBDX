@@ -149,7 +149,7 @@ const TREKRONER: MapScripts = {
     }
   },
   npcs: [
-    { id: 'frejaj', sprite: 'chars/freja', x: 12, y: 21, dir: 'right', talk: frejaJetty },
+    { id: 'frejaj', sprite: 'chars/freja', x: 12, y: 21, dir: 'right', when: f => !f('pg5fort'), talk: frejaJetty },
     { id: 'maja8', sprite: 'chars/maja', x: 13, y: 17, dir: 'down', hidden: true },
     sign('tksign', 15, 17, 'obj:sign', 'c8.tk.sign'),
     sign('tkbeam', 7, 4, 'obj:sign', 'c8.tk.lamp'),
@@ -190,7 +190,7 @@ const TKLIGHTHOUSE: MapScripts = {
     { id: 'photo', sprite: 'obj:photo', x: 3, y: 1, dir: 'down', object: true, talk: photo },
     { id: 'logbook', sprite: 'obj:logbook', x: 5, y: 1, dir: 'down', object: true, talk: talk('c8.log.1', 'c8.log.2', 'c8.log.3') },
     { id: 'keyring', sprite: 'obj:keyring', x: 4, y: 3, dir: 'down', object: true, when: f => !f('keysTaken'), talk: keyring },
-    sign('tklamp', 1, 4, 'obj:lanternout', 'c8.lh.lamp')
+    { ...sign('tklamp', 1, 4, 'obj:lanternout', 'c8.lh.lamp'), when: f => !f('pg5done') }
   ]
 };
 

@@ -1594,6 +1594,27 @@ const hammerdeep = (): MapData => ({
   warps: [{ x: 12, y: 10, to: 'hammershus', tx: 13, ty: 7, dir: 'down' }]
 });
 
+// ---------- Post-game P5: the Deep Sound ----------
+
+// Under Langelinie: Langelira's sanctuary, where the herring choirs used to sing. Three note stones and the Last Echo's hall.
+const deepsound = (): MapData => ({
+  id: 'deepsound', name: 'The Deep Sound', ...grid([
+    'RRRRRRRRRRRRRRRRRRR',
+    'RRRRRRcccccccRRRRRR',
+    'RRRRRRcccccccRRRRRR',
+    'RRRRRRRRRcRRRRRRRRR',
+    'RcccccccccccccccccR',
+    'RcuucccccccccccuucR',
+    'RcuuccRRRcRRRccuucR',
+    'RcccccRRRcRRRcccccR',
+    'RcccccccccccccccccR',
+    'RRRRRRRRRmRRRRRRRRR'
+  ]),
+  battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true, dark: true,
+  encounterTile: 'c', encounters: [[30, 'lanturn'], [25, 'relicanth'], [25, 'mantine'], [20, 'dhelmise']], levels: [68, 71],
+  warps: [{ x: 9, y: 9, to: 'osterbro', tx: 21, ty: 16, dir: 'down' }]
+});
+
 export const MAPS = {
   norrebro: norrebro(), flat: flat(), lukasflat: lukasFlat(), pcnorrebro: center('pcnorrebro', 'Pokémon Center', 'norrebro', 22, 8),
   gym1: gym1(), bridge: bridge(), route1: route1(), garden: garden(), palmhouse: palmhouse(), tunnels: tunnels(),
@@ -1616,6 +1637,6 @@ export const MAPS = {
   pchelsingor: center('pchelsingor', 'Pokémon Center', 'helsingor', 5, 14), casemates: casemates(),
   stormhill: stormhill(), smokestack: smokestack(),
   oresund: oresund(), peberholm: peberholm(),
-  ronne: ronne(), pcronne: center('pcronne', 'Pokémon Center', 'ronne', 10, 8), route14: route14(), hammershus: hammershus(), hammerdeep: hammerdeep(),
+  ronne: ronne(), pcronne: center('pcronne', 'Pokémon Center', 'ronne', 10, 8), route14: route14(), hammershus: hammershus(), hammerdeep: hammerdeep(), deepsound: deepsound(),
   leaguehall: leaguehall(), stables: stables(), admiral: admiral(), greathall: greathall(), towerstairs: towerstairs(), towerroof: towerroof()
 };

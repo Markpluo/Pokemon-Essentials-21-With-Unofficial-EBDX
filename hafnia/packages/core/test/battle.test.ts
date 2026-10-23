@@ -166,6 +166,22 @@ describe('Copper & Current: the Coil', () => {
     expect(t.texts().join('\n')).toMatch(/Echo's frozen song warps/);
   });
 
+  it('a concert battle: the Coil refills, and the foe holds on at 1 HP until all three modes are sung', () => {
+    const t = battle({ party: [['snorlax', 100, ['growl', 'tackle']]], foes: [{ species: 'magikarp', level: 30, moves: ['splash'] }],
+      coil: { copper: true, current: true, harmony: true }, opts: { concert: true } });
+    const ready = () => { for (let i = 0; i < 8 && t.lastRequest()!.coil!.current !== null; i++) t.act({ kind: 'move', index: 0 }); };
+    t.act({ kind: 'move', index: 1 });
+    expect(t.sim.p2.active[0].hp).toBe(1);
+    expect(t.texts().join('\n')).toMatch(/holds the note/);
+    ready(); t.act({ kind: 'move', index: 0, mode: 'copper' });
+    ready(); t.act({ kind: 'move', index: 1, mode: 'current' });
+    expect(t.sim.p2.active[0].hp).toBe(1);
+    expect(t.texts().join('\n')).toMatch(/2 of its 3 parts/);
+    ready(); t.act({ kind: 'move', index: 1, mode: 'harmony' });
+    expect(t.texts().join('\n')).toMatch(/song is\nwhole again/);
+    expect(t.b.result).toBe('win');
+  });
+
   it('a plain battle has no Coil', () => {
     const t = battle({ party: [['pikachu', 20, ['growl']]], foes: [{ species: 'magikarp', level: 5, moves: ['splash'] }], opts: { coil: false } });
     expect(t.lastRequest()!.coil).toBeUndefined();

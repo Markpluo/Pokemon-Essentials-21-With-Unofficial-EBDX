@@ -28,6 +28,9 @@ export interface BattleOptions {
   tutorial?: boolean;
   /** Resonance Rift (post-game): the wild Pokémon is Echo-warped, +1 to every stat. */
   echo?: boolean;
+  /** The concert (post-game P5): the player's Coil starts full and refills after each use, and the foe can't be
+   *  knocked out until Copper, Current and Harmony have all been used. */
+  concert?: boolean;
   /** Multi battle: a partner (AI) fights beside the player against two trainers, one Pokémon each at a time. */
   multi?: {
     partner: { name: string; sprite: string; foes: FoeSpec[]; ai?: number };

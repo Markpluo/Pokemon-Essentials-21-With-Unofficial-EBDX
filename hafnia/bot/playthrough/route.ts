@@ -434,3 +434,31 @@ export function postgame4(p: P) {
     }
   });
 }
+
+export function postgame5(p: P) {
+  grindMaps = ['trekroner', 'deepsound'];
+  // Freja calls on the way into any hub once P2-P4 are done.
+  goal(p, 'Freja\'s call', () => !!p.flag('pg5'), () => { goto(p, 'pcchristianshavn'); goto(p, 'christianshavn'); });
+  goal(p, 'the hydrofoil', () => !!p.flag('pg5fort'), () => goto(p, 'trekroner'));
+  p.answers.push({ when: /Touch it with the charged Coil/, pick: 'Touch it' });
+  goal(p, 'the last Echo', () => !!p.flag('pg5echo'), () => { goto(p, 'trekroner'); p.talkTo(12, 21); goto(p, 'siphon'); p.talkTo(8, 4); });
+  goal(p, 'the dive', () => p.mapId === 'deepsound' || !!p.flag('pg5song'), () => {
+    goto(p, 'osterbro');
+    p.answers.push({ when: /Dive down to the Deep Sound/, pick: 'Dive', once: true });
+    p.talkTo(22, 16);
+  });
+  const notes: [number, number, string, string][] = [[1, 7, 'noteLow', 'Copper'], [17, 7, 'noteHigh', 'Current'], [9, 6, 'noteBoth', 'Harmony']];
+  for (const [x, y, flag, pick] of notes) goal(p, `the ${flag} stone`, () => !!p.flag(flag) || !!p.flag('pg5song'), () => {
+    if (p.mapId !== 'deepsound') { goto(p, 'osterbro'); p.answers.push({ when: /Dive down/, pick: 'Dive', once: true }); p.talkTo(22, 16); }
+    p.answers.push({ when: /How do you charge the Coil/, pick, once: true });
+    p.talkTo(x, y);
+  });
+  goal(p, 'the concert', () => !!p.flag('pg5song'), () => {
+    if (p.mapId !== 'deepsound') { goto(p, 'osterbro'); p.answers.push({ when: /Dive down/, pick: 'Dive', once: true }); p.talkTo(22, 16); }
+    p.sing = true;
+    try { p.talkTo(9, 1); } finally { p.sing = false; }
+  });
+  p.answers.push({ when: /Charge the lamp/, pick: 'Charge it' });
+  goal(p, 'the lamp', () => !!p.flag('pg5done'), () => { goto(p, 'tklighthouse'); p.talkTo(2, 4); });
+  goal(p, 'Lindholm\'s letter', () => !!p.flag('pg5letter'), () => goto(p, 'flat'));
+}

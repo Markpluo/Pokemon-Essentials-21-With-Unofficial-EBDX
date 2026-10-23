@@ -613,3 +613,191 @@ export const HAMMERDEEP_SCRIPTS: MapScripts = {
     itemBall('item.hd2', 21, 8, 'ultraball', 5, 'Ultra Balls')
   ]
 };
+
+// ---------- P5, The Lighthouse: the last Echo, the concert and the lamp ----------
+// Once Kronborg, the bridge and Bornholm are done, Freja calls. The Black Fleet is rebuilding Trekroner's
+// lighthouse; the last big Echo is still in Vanguard's siphon chamber. You carry it down to the Deep Sound under
+// Langelinie and give the song back in a concert, where only all three Coil modes make it whole. Freja relights
+// the lamp, and far across the Sound a light in Sweden answers.
+
+const p5Ready = (f: (n: string) => unknown) => !!f('pg2done') && !!f('pg3done') && !!f('pg4done');
+
+/** Freja's call: runs on the way into the city's hubs once P2-P4 are all done. */
+export function* p5Start(s: ScriptApi): Step {
+  if (s.flag('pg5') || !p5Ready(s.flag.bind(s))) return;
+  s.setFlag('pg5', true);
+  s.chapterEnd('Post-game', 'The Lighthouse');
+  s.sfx('pc');
+  s.say('pg5.call.1'); s.say('pg5.call.2'); s.say('pg5.call.3');
+  s.checkpoint();
+}
+
+/** The Black Fleet's hydrofoil at Christianshavn, now a friendly ferry. */
+const fleetFerry: Script = function* (s) {
+  if (!s.flag('pg5')) { s.say('pg5.deck.notyet'); return; }
+  const c: number = yield s.ask('pg5.deck.ask', ['Trekroner', 'Stay'], 1);
+  if (c !== 0) return;
+  s.sfx('door'); s.fade(1, 20);
+  s.warp('trekroner', 13, 21, 'up');
+  s.setRespawn('trekroner', 13, 21, 'up', s.t('pg5.respawn'));
+  s.fade(0, 20);
+  if (s.flag('pg5fort')) return;
+  s.setFlag('pg5fort', true);
+  s.setTime('day');
+  cast(s, 'freja5');
+  s.say('pg5.fort.1'); s.say('pg5.fort.2'); s.say('pg5.fort.3'); s.say('pg5.fort.4');
+  s.checkpoint();
+};
+
+export const CHRISTIANSHAVN_PG5: NpcDef[] = [
+  { id: 'fleetdeck5', sprite: 'chars/deckhand', x: 3, y: 6, dir: 'down', when: f => !!f('ch8done'), talk: fleetFerry }
+];
+
+const FREJA_TEAM: FoeSpec[] = [
+  { species: 'overqwil', level: 70, moves: ['crunch', 'gunkshot', 'aquajet', 'swordsdance'] },
+  { species: 'toxapex', level: 70, moves: ['scald', 'toxic', 'recover', 'haze'] },
+  { species: 'dragalge', level: 71, moves: ['sludgebomb', 'dracometeor', 'scald', 'focusblast'] },
+  { species: 'kingdra', level: 71, moves: ['hydropump', 'dracometeor', 'icebeam', 'raindance'] },
+  { species: 'sharpedo', level: 72, moves: ['liquidation', 'crunch', 'closecombat', 'protect'], item: 'sitrusberry' }
+];
+
+/** Freja on the jetty patches your team up, and after the lamp is lit, battles once each time of day. */
+const frejaJetty5: Script = function* (s) {
+  s.say('pg5.freja.heal'); s.heal(); s.me('me_heal');
+  if (s.flag('pg5done') && s.flag('frejaRematch') !== s.period) {
+    s.say('pg5.freja.rematch');
+    const c: number = yield s.ask('pg5.freja.rematch.ask', ['Battle', 'Not now'], 1);
+    if (c !== 0) return;
+    const r = yield s.battle({ kind: 'trainer', ai: 3, bg: 'city', leader: true, trainer: { name: 'Freja', title: 'Captain', sprite: 'tr/freja' }, foes: FREJA_TEAM });
+    if (r === 'win') { s.setFlag('frejaRematch', s.period); s.say('pg5.freja.rematch.lose'); }
+    return;
+  }
+  s.say(s.flag('pg5song') ? (s.flag('pg5done') ? 'pg5.freja.after' : 'pg5.freja.lamp') : s.flag('pg5echo') ? 'pg5.freja.dive' : 'pg5.freja.siphon');
+};
+
+/** The Fleet's hydrofoil back to Christianshavn. */
+const boatBack: Script = function* (s) {
+  const c: number = yield s.ask('pg5.freja.boat', ['Christianshavn', 'Stay'], 1);
+  if (c !== 0) return;
+  s.sfx('door'); s.fade(1, 20);
+  s.warp('christianshavn', 6, 7, 'down');
+  s.fade(0, 20);
+};
+
+export const TREKRONER_PG5: NpcDef[] = [
+  { id: 'freja5', sprite: 'chars/freja', x: 12, y: 21, dir: 'right', when: f => !!f('pg5fort'), talk: frejaJetty5 },
+  { id: 'boat5', sprite: 'chars/deckhand', x: 12, y: 20, dir: 'right', when: f => !!f('pg5fort'), talk: boatBack },
+  { id: 'deck5a', sprite: 'chars/deckhand', x: 4, y: 8, dir: 'up', when: f => !!f('pg5fort'), talk: talk('pg5.deck.a') },
+  { id: 'deck5b', sprite: 'chars/sailor', x: 6, y: 8, dir: 'up', when: f => !!f('pg5fort'), talk: talk('pg5.deck.b') }
+];
+
+/** The last big Echo, still caught in Vanguard's machines. */
+const lastEcho: Script = function* (s) {
+  s.say('pg5.echo.1');
+  const c: number = yield s.ask('pg1.echo.ask', ['Touch it', 'Leave it'], 1);
+  if (c !== 0) return;
+  s.sfx('hit_super'); s.fade(1, 10); s.fade(0, 10);
+  s.say('pg1.echo.open');
+  const r = yield s.battle({ kind: 'wild', bg: 'indoor1', echo: true, foes: [{ species: 'milotic', level: 72, moves: ['scald', 'icebeam', 'recover', 'dragontail'] }] });
+  if (r !== 'win' && r !== 'caught') return;
+  s.setFlag('pg5echo', true);
+  s.say('pg5.echo.2');
+  s.giveItem('lastecho'); s.me('me_get');
+  s.say('pg5.echo.3');
+  s.checkpoint();
+};
+
+export const SIPHON_PG5: NpcDef[] = [
+  { id: 'echo5', sprite: 'obj:echo', x: 8, y: 4, dir: 'down', object: true, when: f => !!f('pg5') && !f('pg5echo'), talk: lastEcho }
+];
+
+/** Langelinie: a Black Fleet buoy marks the way down to the Deep Sound. */
+export const OSTERBRO_PG5: NpcDef[] = [
+  { id: 'divebuoy', sprite: 'obj:buoy', x: 22, y: 16, dir: 'down', object: true, when: f => !!f('pg5echo'), talk: function* (s) {
+    if (s.flag('pg5song')) { s.say('pg5.dive.after'); return; }
+    s.say('pg5.dive.1');
+    const c: number = yield s.ask('pg5.dive.ask', ['Dive', 'Not yet'], 1);
+    if (c !== 0) return;
+    s.sfx('door'); s.fade(1, 20);
+    s.warp('deepsound', 9, 8, 'up');
+    s.fade(0, 20);
+    s.say('pg5.dive.2');
+  } }
+];
+
+/** The three note stones: a low note (Copper), a bright one (Current), and two at once (Harmony). */
+const NOTES: { id: string; x: number; y: number; mode: number }[] = [
+  { id: 'noteLow', x: 1, y: 7, mode: 0 },
+  { id: 'noteHigh', x: 17, y: 7, mode: 1 },
+  { id: 'noteBoth', x: 9, y: 6, mode: 2 }
+];
+const notesDone = (f: (n: string) => unknown) => NOTES.every(n => !!f(n.id));
+
+const noteStone = (n: typeof NOTES[number]): Script => function* (s) {
+  if (s.flag(n.id)) { s.say('pg5.note.ringing'); return; }
+  s.say(`pg5.${n.id}`);
+  const c: number = yield s.ask('pg4.church.ask', ['Copper', 'Current', 'Harmony', 'Leave'], 3);
+  if (c === 3) return;
+  if (c !== n.mode) { s.sfx('hit_weak'); s.say('pg5.note.wrong'); return; }
+  s.sfx('select'); s.setFlag(n.id, true);
+  s.say('pg5.note.right');
+  if (notesDone(s.flag.bind(s))) { s.sfx('door'); s.npc('songgate').hide(); s.say('pg5.note.all'); }
+  s.checkpoint();
+};
+
+/** The concert: six against one, and the song is only whole once all three modes have been sung. */
+const concert: Script = function* (s) {
+  if (s.flag('pg5song')) return;
+  s.say('pg5.concert.1'); s.say('pg5.concert.2'); s.say('pg5.concert.3');
+  const r = yield s.battle({
+    kind: 'trainer', ai: 2, bg: 'indoor1', prize: 0, concert: true, trainer: { name: 'Langelira\'s Song', title: 'The Last Echo', sprite: 'tr/lastecho' },
+    foes: [{ species: 'langelira', level: 75, moves: ['sirensrequiem', 'psychic', 'icebeam', 'calmmind'], item: 'leftovers' }]
+  });
+  if (r !== 'win') return;
+  s.setFlag('pg5song', true);
+  s.takeItem('lastecho');
+  s.say('pg5.concert.4'); s.say('pg5.concert.5');
+  s.say('pg5.concert.yours');
+  s.heal(); s.me('me_heal');
+  s.say('pg5.concert.6');
+  s.checkpoint();
+};
+
+export const DEEPSOUND_SCRIPTS: MapScripts = {
+  npcs: [
+    ...NOTES.map(n => ({ id: n.id, sprite: 'obj:terminal', x: n.x, y: n.y, dir: 'down' as const, object: true, talk: noteStone(n) })),
+    { id: 'songgate', sprite: 'obj:barrier', x: 9, y: 3, dir: 'down', object: true, when: f => !notesDone(f), talk: talk('pg5.gate') },
+    { id: 'lastechos', sprite: 'obj:echo', x: 9, y: 1, dir: 'down', object: true, when: f => !f('pg5song'), talk: concert },
+    itemBall('item.ds1', 17, 4, 'expcandyl', 2, 'Exp. Candy L'),
+    itemBall('item.ds2', 6, 1, 'ultraball', 5, 'Ultra Balls')
+  ]
+};
+
+/** The lamp: Freja relights it, and the beam crosses the Sound. */
+const relight: Script = function* (s) {
+  if (!s.flag('pg5song')) return;
+  s.say('pg5.lamp.1'); s.say('pg5.lamp.2');
+  const c: number = yield s.ask('pg5.lamp.ask', ['Charge it', 'Wait'], 1);
+  if (c !== 0) return;
+  s.sfx('hit_super');
+  for (let i = 0; i < 3; i++) { s.fade(0.7, 4); s.fade(0, 4); }
+  s.setFlag('pg5done', true);
+  s.say('pg5.lamp.3'); s.say('pg5.lamp.4'); s.say('pg5.lamp.5'); s.say('pg5.lamp.6');
+  s.npc('frejalamp').hide();
+  s.checkpoint();
+  s.chapterEnd('Post-game', 'The Long Echo complete');
+  s.say('pg5.end.1'); s.say('pg5.end.2');
+};
+
+export const TKLIGHTHOUSE_PG5: NpcDef[] = [
+  { id: 'frejalamp', sprite: 'chars/freja', x: 2, y: 4, dir: 'right', when: f => !!f('pg5song') && !f('pg5done'), talk: relight },
+  { ...sign('tklamplit', 1, 4, 'obj:lantern', 'pg5.lamp.lit'), when: f => !!f('pg5done') }
+];
+
+/** Home, after the lamp: a letter from Lindholm in prison. */
+export function* lindholmLetter(s: ScriptApi): Step {
+  if (!s.flag('pg5done') || s.flag('pg5letter')) return;
+  s.setFlag('pg5letter', true);
+  s.say('pg5.letter.1'); s.say('pg5.letter.2'); s.say('pg5.letter.3'); s.say('pg5.letter.4');
+  s.checkpoint();
+}
