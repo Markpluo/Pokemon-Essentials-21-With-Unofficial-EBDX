@@ -16,6 +16,12 @@ export const SIM_DATA: Record<string, Record<string, unknown>> = {
       num: -2002, name: 'Rotom-Reactor', baseSpecies: 'Rotom', forme: 'Reactor', types: ['Electric', 'Steel'], gender: 'N',
       baseStats: { hp: 85, atk: 70, def: 110, spa: 135, spd: 110, spe: 95 },
       abilities: { 0: 'Levitate' }, heightm: 1.2, weightkg: 60, color: 'Blue', eggGroups: ['Undiscovered']
+    },
+    // The granite guardian under Kronborg, Holger Danske's friend. Sleeps until Hafnia is in mortal peril.
+    kronvakt: {
+      num: -2003, name: 'Kronvakt', types: ['Steel', 'Fighting'], gender: 'N',
+      baseStats: { hp: 105, atk: 130, def: 130, spa: 65, spd: 100, spe: 70 },
+      abilities: { 0: 'Steadfast' }, heightm: 3.4, weightkg: 520, color: 'Brown', eggGroups: ['Undiscovered']
     }
   },
   Moves: {
@@ -25,6 +31,12 @@ export const SIM_DATA: Record<string, Record<string, unknown>> = {
       secondary: { chance: 100, boosts: { spa: -1 } },
       // The song brings the rain with it.
       onAfterMoveSecondarySelf(this: { field: { setWeather(w: string): boolean } }) { this.field.setWeather('raindance'); }
+    },
+    // Stronger for each fainted ally: protect what you have.
+    danishoath: {
+      num: -2002, name: 'Danish Oath', type: 'Steel', category: 'Physical', basePower: 70, accuracy: true, pp: 10, priority: 0,
+      flags: { protect: 1, mirror: 1, contact: 1 }, target: 'normal',
+      basePowerCallback(pokemon: { side: { totalFainted: number } }) { return 70 + 20 * Math.min(4, pokemon.side.totalFainted); }
     }
   }
 };
@@ -35,6 +47,12 @@ export const SPECIES_EXTRA: Record<string, SpeciesExtra> = {
     dex: 'It sang the Pact with the first fishers of the Sound. When it is silent, the sea forgets to be calm.',
     moves: [[1, 'watergun'], [1, 'confusion'], [8, 'sing'], [16, 'aquaring'], [24, 'psybeam'], [32, 'surf'],
       [40, 'calmmind'], [48, 'psychic'], [55, 'sirensrequiem'], [64, 'icebeam'], [72, 'hydropump']]
+  },
+  kronvakt: {
+    key: 'KRONVAKT', catchRate: 30, baseExp: 290, growth: 'Slow', category: 'Guardian',
+    dex: 'A granite giant that swore an oath with Holger Danske. Its copper crown hums when Hafnia is in danger.',
+    moves: [[1, 'rocktomb'], [1, 'metalclaw'], [10, 'bulkup'], [20, 'brickbreak'], [30, 'ironhead'], [40, 'irondefense'],
+      [50, 'hammerarm'], [60, 'danishoath'], [70, 'closecombat'], [80, 'heavyslam']]
   },
   rotomreactor: {
     key: 'ROTOM_REACTOR', catchRate: 0, baseExp: 250, growth: 'Medium', category: 'Plasma',

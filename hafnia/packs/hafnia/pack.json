@@ -221,7 +221,8 @@
   ],
   "pokemon": {
     "LANGELIRA": { "front": "pack:assets/pokemon/front/LANGELIRA.png", "back": "pack:assets/pokemon/back/LANGELIRA.png", "icons": "pack:assets/pokemon/icons/LANGELIRA.png", "cry": "Audio/SE/Cries/PRIMARINA.ogg" },
-    "ROTOM_REACTOR": { "front": "pack:assets/pokemon/front/ROTOM_REACTOR.png", "back": "pack:assets/pokemon/back/ROTOM_REACTOR.png", "icons": "pack:assets/pokemon/icons/ROTOM_REACTOR.png", "cry": "Audio/SE/Cries/ROTOM.ogg" }
+    "ROTOM_REACTOR": { "front": "pack:assets/pokemon/front/ROTOM_REACTOR.png", "back": "pack:assets/pokemon/back/ROTOM_REACTOR.png", "icons": "pack:assets/pokemon/icons/ROTOM_REACTOR.png", "cry": "Audio/SE/Cries/ROTOM.ogg" },
+    "KRONVAKT": { "front": "pack:assets/pokemon/front/KRONVAKT.png", "back": "pack:assets/pokemon/back/KRONVAKT.png", "icons": "pack:assets/pokemon/icons/KRONVAKT.png", "cry": "Audio/SE/Cries/GOLURK.ogg" }
   },
   "spriteKeys": {
     "qwilfishhisui": "QWILFISH_1"

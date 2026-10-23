@@ -1,7 +1,7 @@
 // Plays the whole prologue through game-core with no client: new game, starter, rival battle,
 // Route 1, Maja, the gym and the chapter end. Also checks saves round-trip.
 import { describe, expect, it } from 'vitest';
-import { Content, Game, LocalServer, OPPOSITE, TRICK_TILES, healMon, type Dir, type SaveData, type ServerEvent } from '@hafnia/core';
+import { Content, Game, LocalServer, OPPOSITE, Rng, TRICK_TILES, healMon, makeMon, type Dir, type SaveData, type ServerEvent } from '@hafnia/core';
 import { hafnia } from '../src';
 
 const content = new Content([hafnia]);
@@ -166,7 +166,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step through the story and post-game P1', () => {
+  it('plays from the first step through the story and post-game P1-P2', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -708,6 +708,30 @@ describe('Hafnia demo', () => {
     expect(d.s.bag.echoshard).toBe(1);
     d.talkTo(14, 11);                                           // the same time of day: the Echo is still gathering
     expect(d.said.at(-1)).toMatch(/Echo is dim/);
+
+    // Post-game P2, the Guardian's Oath: three Oath Trials in the casemates, then Kronvakt
+    Object.assign(d.s, { map: 'hafnia:casemates', x: 4, y: 9, dir: 'down' as Dir });
+    d.send({ t: 'step', dir: 'down' }); at('helsingor');
+    expect(flag('pg2'), d.where()).toBe(true);
+    d.walkTo(15, 7); d.send({ t: 'step', dir: 'up' }); at('casemates');
+    d.talkTo(18, 1);
+    expect(d.said.at(-1)).toMatch(/untested trainer/);
+    Object.assign(d.s.party[0], { level: 90 });
+    d.s.party[0].moves = [{ id: 'earthquake', pp: 99 }, { id: 'flamethrower', pp: 99 }];
+    d.s.party.forEach(healMon);
+    d.talkTo(13, 1); d.talkTo(13, 3);
+    expect([flag('oathCopper'), flag('oathCurrent')], d.where()).toEqual([true, true]);
+    d.s.party.forEach(healMon);
+    d.answers.push(0); d.talkTo(20, 3);                        // the Oath: three battles, no healing
+    expect(flag('oathOath'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    // A player would wear it down first; here a wall of Lv 100 Skarmory (Kronvakt's moves barely scratch it) keeps throwing Ultra Balls.
+    d.s.party.splice(0, 6, ...[1, 2, 3].map(i => makeMon('skarmory', 100, new Rng(i), { moves: ['roost'] })));
+    d.s.bag.ultraball = 99; d.ball = 'ultraball';
+    d.talkTo(18, 1);
+    d.ball = null;
+    expect([...d.s.party, ...d.s.box].some(m => m.species === 'kronvakt'), d.where()).toBe(true);
+    expect(flag('pg2done')).toBe(true);
   }, 30_000);
 
   it('a wrong steam valve closes them all again', () => {
