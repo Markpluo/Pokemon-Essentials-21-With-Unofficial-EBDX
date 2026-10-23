@@ -87,6 +87,17 @@ export function installCoil(r: CoilRules = COIL_DEFAULTS) {
     }
   };
 
+  // The concert (post-game P5): the Last Echo holds on at 1 HP until the player has sung all three Coil modes.
+  conditions.hafniaconcert = {
+    name: 'Hafnia Concert', effectType: 'Condition',
+    onDamagePriority: -101,
+    onDamage(this: any, damage: number, target: Pokemon) {
+      if ((target as any).m?.concertOpen || damage < target.hp) return;
+      this.add('-activate', target, 'Concert');
+      return target.hp - 1;
+    }
+  };
+
   conditions.hafniaovercharge = {
     name: 'Hafnia Overcharge', effectType: 'Condition',
     onResidualOrder: 28,
@@ -120,14 +131,15 @@ export function installCoil(r: CoilRules = COIL_DEFAULTS) {
 export function coilRules() { return rules; }
 
 /** Why a side can't use a mode right now, or null if it can. Shown on the greyed-out toggle. */
-export function coilBlock(mode: CoilMode, s: { pips: number; used: boolean; unlocks: CoilUnlocks; enabled: boolean },
+export function coilBlock(mode: CoilMode, s: { pips: number; used: boolean; unlocks: CoilUnlocks; enabled: boolean; concert?: boolean },
   p: Pokemon, moveCategory?: string): string | null {
   if (!s.enabled) return 'The Coil is offline in this battle.';
   if (!s.unlocks[mode]) return mode === 'copper' ? 'Copper isn\'t unlocked yet.' : mode === 'current' ? 'Current isn\'t unlocked yet.' : 'Harmony isn\'t unlocked yet.';
   if (s.used) return 'The Coil has already been used.';
   if (s.pips < rules.ready) return 'The Coil isn\'t charged yet.';
   if (mode === 'copper' || mode === 'harmony') {
-    if ((p as any).m?.patinated) return 'It already has a patina.';
+    // In a concert every mode can be sung again, patina or not.
+    if ((p as any).m?.patinated && !s.concert) return 'It already has a patina.';
     const item = p.getItem();
     if (item.forcedForme || (item as any).megaStone || item.id.endsWith('memory')) return 'Its held item stops the patina.';
   }

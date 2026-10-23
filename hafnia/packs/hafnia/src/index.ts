@@ -19,7 +19,7 @@ import { RUNDETARN_SCRIPTS, ch6Start } from './rundetarn';
 import { KRONBORG_SCRIPTS, SLOTSHOLMEN_CH11, broadcast, ch11Start } from './kronborg';
 import { LEAGUE_SCRIPTS, ch13Start, palaceDoor } from './league';
 import { SIM_DATA, SPECIES_EXTRA } from './legends';
-import { CASEMATES_PG2, DRAGOR_PG3, DRAGOR_PG4, HAMMERDEEP_SCRIPTS, HAMMERSHUS_SCRIPTS, RONNE_SCRIPTS, ROUTE14_SCRIPTS, HELSINGOR_PG2, ORESUND_SCRIPTS, OSTERBRO_PG1, PEBERHOLM_SCRIPTS, PALM_PG1, ROUTE1_PG1, p1Start, p2Start, statueTear } from './postgame';
+import { CHRISTIANSHAVN_PG5, DEEPSOUND_SCRIPTS, OSTERBRO_PG5, SIPHON_PG5, TKLIGHTHOUSE_PG5, TREKRONER_PG5, lindholmLetter, p5Start, CASEMATES_PG2, DRAGOR_PG3, DRAGOR_PG4, HAMMERDEEP_SCRIPTS, HAMMERSHUS_SCRIPTS, RONNE_SCRIPTS, ROUTE14_SCRIPTS, HELSINGOR_PG2, ORESUND_SCRIPTS, OSTERBRO_PG1, PEBERHOLM_SCRIPTS, PALM_PG1, ROUTE1_PG1, p1Start, p2Start, statueTear } from './postgame';
 import { REACTOR_SCRIPTS, ch12Start, smokestackGate } from './reactor';
 import { SHIPYARD_SCRIPTS, ch10Start, copenhillGate, shipyardsGate } from './shipyards';
 import { ROUTE4_LUKAS, SPIRE_SCRIPTS, ch9Start, route4Enter, slotsholmenGate } from './spire';
@@ -128,6 +128,19 @@ Object.assign(SCRIPTS, {
   ronne: RONNE_SCRIPTS, pcronne: { npcs: centerNpcs('ronne', 10, 8) }, route14: ROUTE14_SCRIPTS,
   hammershus: HAMMERSHUS_SCRIPTS, hammerdeep: HAMMERDEEP_SCRIPTS
 });
+// P5, The Lighthouse: Freja calls once P2-P4 are done; the Fleet's hydrofoil, the last Echo, the Deep Sound, the lamp.
+for (const id of ['norrebro', 'osterbro', 'christianshavn', 'nyhavn', 'dragor', 'helsingor', 'ronne']) {
+  const enter = SCRIPTS[id]?.onEnter;
+  SCRIPTS[id] = { ...SCRIPTS[id], onEnter: function* (s) { if (enter) yield* enter(s); yield* p5Start(s); } };
+}
+for (const [id, extra] of [['christianshavn', CHRISTIANSHAVN_PG5], ['trekroner', TREKRONER_PG5], ['siphon', SIPHON_PG5], ['osterbro', OSTERBRO_PG5], ['tklighthouse', TKLIGHTHOUSE_PG5]] as const) {
+  SCRIPTS[id] = { ...SCRIPTS[id], npcs: [...(SCRIPTS[id].npcs ?? []), ...extra] };
+}
+SCRIPTS.deepsound = DEEPSOUND_SCRIPTS;
+{
+  const enter = SCRIPTS.flat.onEnter;
+  SCRIPTS.flat = { ...SCRIPTS.flat, onEnter: function* (s) { if (enter) yield* enter(s); yield* lindholmLetter(s); } };
+}
 SCRIPTS.nyhavn.exitGuards = { right: langelinieGate };
 SCRIPTS.dyrehaven.exitGuards = { up: bakkenGate };
 SCRIPTS.assistens.exitGuards = { up: lanternGate };

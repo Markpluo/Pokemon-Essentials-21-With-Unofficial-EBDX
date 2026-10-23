@@ -14,6 +14,9 @@ class Driver {
   answers: number[] = [];
   /** A ball to throw instead of attacking in wild battles (catching a legendary). */
   ball: string | null = null;
+  /** The concert: use each Coil mode once, as soon as the Coil is charged. */
+  sing = false;
+  private sung = new Set<string>();
   private wild = false;
   constructor(public game: Game, first: ServerEvent[]) { this.take(first); }
 
@@ -48,7 +51,9 @@ class Driver {
     // Strongest usable move, like a sensible player.
     const best = r.moves.map((m, i) => ({ m, i })).filter(x => !x.m.disabled && x.m.pp !== 0)
       .sort((a, b) => Number(b.m.type !== 'normal') - Number(a.m.type !== 'normal'))[0];
-    return { t: 'battle', action: { kind: 'move', index: best?.i ?? 0 } };
+    const mode = this.sing ? (['copper', 'current', 'harmony'] as const).find(m => r.coil?.[m] === null && !this.sung.has(m)) : undefined;
+    if (mode) this.sung.add(mode);
+    return { t: 'battle', action: { kind: 'move', index: best?.i ?? 0, ...(mode ? { mode } : {}) } };
   }
 
   get s() { return this.game.state; }
@@ -166,7 +171,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step through the story and post-game P1-P4', () => {
+  it('plays from the first step through the story and whole post-game (P1-P5)', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -779,6 +784,33 @@ describe('Hafnia demo', () => {
     d.ball = null;
     expect([...d.s.party, ...d.s.box].some(m => m.species === 'kronikon'), d.where()).toBe(true);
     expect(flag('pg4done')).toBe(true);
+
+    // Post-game P5, The Lighthouse: Freja's call, the last Echo, the Deep Sound concert, the lamp, Lindholm's letter
+    d.s.party.splice(0, 6, makeMon('mew', 100, new Rng(30), { moves: ['psychic', 'flamethrower'] }), makeMon('snorlax', 100, new Rng(31), { moves: ['bodyslam'] }));
+    Object.assign(d.s, { map: 'hafnia:pcchristianshavn', x: 6, y: 5, dir: 'down' as Dir });
+    d.send({ t: 'step', dir: 'down' }); at('christianshavn');   // into a hub after P2-P4: Freja calls
+    expect(flag('pg5'), d.where()).toBe(true);
+    d.answers.push(0); d.talkTo(3, 6); at('trekroner');
+    expect(flag('pg5fort'), d.where()).toBe(true);
+    Object.assign(d.s, { map: 'hafnia:siphon', x: 8, y: 9, dir: 'up' as Dir });
+    d.s.party.forEach(healMon);
+    d.answers.push(0); d.talkTo(8, 4);                         // the last Echo
+    expect(flag('pg5echo'), d.where()).toBe(true);
+    Object.assign(d.s, { map: 'hafnia:osterbro', x: 21, y: 15, dir: 'down' as Dir });
+    d.answers.push(0); d.talkTo(22, 16); at('deepsound');
+    for (const [x, y, pick] of [[1, 7, 0], [17, 7, 1], [9, 6, 2]]) { d.answers.push(pick); d.talkTo(x, y); }
+    expect([flag('noteLow'), flag('noteHigh'), flag('noteBoth')], d.where()).toEqual([true, true, true]);
+    d.s.party.forEach(healMon);
+    d.sing = true; d.talkTo(9, 1); d.sing = false;              // the concert: all three modes, then the song is whole
+    expect(flag('pg5song'), d.where()).toBe(true);
+    expect(d.said.join('\n')).toMatch(/song is home/);
+    Object.assign(d.s, { map: 'hafnia:tklighthouse', x: 4, y: 4, dir: 'up' as Dir });
+    d.answers.push(0); d.talkTo(2, 4);                         // Freja relights the lamp
+    expect(flag('pg5done'), d.where()).toBe(true);
+    expect(d.said.join('\n')).toMatch(/a light answers/);
+    Object.assign(d.s, { map: 'hafnia:norrebro', x: 4, y: 8, dir: 'up' as Dir });
+    d.send({ t: 'step', dir: 'up' }); at('flat');               // home: Lindholm's letter
+    expect(d.said.join('\n')).toMatch(/Is the sea calm/);
   }, 30_000);
 
   it('a wrong steam valve closes them all again', () => {

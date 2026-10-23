@@ -77,6 +77,7 @@ export const ITEMS: Record<string, ItemDef> = {
   expcandyl: { name: 'Exp. Candy L', pocket: 'medicine', price: 0, exp: 10000, desc: 'A big candy packed with energy. Gives a Pokémon 10,000 Exp. Points.' },
   mermaidtear: { name: 'Mermaid\'s Tear', pocket: 'key', price: 0, desc: 'A shard of green copper from the new statue on Langelinie. It hums both notes of the Coil at once: Harmony.' },
   echoshard: { name: 'Echo Shard', pocket: 'key', price: 0, desc: 'A sliver of Langelira\'s frozen song from a Resonance Rift. Dr. Brix is collecting them to give the song back.' },
+  lastecho: { name: 'The Last Echo', pocket: 'key', price: 0, desc: 'The biggest Echo of all, folded small in your hands. It hums the last verse of Langelira\'s song.' },
   rangerpermit: { name: 'Ranger Permit', pocket: 'key', price: 0, desc: 'Bjørk\'s signature on a soggy card. Lets you down the ramp to Peberholm Reserve.' },
   ledgercopy: { name: 'Andersen\'s Ledger', pocket: 'key', price: 0, desc: 'A copy of the Pact ledger from the Sunken Archive, in H.C. Andersen\'s hand.' },
   bike: { name: 'Rotom Cargo-Bike', pocket: 'key', price: 0, desc: 'Ørsted\'s prototype. Ride it from the menu outdoors.' },

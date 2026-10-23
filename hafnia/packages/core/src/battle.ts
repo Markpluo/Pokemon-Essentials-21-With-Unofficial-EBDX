@@ -50,7 +50,7 @@ export interface BattleHost {
   giveMoney(n: number): void;
 }
 
-interface CoilSide { enabled: boolean; pips: number; used: boolean; unlocks: CoilUnlocks; overcharge: boolean; seTurn: number }
+interface CoilSide { enabled: boolean; pips: number; used: boolean; unlocks: CoilUnlocks; overcharge: boolean; seTurn: number; concert?: boolean }
 
 const STAT_NAMES: Record<string, string> = {
   atk: 'Attack', def: 'Defense', spa: 'Sp. Atk', spd: 'Sp. Def', spe: 'Speed', accuracy: 'accuracy', evasion: 'evasiveness'
@@ -73,6 +73,8 @@ export class BattleSession {
   private sim: Battle;
   private logIndex = 0;
   private foes: Mon[];
+  /** Coil modes the player has used in a concert battle. */
+  private sung = new Set<string>();
   /** Multi battles: the partner's team (p3) and the second trainer's (p4). */
   private partnerMons: Mon[] = [];
   private foes2: Mon[] = [];
@@ -97,7 +99,7 @@ export class BattleSession {
     const plain = opts.coil === false;
     const start = opts.kind === 'wild' ? cr.startWild : cr.startTrainer;
     this.coil = {
-      ally: { enabled: !plain && !!(host.coil.copper || host.coil.current), pips: start, used: false, unlocks: host.coil, overcharge: false, seTurn: -1 },
+      ally: { enabled: !plain && !!(host.coil.copper || host.coil.current), pips: opts.concert ? cr.max : start, used: false, unlocks: host.coil, overcharge: false, seTurn: -1, concert: !!opts.concert },
       foe: {
         enabled: !plain && !!(opts.foeCoil || opts.overcharge), pips: opts.overcharge ? cr.max : start, used: false,
         unlocks: opts.overcharge ? { copper: true, current: true } : opts.foeCoil ?? {}, overcharge: !!opts.overcharge, seTurn: -1
@@ -147,8 +149,10 @@ export class BattleSession {
   private activate(side: BattleSide, mode: CoilMode | 'overcharge'): BattleEvent[] {
     const c = this.coil[side], p = (side === 'ally' ? this.sim.p1 : this.sim.p2).active[0];
     const who = side === 'ally' ? p.name : this.nameOf(`p2a: ${p.name}`);
-    c.pips = 0;
-    if (!c.overcharge) c.used = true;
+    // A concert starts with a full Coil and refills from one pip: the song needs all three modes.
+    const concert = side === 'ally' && !!this.opts.concert;
+    c.pips = concert ? 1 : 0;
+    if (!c.overcharge && !concert) c.used = true;
     const out: BattleEvent[] = [];
     if (mode === 'overcharge') {
       applyPatina(p); applyCurrent(p); applyOvercharge(p);
@@ -165,6 +169,16 @@ export class BattleSession {
       out.push({ b: 'current', side, text: `The Coil surges! ${who}'s next move\ncarries the Current!` });
     }
     out.push({ b: 'coil', side, coil: this.coilView(side) });
+    if (side === 'ally' && this.opts.concert && mode !== 'overcharge') {
+      this.sung.add(mode);
+      const foe = this.sim.p2.active[0];
+      if (foe && !(foe as any).m.concertOpen) {
+        if (this.sung.size === 3) {
+          (foe as any).m.concertOpen = true;
+          out.push({ b: 'text', text: 'Copper, Current and Harmony! The song is\nwhole again, and the Echo can rest!' });
+        } else out.push({ b: 'text', text: `The song has ${this.sung.size} of its 3 parts.` });
+      }
+    }
     return out;
   }
 
@@ -231,6 +245,7 @@ export class BattleSession {
     this.sim.p1.pokemonLeft = this.sim.p1.pokemon.filter(p => !p.fainted).length;
     for (const side of [this.sim.p1, this.sim.p2]) side.addSideCondition('hafniacoil', side.active[0]);
     if (o.tutorial) this.sim.p1.active[0].addVolatile('hafniaguard');
+    if (o.concert) this.sim.p2.active[0].addVolatile('hafniaconcert');
     if (o.echo) {
       // A Resonance Rift: the Echo's frozen song lifts every stat of the wild Pokémon by one stage.
       const p = this.sim.p2.active[0];
@@ -848,6 +863,7 @@ export class BattleSession {
           else if (eff === 'Attract') evs.push({ b: 'text', text: `${this.nameOf(a1)} is in love with ${this.nameOf(kw('of') ?? a1, false)}!` });
           else if (eff === 'Protect') evs.push({ b: 'text', text: `${this.nameOf(a1)} protected itself!` });
           else if (eff === 'Patina') evs.push({ b: 'text', text: `${this.nameOf(a1)}'s patina kept its defenses\nfrom dropping!` });
+          else if (eff === 'Concert') evs.push({ b: 'text', text: `${this.nameOf(a1)} holds the note!\nThe song isn't whole yet.` });
           else if (eff === 'Echo') evs.push({ b: 'text', text: `The Echo's frozen song warps\n${this.nameOf(a1, false)}!` });
           else if (eff === 'Live Wire') evs.push({ b: 'text', text: `Live Wire! The Coil's spark jolts\n${this.nameOf(a1, false)} into action!` });
           break;

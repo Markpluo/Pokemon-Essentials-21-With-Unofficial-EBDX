@@ -143,3 +143,46 @@ test('post-game P4: the Bornholm ferry, a round-church shrine and Vinther under 
   expect(bot.said.join('\n')).toMatch(/investors just pulled out/);
   await bot.shot('pg4-broadcast');
 });
+
+test('post-game P5: the Fleet hydrofoil, the Deep Sound concert and the lighthouse @story', async ({ bot }) => {
+  test.setTimeout(360_000);
+  const P5 = { ch8done: true, ch12done: true, ch13done: true, pg1done: true, pg1harmony: true, pg2done: true, pg3done: true, pg4done: true, pg5: true };
+  const COIL = { copper: true, current: true, harmony: true };
+  await bot.loadSave(tweak(afterStarter('charmander'), {
+    map: 'christianshavn', x: 3, y: 8, dir: 'up', party: TEAM, badges: BADGES, noEncounters: true, coil: COIL, flags: P5
+  }));
+  bot.answers.push({ when: /Where to/, pick: 'Trekroner' });
+  await bot.talkTo(3, 6);                                   // the Black Fleet's hydrofoil
+  await bot.settle();
+  expect((await bot.state()).map).toBe('hafnia:trekroner');
+  expect(bot.said.join('\n')).toMatch(/My grandfather kept this lamp/);
+  await bot.shot('pg5-fort');
+
+  await bot.loadSave(tweak(afterStarter('charmander'), {
+    map: 'deepsound', x: 9, y: 4, dir: 'up', badges: BADGES,
+    party: [1, 2, 3].map(() => ({ species: 'blissey', level: 100, moves: ['seismictoss', 'softboiled'] })), noEncounters: true, coil: COIL, bag: { lastecho: 1 },
+    flags: { ...P5, pg5fort: true, pg5echo: true, noteLow: true, noteHigh: true, noteBoth: true }
+  }));
+  // Sing each mode once as soon as the Coil is charged (the narration says which ones have been sung).
+  const SUNG = { copper: /coated in a copper patina/, current: /The Coil surges/, harmony: /in harmony!/ };
+  bot.battlePlan = s => {
+    const c = s.battle?.request?.coil, said = bot.said.join('\n');
+    const mode = (['copper', 'current', 'harmony'] as const).find(m => c?.[m] === null && !SUNG[m].test(said));
+    return { move: 'Seismic Toss', ...(mode ? { coil: mode } : {}) };
+  };
+  await bot.talkTo(9, 1);                                   // the concert
+  await bot.settle();
+  expect(bot.said.join('\n')).toMatch(/holds the note/);
+  expect(bot.said.join('\n')).toMatch(/song is home/);
+  await bot.shot('pg5-concert');
+
+  await bot.loadSave(tweak(afterStarter('charmander'), {
+    map: 'tklighthouse', x: 4, y: 4, dir: 'up', party: TEAM, badges: BADGES, noEncounters: true, coil: COIL,
+    flags: { ...P5, pg5fort: true, pg5echo: true, pg5song: true }
+  }));
+  bot.answers.push({ when: /Charge the lamp/, pick: 'Charge it' });
+  await bot.talkTo(2, 4);                                   // Freja relights the lamp
+  await bot.settle();
+  expect(bot.said.join('\n')).toMatch(/a light answers/);
+  await bot.shot('pg5-lamp');
+});

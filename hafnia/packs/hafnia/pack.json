@@ -243,7 +243,12 @@
     "noctowl",
     "aerodactyl",
     "druddigon",
-    "volcarona"
+    "volcarona",
+    "milotic",
+    "lanturn",
+    "relicanth",
+    "mantine",
+    "overqwil"
   ],
   "pokemon": {
     "LANGELIRA": { "front": "pack:assets/pokemon/front/LANGELIRA.png", "back": "pack:assets/pokemon/back/LANGELIRA.png", "icons": "pack:assets/pokemon/icons/LANGELIRA.png", "cry": "Audio/SE/Cries/PRIMARINA.ogg" },
@@ -347,6 +352,7 @@
     "tr/enforcer": "Graphics/Trainers/TEAMROCKET_M.png",
     "tr/ivar": "Graphics/Trainers/HIKER.png",
     "tr/freja": "Graphics/Trainers/LEADER_Misty.png",
+    "tr/lastecho": "pack:assets/pokemon/front/LANGELIRA.png",
     "tr/alva": "Graphics/Trainers/LEADER_Erika.png",
     "chars/kasper": "Graphics/Characters/trainer_LEADER_Blaine.png",
     "tr/kasper": "Graphics/Trainers/LEADER_Blaine.png",
