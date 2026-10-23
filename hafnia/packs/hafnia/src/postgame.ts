@@ -3,7 +3,7 @@
 // Palm House, the new statue on Langelinie gives you the Mermaid's Tear shard and Harmony, Lukas and Maja give
 // you eggs of the two starters nobody picked, and Brix shows you the first Resonance Rift by Søerne.
 import type { BattleOptions, FoeSpec, NpcDef, Script, ScriptApi } from '@hafnia/core';
-import { itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
+import { ballsFor, itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
 import { STARTERS, lukasStarter, majaStarter } from './starters';
 
 function cast(s: ScriptApi, id: string, nearX = s.player.x, nearY = s.player.y) {
@@ -238,6 +238,7 @@ const kronvaktTalk: Script = function* (s) {
   if (!s.flag('pg2')) { s.say('pg2.kv.sleep'); return; }
   if (!s.flag('oathCopper') || !s.flag('oathCurrent') || !s.flag('oathOath')) { s.say('pg2.kv.notyet.1'); s.say('pg2.kv.notyet.2'); return; }
   s.say('pg2.kv.test.1'); s.say('pg2.kv.test.2');
+  ballsFor(s, 'Kaas');
   s.cry('kronvakt');
   const r = yield s.battle({ kind: 'wild', bg: 'indoor1', foes: [{ species: 'kronvakt', level: 70, moves: ['danishoath', 'closecombat', 'stoneedge', 'irondefense'] }] });
   if (r === 'lose') return;
@@ -592,6 +593,7 @@ const vintherTalk: Script = function* (s) {
 const kronikonTalk: Script = function* (s) {
   if (!s.flag('pg4vinther')) { s.say('pg4.kr.blocked'); return; }
   s.say('pg4.kr.1'); s.say('pg4.kr.2');
+  ballsFor(s, 'Maja');
   s.cry('kronikon');
   const r = yield s.battle({ kind: 'wild', bg: 'indoor1', foes: [{ species: 'kronikon', level: 75, moves: ['granitesong', 'dragonpulse', 'earthpower', 'calmmind'] }] });
   if (r === 'lose') return;

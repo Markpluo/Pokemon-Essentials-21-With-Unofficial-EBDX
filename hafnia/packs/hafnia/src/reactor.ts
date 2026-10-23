@@ -4,7 +4,7 @@
 // plea. Brix's shutdown sequence needs a voice; Maja puts the Pact Song on every speaker and the whole city sings
 // it. Langelira answers, the storm falls silent, and she waits to be caught. Kronvakt walks home to Kronborg.
 import type { NpcDef, Script, ScriptApi } from '@hafnia/core';
-import { grown, talk, trainer, type MapScripts, type Step } from './lib';
+import { ballsFor, grown, talk, trainer, type MapScripts, type Step } from './lib';
 import { lukasStarter } from './starters';
 
 // ---------- The chapter starts: the last train south ----------
@@ -94,9 +94,9 @@ const STORMHILL: MapScripts = {
   npcs: [
     { id: 'astrid12', sprite: 'chars/astrid', x: 3, y: 22, dir: 'right', when: f => !f('ch12done'), talk: astrid },
     { id: 'kronvakt12', sprite: 'chars/kronvakt', x: 9, y: 23, dir: 'up', when: f => !f('ch12done'), talk: talk('c12.sl.kronvakt') },
-    { id: 'iceA', sprite: 'obj:iceblock', x: 1, y: 18, dir: 'down', object: true, when: f => !f('c12iceA'), talk: ice('c12iceA') },
-    { id: 'iceB', sprite: 'obj:iceblock', x: 1, y: 12, dir: 'down', object: true, when: f => !f('c12iceB'), talk: ice('c12iceB') },
-    { id: 'iceC', sprite: 'obj:iceblock', x: 1, y: 6, dir: 'down', object: true, when: f => !f('c12iceC'), talk: ice('c12iceC') },
+    { id: 'iceA', sprite: 'obj:blackice', x: 1, y: 18, dir: 'down', object: true, when: f => !f('c12iceA'), talk: ice('c12iceA') },
+    { id: 'iceB', sprite: 'obj:blackice', x: 1, y: 12, dir: 'down', object: true, when: f => !f('c12iceB'), talk: ice('c12iceB') },
+    { id: 'iceC', sprite: 'obj:blackice', x: 1, y: 6, dir: 'down', object: true, when: f => !f('c12iceC'), talk: ice('c12iceC') },
     leader('tariq12', 'chars/tariq', 11, 20, 'down', 'c12.sl.tariq'),
     leader('alva12', 'chars/alva', 6, 17, 'down', 'c12.sl.alva'),
     leader('kasper12', 'chars/kasper', 3, 16, 'right', 'c12.sl.kasper'),
@@ -194,6 +194,7 @@ const langelira: Script = function* (s) {
   s.say('c12.lg.talk');
   const c: number = yield s.ask('c12.lg.ask', ['Yes', 'Not yet'], 1);
   if (c !== 0) return;
+  ballsFor(s, 'Maja');
   s.cry('langelira');
   const r = yield s.battle({ kind: 'wild', bg: 'city', foes: [{ species: 'langelira', level: 55, moves: ['sirensrequiem', 'psychic', 'calmmind', 'aquaring'] }] });
   if (r !== 'caught') { if (r !== 'lose') s.say('c12.lg.again'); return; }
