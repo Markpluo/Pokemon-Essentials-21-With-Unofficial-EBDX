@@ -80,3 +80,27 @@ test('post-game P2: Kystbanen to Helsingør, the Oath Trials and Kronvakt @story
   expect(bot.said.join('\n')).toMatch(/Kronvakt was caught/);
   await bot.shot('pg2-kronvakt');
 });
+
+test('post-game P3: the Øresund Bridge, Peberholm and Lumen Nord @story', async ({ bot }) => {
+  test.setTimeout(300_000);
+  const P3 = { ch12done: true, ch13done: true, pg1done: true, pg2done: true };
+  await bot.loadSave(tweak(afterStarter('charmander'), {
+    map: 'dragor', x: 19, y: 17, dir: 'up', party: TEAM, badges: BADGES, noEncounters: true, flags: P3
+  }));
+  await bot.talkTo(19, 16);                                 // the toll booth: the bridge is open again
+  await bot.settle();
+  expect((await bot.state()).map).toBe('hafnia:oresund');
+  await bot.walkTo(9, 4);                                   // the first gust
+  await bot.settle();
+  expect(bot.said.join('\n')).toMatch(/holds you steady/);
+  await bot.shot('pg3-bridge');
+
+  await bot.loadSave(tweak(afterStarter('charmander'), {
+    map: 'peberholm', x: 12, y: 8, dir: 'down', party: TEAM, badges: BADGES, noEncounters: true,
+    flags: { ...P3, pg3: true, pg3permit: true }
+  }));
+  await bot.talkTo(12, 13);                                 // Lumen Nord's field lead, then Vinther
+  await bot.settle();
+  expect(bot.said.join('\n')).toMatch(/Think of it as recycling/);
+  await bot.shot('pg3-vinther');
+});

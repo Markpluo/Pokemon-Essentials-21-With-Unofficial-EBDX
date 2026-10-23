@@ -403,3 +403,12 @@ export function postgame2(p: P) {
     }
   });
 }
+
+export function postgame3(p: P) {
+  grindMaps = ['oresund', 'peberholm'];
+  goal(p, 'the bridge toll', () => !!p.flag('pg3'), () => goto(p, 'oresund'));
+  goal(p, 'Bjørk\'s permit', () => !!p.flag('pg3permit'), () => { goto(p, 'oresund'); p.talkTo(22, 6); });
+  goal(p, 'Lumen Nord\'s field lead', () => !!p.flag('pg3lead'), () => { goto(p, 'peberholm'); p.talkTo(14, 3); p.talkTo(12, 13); });
+  p.answers.push({ when: /Touch it with the charged Coil/, pick: 'Touch it' });
+  goal(p, 'the great Echo', () => !!p.flag('pg3done'), () => { goto(p, 'peberholm'); p.talkTo(14, 3); p.talkTo(12, 16); });
+}
