@@ -104,3 +104,42 @@ test('post-game P3: the Øresund Bridge, Peberholm and Lumen Nord @story', async
   expect(bot.said.join('\n')).toMatch(/Think of it as recycling/);
   await bot.shot('pg3-vinther');
 });
+
+test('post-game P4: the Bornholm ferry, a round-church shrine and Vinther under Hammershus @story', async ({ bot }) => {
+  test.setTimeout(300_000);
+  const P4 = { ch12done: true, ch13done: true, pg1done: true, pg1harmony: true };
+  await bot.loadSave(tweak(afterStarter('charmander'), {
+    map: 'dragor', x: 20, y: 7, dir: 'up', party: TEAM, badges: BADGES, noEncounters: true, coil: { copper: true, current: true, harmony: true }, flags: P4
+  }));
+  bot.answers.push({ when: /Where to/, pick: 'Bornholm' });
+  await bot.talkTo(20, 5);                                  // the Bornholm ferry
+  await bot.settle();
+  expect((await bot.state()).map).toBe('hafnia:ronne');
+  expect(bot.said.join('\n')).toMatch(/Last issue of Undergrunden/);
+  await bot.shot('pg4-ronne');
+
+  await bot.loadSave(tweak(afterStarter('charmander'), {
+    map: 'route14', x: 6, y: 8, dir: 'up', party: TEAM, badges: BADGES, noEncounters: true, coil: { copper: true, current: true, harmony: true },
+    flags: { ...P4, pg4: true }
+  }));
+  bot.answers.push({ when: /charge the Coil/, pick: 'Copper' });
+  await bot.walkTo(6, 7);
+  await bot.step('up');                                     // Nyker church: a door sealed with patina
+  await bot.settle();
+  expect(bot.said.join('\n')).toMatch(/church starts to hum/);
+  await bot.shot('pg4-church');
+
+  await bot.loadSave(tweak(afterStarter('charmander'), {
+    map: 'hammerdeep', x: 11, y: 7, dir: 'up', party: [{ species: 'garchomp', level: 100, moves: ['earthquake', 'flamethrower', 'dragonclaw', 'swordsdance'] }, TEAM[1]],
+    badges: BADGES, noEncounters: true,
+    flags: { ...P4, pg4: true, shrineNyker: true, shrineNylars: true, shrineOlsker: true, shrineOsterlars: true }
+  }));
+  bot.battlePlan = s => {                                   // Flamethrower for the Steel types, Earthquake for the rest
+    const foe = s.battle?.foe?.name?.toLowerCase() ?? '';
+    return { move: /bronzong|magnezone/.test(foe) ? 'Flamethrower' : 'Earthquake' };
+  };
+  await bot.talkTo(11, 4);                                  // Vinther, then Maja's broadcast
+  await bot.settle();
+  expect(bot.said.join('\n')).toMatch(/investors just pulled out/);
+  await bot.shot('pg4-broadcast');
+});

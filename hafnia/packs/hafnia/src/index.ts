@@ -10,7 +10,7 @@ import { CISTERNS_SCRIPTS, ch5Start, frederiksbergGate } from './cisterns';
 import { CITY } from './city';
 import { DRAGOR_SCRIPTS } from './dragor';
 import { FREETOWN } from './freetown';
-import { HOME, intro } from './home';
+import { HOME, centerNpcs, intro } from './home';
 import { LAKES } from './lakes';
 import type { MapScripts } from './lib';
 import { starterVars } from './starters';
@@ -19,7 +19,7 @@ import { RUNDETARN_SCRIPTS, ch6Start } from './rundetarn';
 import { KRONBORG_SCRIPTS, SLOTSHOLMEN_CH11, broadcast, ch11Start } from './kronborg';
 import { LEAGUE_SCRIPTS, ch13Start, palaceDoor } from './league';
 import { SIM_DATA, SPECIES_EXTRA } from './legends';
-import { CASEMATES_PG2, DRAGOR_PG3, HELSINGOR_PG2, ORESUND_SCRIPTS, OSTERBRO_PG1, PEBERHOLM_SCRIPTS, PALM_PG1, ROUTE1_PG1, p1Start, p2Start, statueTear } from './postgame';
+import { CASEMATES_PG2, DRAGOR_PG3, DRAGOR_PG4, HAMMERDEEP_SCRIPTS, HAMMERSHUS_SCRIPTS, RONNE_SCRIPTS, ROUTE14_SCRIPTS, HELSINGOR_PG2, ORESUND_SCRIPTS, OSTERBRO_PG1, PEBERHOLM_SCRIPTS, PALM_PG1, ROUTE1_PG1, p1Start, p2Start, statueTear } from './postgame';
 import { REACTOR_SCRIPTS, ch12Start, smokestackGate } from './reactor';
 import { SHIPYARD_SCRIPTS, ch10Start, copenhillGate, shipyardsGate } from './shipyards';
 import { ROUTE4_LUKAS, SPIRE_SCRIPTS, ch9Start, route4Enter, slotsholmenGate } from './spire';
@@ -120,9 +120,14 @@ SCRIPTS.slotsholmen = { ...SCRIPTS.slotsholmen, doors: { ...SCRIPTS.slotsholmen.
   SCRIPTS.casemates = { ...SCRIPTS.casemates, npcs: [...(SCRIPTS.casemates.npcs ?? []), ...CASEMATES_PG2] };
 }
 // P3, the Bridge and the Island: the toll booth on Dragør's south quay opens the Øresund Bridge.
-SCRIPTS.dragor = { ...SCRIPTS.dragor, npcs: [...(SCRIPTS.dragor.npcs ?? []), ...DRAGOR_PG3] };
+SCRIPTS.dragor = { ...SCRIPTS.dragor, npcs: [...(SCRIPTS.dragor.npcs ?? []), ...DRAGOR_PG3, ...DRAGOR_PG4] };
 SCRIPTS.oresund = ORESUND_SCRIPTS;
 SCRIPTS.peberholm = PEBERHOLM_SCRIPTS;
+// P4, Granite Song: the Bornholm ferry from Dragør's quay, four round-church shrines, Hammershus and Krønikon.
+Object.assign(SCRIPTS, {
+  ronne: RONNE_SCRIPTS, pcronne: { npcs: centerNpcs('ronne', 10, 8) }, route14: ROUTE14_SCRIPTS,
+  hammershus: HAMMERSHUS_SCRIPTS, hammerdeep: HAMMERDEEP_SCRIPTS
+});
 SCRIPTS.nyhavn.exitGuards = { right: langelinieGate };
 SCRIPTS.dyrehaven.exitGuards = { up: bakkenGate };
 SCRIPTS.assistens.exitGuards = { up: lanternGate };

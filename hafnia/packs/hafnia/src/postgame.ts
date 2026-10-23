@@ -175,9 +175,10 @@ const TRIALS: { flag: string; key: string; name: string; sprite: string; opts: P
 ];
 
 const OATH_CHAIN: { name: string; foes: FoeSpec[] }[] = [
-  { name: 'Lone', foes: [{ species: 'electivire', level: 63, moves: ['wildcharge', 'icepunch', 'crosschop', 'earthquake'] }, { species: 'hariyama', level: 62, moves: ['closecombat', 'knockoff', 'bulletpunch', 'heavyslam'] }] },
-  { name: 'Dorte', foes: [{ species: 'magnezone', level: 64, moves: ['thunderbolt', 'flashcannon', 'triattack', 'protect'] }, { species: 'toxicroak', level: 64, moves: ['drainpunch', 'gunkshot', 'suckerpunch', 'icepunch'] }] },
-  { name: 'Søs', foes: [{ species: 'luxray', level: 64, moves: ['wildcharge', 'crunch', 'icefang', 'firefang'] }, { species: 'lucario', level: 65, moves: ['aurasphere', 'flashcannon', 'darkpulse', 'vacuumwave'], item: 'sitrusberry' }] }
+  // One Pokémon each for the first two and no Fighting moves for Søs: with Overcharge on top, the chain was a wall.
+  { name: 'Lone', foes: [{ species: 'electivire', level: 63, moves: ['wildcharge', 'icepunch', 'crosschop', 'earthquake'] }] },
+  { name: 'Dorte', foes: [{ species: 'magnezone', level: 64, moves: ['thunderbolt', 'flashcannon', 'triattack', 'protect'] }] },
+  { name: 'Søs', foes: [{ species: 'luxray', level: 63, moves: ['wildcharge', 'crunch', 'icefang', 'firefang'] }, { species: 'manectric', level: 64, moves: ['thunderbolt', 'flamethrower', 'overheat', 'voltswitch'], item: 'sitrusberry' }] }
 ];
 
 const trialTalk = (t: (typeof TRIALS)[number]): Script => function* (s) {
@@ -433,5 +434,182 @@ export const PEBERHOLM_SCRIPTS: MapScripts = {
     { id: 'bigecho', sprite: 'obj:echo', x: 12, y: 16, dir: 'down', object: true, talk: bigEchoTalk },
     itemBall('item.pb1', 4, 4, 'expcandyl', 1, 'an Exp. Candy L'),
     itemBall('item.pb2', 21, 13, 'ultraball', 5, 'Ultra Balls')
+  ]
+};
+
+// ---------- P4, Granite Song: Bornholm and Krønikon ----------
+// The ferry to Bornholm with Maja, out for the last issue of Undergrunden. The granite hums the way Langelira did:
+// the siphon pulled from Krønikon too. Four round churches are Coil shrines; when all four hum, Hammershus opens.
+// Vinther's Lumen Nord tries to drill the Wyrm's chamber, and Maja broadcasts it live.
+
+/** The Bornholm ferry on Dragør's quay (the Køge boat calls here in the post-game). */
+const bornholmFerry: Script = function* (s) {
+  if (!s.flag('pg1done')) { s.say('pg4.ferry.closed'); return; }
+  const c: number = yield s.ask('pg4.ferry.ask', ['Bornholm', 'Stay'], 1);
+  if (c !== 0) return;
+  s.sfx('door'); s.fade(1, 20);
+  s.warp('ronne', 5, 9, 'right');
+  s.fade(0, 20);
+  if (s.flag('pg4')) return;
+  s.setFlag('pg4', true);
+  s.chapterEnd('Post-game', 'Granite Song');
+  s.say('pg4.start.1');
+  cast(s, 'majapg4');
+  s.say('pg4.maja.1'); s.say('pg4.maja.2'); s.say('pg4.maja.3');
+  s.checkpoint();
+};
+
+export const DRAGOR_PG4: NpcDef[] = [
+  { id: 'bornferry', sprite: 'chars/sailor', x: 20, y: 5, dir: 'left', talk: bornholmFerry }
+];
+
+const ronneFerry: Script = function* (s) {
+  const c: number = yield s.ask('pg4.ferry.back', ['Dragør', 'Stay'], 1);
+  if (c !== 0) return;
+  s.sfx('door'); s.fade(1, 20);
+  s.warp('dragor', 20, 6, 'up');
+  s.fade(0, 20);
+};
+
+export const RONNE_SCRIPTS: MapScripts = {
+  doors: { pc: function* (s) { s.warp('pcronne', 6, 5, 'up'); } },
+  npcs: [
+    { id: 'ronneferry', sprite: 'chars/sailor', x: 4, y: 10, dir: 'right', talk: ronneFerry },
+    { id: 'majapg4', sprite: 'chars/maja', x: 7, y: 8, dir: 'down', when: f => !!f('pg4') && !f('pg4done'), talk: talk('pg4.maja.hint') },
+    sign('ronnesign', 13, 8, 'obj:sign', 'pg4.ronne.sign'),
+    { id: 'ronneold', sprite: 'chars/oldwoman', x: 18, y: 10, dir: 'left', talk: talk('pg4.ronne.old') },
+    itemBall('item.rn1', 24, 15, 'expcandyl', 1, 'an Exp. Candy L')
+  ]
+};
+
+/** The four round churches, each a Coil shrine: answer what the church needs with the right mode. */
+const SHRINES: { id: string; name: string; mode: number; flag: string }[] = [
+  { id: 'nyker', name: 'Nyker', mode: 0, flag: 'shrineNyker' },
+  { id: 'nylars', name: 'Nylars', mode: 1, flag: 'shrineNylars' },
+  { id: 'olsker', name: 'Olsker', mode: 2, flag: 'shrineOlsker' },
+  { id: 'osterlars', name: 'Østerlars', mode: 1, flag: 'shrineOsterlars' }
+];
+export const shrinesDone = (f: (n: string) => unknown) => SHRINES.every(sh => !!f(sh.flag));
+
+const shrine = (sh: typeof SHRINES[number]): Script => function* (s) {
+  if (!s.flag('pg4')) { s.say('pg4.church.shut'); return; }
+  if (s.flag(sh.flag)) { s.say('pg4.church.humming'); return; }
+  // Østerlars has a Lumen Nord crew inside, trying to fit a meter to the pillar.
+  if (sh.id === 'osterlars' && !s.flag('pg4crew')) {
+    s.say('pg4.crew.1');
+    const r = yield s.battle({
+      kind: 'trainer', ai: 3, bg: 'indoor1', trainer: { name: 'Ansel', title: 'Lumen Nord Field Lead', sprite: 'tr/scientist' },
+      foes: [
+        { species: 'magnezone', level: 68, moves: ['thunderbolt', 'flashcannon', 'bodypress', 'voltswitch'] },
+        { species: 'porygonz', level: 68, moves: ['triattack', 'icebeam', 'thunderbolt', 'nastyplot'] },
+        { species: 'klinklang', level: 69, moves: ['geargrind', 'wildcharge', 'shiftgear', 'rockslide'] }
+      ]
+    });
+    if (r !== 'win') return;
+    s.setFlag('pg4crew', true);
+    s.say('pg4.crew.2');
+  }
+  s.say(`pg4.church.${sh.id}`);
+  const c: number = yield s.ask('pg4.church.ask', s.flag('pg1harmony') ? ['Copper', 'Current', 'Harmony', 'Leave'] : ['Copper', 'Current', 'Leave'], 3);
+  if (c === (s.flag('pg1harmony') ? 3 : 2)) return;
+  if (c !== sh.mode) { s.sfx('hit_weak'); s.say('pg4.church.wrong'); return; }
+  s.sfx('hit_super'); s.fade(0.5, 6); s.fade(0, 6);
+  s.setFlag(sh.flag, true);
+  s.say('pg4.church.open');
+  if (shrinesDone(s.flag.bind(s))) { s.say('pg4.church.all.1'); s.say('pg4.church.all.2'); }
+  s.checkpoint();
+};
+
+/** The smokehouse on the coast road: smoked herring for the team. */
+const smokehouse: Script = function* (s) {
+  s.say('pg4.smoke.1'); s.heal(); s.me('me_heal'); s.say('pg4.smoke.2');
+};
+
+export const ROUTE14_SCRIPTS: MapScripts = {
+  doors: Object.fromEntries(SHRINES.map(sh => [sh.id, shrine(sh)])),
+  npcs: [
+    { id: 'smoker', sprite: 'chars/chef', x: 21, y: 8, dir: 'down', talk: smokehouse },
+    sign('r14sign', 2, 8, 'obj:sign', 'pg4.r14.sign'),
+    sign('cliffsign', 37, 8, 'obj:sign', 'pg4.r14.cliffs'),
+    trainer({ id: 'bh1', x: 12, y: 8, dir: 'down', sprite: 'chars/acem', sight: 3, cls: 'Ace Trainer', name: 'Rasmus',
+      foes: [{ species: 'lycanroc', level: 67, moves: ['stoneedge', 'closecombat', 'crunch', 'accelerock'] }, { species: 'copperajah', level: 68, moves: ['heavyslam', 'playrough', 'superpower', 'rockslide'] }],
+      intro: ['pg4.bh1.intro'], lose: ['pg4.bh1.lose'] }),
+    trainer({ id: 'bh2', x: 25, y: 10, dir: 'up', sprite: 'chars/fisher', sight: 3, cls: 'Fisher', name: 'Holger',
+      foes: [{ species: 'barraskewda', level: 67, moves: ['liquidation', 'closecombat', 'psychicfangs', 'aquajet'] }, { species: 'gyarados', level: 68, moves: ['waterfall', 'crunch', 'icefang', 'dragondance'] }],
+      intro: ['pg4.bh2.intro'], lose: ['pg4.bh2.lose'] }),
+    trainer({ id: 'bh3', x: 33, y: 8, dir: 'down', sprite: 'chars/painter', sight: 3, cls: 'Glassblower', name: 'Ida',
+      foes: [{ species: 'volcarona', level: 68, moves: ['fierydance', 'bugbuzz', 'gigadrain', 'quiverdance'] }, { species: 'garganacl', level: 68, moves: ['saltcure', 'stoneedge', 'bodypress', 'recover'] }],
+      intro: ['pg4.bh3.intro'], lose: ['pg4.bh3.lose'] }),
+    itemBall('item.r14a', 22, 5, 'ultraball', 5, 'Ultra Balls'),
+    itemBall('item.r14b', 3, 14, 'expcandyl', 1, 'an Exp. Candy L')
+  ]
+};
+
+export const HAMMERSHUS_SCRIPTS: MapScripts = {
+  doors: {
+    gate: function* (s) {
+      if (!shrinesDone(s.flag.bind(s))) { s.say('pg4.gate.locked'); return; }
+      s.sfx('door'); s.warp('hammerdeep', 12, 9, 'up');
+    }
+  },
+  npcs: [
+    { id: 'rig', sprite: 'obj:terminal', x: 17, y: 4, dir: 'down', object: true, when: f => !f('pg4vinther'), talk: talk('pg4.rig') },
+    { id: 'hsdrone', sprite: 'obj:drone', x: 16, y: 6, dir: 'down', object: true, when: f => !f('pg4vinther'), talk: talk('pg3.drone') },
+    sign('hssign', 7, 8, 'obj:sign', 'pg4.hs.sign'),
+    { id: 'hsranger', sprite: 'chars/ranger', x: 5, y: 10, dir: 'right', talk: function* (s) {
+      s.say('pg4.hs.ranger'); s.heal(); s.me('me_heal');
+      s.setRespawn('hammershus', 5, 11, 'up', s.t('pg4.hs.respawn'));
+      s.checkpoint();
+    } }
+  ]
+};
+
+/** Vinther at the chamber door, then Maja's broadcast, then the Wyrm. */
+const vintherTalk: Script = function* (s) {
+  if (s.flag('pg4vinther')) return;
+  s.say('pg4.vinther.1'); s.say('pg4.vinther.2');
+  const r = yield s.battle({
+    kind: 'trainer', ai: 3, bg: 'indoor1', trainer: { name: 'Henrietta Vinther', title: 'Lumen Nord CEO', sprite: 'tr/lawyer' },
+    foes: [
+      { species: 'bronzong', level: 69, moves: ['gyroball', 'earthquake', 'psychic', 'stealthrock'] },
+      { species: 'magnezone', level: 69, moves: ['thunderbolt', 'flashcannon', 'voltswitch', 'bodypress'] },
+      { species: 'porygonz', level: 70, moves: ['triattack', 'icebeam', 'darkpulse', 'thunderbolt'] },
+      { species: 'ampharos', level: 72, moves: ['thunderbolt', 'dragonpulse', 'focusblast', 'powergem'], item: 'sitrusberry' }
+    ]
+  });
+  if (r !== 'win') return;
+  s.setFlag('pg4vinther', true);
+  s.say('pg4.vinther.3');
+  const m = cast(s, 'majapg4d');
+  s.say('pg4.broadcast.1'); s.say('pg4.broadcast.2'); s.say('pg4.broadcast.3');
+  s.say('pg4.vinther.4');
+  s.npc('vinther4').hide();
+  s.say('pg4.broadcast.4');
+  m.hide();
+  s.checkpoint();
+};
+
+const kronikonTalk: Script = function* (s) {
+  if (!s.flag('pg4vinther')) { s.say('pg4.kr.blocked'); return; }
+  s.say('pg4.kr.1'); s.say('pg4.kr.2');
+  s.cry('kronikon');
+  const r = yield s.battle({ kind: 'wild', bg: 'indoor1', foes: [{ species: 'kronikon', level: 75, moves: ['granitesong', 'dragonpulse', 'earthpower', 'calmmind'] }] });
+  if (r === 'lose') return;
+  if (r !== 'caught') { s.say('pg4.kr.again'); return; }
+  s.setFlag('pg4done', true);
+  s.say('pg4.kr.caught.1'); s.say('pg4.kr.caught.2');
+  s.checkpoint();
+  s.chapterEnd('Post-game', 'Granite Song complete');
+  s.say('pg4.end');
+};
+
+export const HAMMERDEEP_SCRIPTS: MapScripts = {
+  npcs: [
+    { id: 'kronikon', sprite: 'chars/kronikon', x: 11, y: 1, dir: 'down', when: f => !f('pg4done'), talk: kronikonTalk },
+    { id: 'vinther4', sprite: 'chars/lawyer', x: 11, y: 4, dir: 'down', when: f => !f('pg4vinther'), talk: vintherTalk },
+    { id: 'majapg4d', sprite: 'chars/maja', x: 12, y: 6, dir: 'up', hidden: true },
+    { id: 'hdworker', sprite: 'chars/scientist', x: 19, y: 7, dir: 'left', when: f => !f('pg4vinther'), talk: talk('pg4.hd.worker') },
+    itemBall('item.hd1', 2, 7, 'expcandyl', 2, 'Exp. Candy L'),
+    itemBall('item.hd2', 21, 8, 'ultraball', 5, 'Ultra Balls')
   ]
 };
