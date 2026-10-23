@@ -320,7 +320,7 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
       g.fillStyle = `rgba(160,200,255,${0.25 + 0.2 * Math.sin(time / 15)})`; g.beginPath(); g.arc(dx + 16, dy + 4, 5, 0, 7); g.fill(); break;
     case 'monument': box(6, 2, 20, 26, '#b9b4a6'); box(8, 4, 16, 22, '#cfcabb'); box(4, 26, 24, 5, '#8f8a7c');
       for (let i = 0; i < 4; i++) box(10, 8 + i * 4, 12 - (i % 2) * 3, 1, '#8f8a7c'); break;
-    case 'iceblock':  // a wall of black ice across the ski slope
+    case 'blackice':  // a wall of black ice across the ski slope
       box(1, 6, 30, 25, '#24384a'); box(3, 8, 26, 21, '#35546e'); box(5, 10, 8, 4, '#6f97b8'); box(17, 16, 6, 3, '#5a83a6');
       g.fillStyle = 'rgba(220,240,255,0.55)'; g.fillRect(dx + 7, dy + 11, 3, 1); g.fillRect(dx + 19, dy + 17, 2, 1); break;
     case 'knight':   // Holger Danske asleep on his throne, sword across his knees
@@ -442,11 +442,11 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
       g.fillStyle = '#c9574b'; g.beginPath(); g.moveTo(0, -5); g.lineTo(4, 0); g.lineTo(0, 5); g.lineTo(-4, 0); g.fill();
       g.restore(); break;
     }
-    case 'mirror':
+    case 'hallmirror':
       box(4, 1, 24, 30, '#c9a24a'); box(6, 3, 20, 26, '#b8d4e8');
       g.fillStyle = 'rgba(255,255,255,0.45)'; g.beginPath(); g.moveTo(dx + 8, dy + 26); g.lineTo(dx + 18, dy + 5); g.lineTo(dx + 22, dy + 5); g.lineTo(dx + 12, dy + 26); g.fill();
       break;
-    case 'terminal':
+    case 'vgterminal':
       box(4, 4, 24, 26, '#3b3f4a'); box(7, 7, 18, 11, (time >> 4) % 2 ? '#1d6fb8' : '#2a7fcc');
       g.fillStyle = '#fff'; g.font = 'bold 6px sans-serif'; g.fillText('VG', dx + 12, dy + 15);
       for (let i = 0; i < 3; i++) box(8 + i * 6, 21, 4, 4, ['#c9574b', '#e8c35a', '#4fae5b'][i]); break;

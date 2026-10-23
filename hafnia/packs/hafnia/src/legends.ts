@@ -67,7 +67,7 @@ export const SPECIES_EXTRA: Record<string, SpeciesExtra> = {
       [50, 'hammerarm'], [60, 'danishoath'], [70, 'closecombat'], [80, 'heavyslam']]
   },
   kronikon: {
-    key: 'KRONIKON', catchRate: 30, baseExp: 300, growth: 'Slow', category: 'Baltic Wyrm',
+    key: 'KRONIKON', name: 'Krønikon', catchRate: 30, baseExp: 300, growth: 'Slow', category: 'Baltic Wyrm',
     dex: 'It sleeps coiled in Bornholm\'s granite and hums the island\'s chronicle. The stone remembers everything it sings.',
     moves: [[1, 'rockthrow'], [1, 'dragonbreath'], [10, 'ancientpower'], [20, 'dragonpulse'], [30, 'stealthrock'], [40, 'powergem'],
       [50, 'granitesong'], [60, 'earthpower'], [70, 'dracometeor'], [80, 'calmmind']]

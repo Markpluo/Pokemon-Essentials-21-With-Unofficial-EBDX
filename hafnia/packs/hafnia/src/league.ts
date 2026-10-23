@@ -180,7 +180,7 @@ const TOWERROOF: MapScripts = {
   npcs: [
     { id: 'orsted13', sprite: 'chars/prof', x: 4, y: 2, dir: 'down', when: f => !f('ch13done'), talk: function* (s) { yield* champions(s); } },
     { id: 'lukas13', sprite: 'chars/lukas', x: 6, y: 2, dir: 'down', when: f => !f('ch13done'), talk: function* (s) { yield* champions(s); } },
-    { id: 'maja13', sprite: 'chars/maja', x: 5, y: 4, dir: 'up', hidden: true }
+    { id: 'maja13', sprite: 'chars/maja', x: 5, y: 4, dir: 'up', hidden: true, when: f => !f('ch13done') }
   ]
 };
 

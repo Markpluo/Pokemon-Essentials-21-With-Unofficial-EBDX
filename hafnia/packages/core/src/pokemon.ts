@@ -35,6 +35,8 @@ export interface SpeciesExtra {
   key: string; catchRate: number; baseExp: number; growth: string;
   moves: [number, string][]; evolutions?: [string, string, string][]; category?: string; dex?: string;
   hatchSteps?: number;
+  /** Display name, when it differs from the simulator's (Showdown names are ASCII, so Krønikon is "Kronikon" there). */
+  name?: string;
 }
 const EXTRA = pbsSpecies as unknown as Record<string, SpeciesExtra>;
 
@@ -46,7 +48,7 @@ export function speciesExtra(id: string): SpeciesExtra {
   if (!e) throw new Error(`No species data for "${id}"`);
   return e;
 }
-export const speciesName = (id: string) => Dex.species.get(id).name;
+export const speciesName = (id: string) => EXTRA[id]?.name ?? Dex.species.get(id).name;
 export const speciesTypes = (id: string) => Dex.species.get(id).types.map(t => t.toLowerCase());
 export const monName = (m: Mon) => m.nickname || speciesName(m.species);
 export const moveName = (id: string) => Dex.moves.get(id).name;
