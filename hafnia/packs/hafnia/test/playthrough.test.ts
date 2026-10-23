@@ -166,7 +166,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step through the story and post-game P1-P3', () => {
+  it('plays from the first step through the story and post-game P1-P4', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -726,7 +726,7 @@ describe('Hafnia demo', () => {
     expect(flag('oathOath'), d.where()).toBe(true);
     d.s.party.forEach(healMon);
     // A player would wear it down first; here a wall of Lv 100 Skarmory (Kronvakt's moves barely scratch it) keeps throwing Ultra Balls.
-    d.s.party.splice(0, 6, ...[1, 2, 3].map(i => makeMon('skarmory', 100, new Rng(i), { moves: ['roost'] })));
+    d.s.party.splice(0, 6, ...[1, 2, 3, 4, 5, 6].map(i => makeMon('skarmory', 100, new Rng(i), { moves: ['roost'] })));
     d.s.bag.ultraball = 99; d.ball = 'ultraball';
     d.talkTo(18, 1);
     d.ball = null;
@@ -753,6 +753,32 @@ describe('Hafnia demo', () => {
     d.answers.push(0); d.talkTo(12, 16);                       // the great Echo opens on a Paradox Pokémon
     expect(flag('pg3done'), d.where()).toBe(true);
     expect(d.s.bag.echoshard).toBeGreaterThanOrEqual(3);
+
+    // Post-game P4, Granite Song: the Bornholm ferry, four round-church shrines, Vinther under Hammershus, Krønikon
+    d.s.party[0].moves = [{ id: 'flamethrower', pp: 99 }, { id: 'psychic', pp: 99 }];
+    d.s.party.forEach(healMon);
+    Object.assign(d.s, { map: 'hafnia:dragor', x: 20, y: 7, dir: 'up' as Dir });
+    d.answers.push(0); d.talkTo(20, 5); at('ronne');
+    expect(flag('pg4'), d.where()).toBe(true);
+    d.exit('right', 25, 9); at('route14');
+    // Each church wants one Coil mode (Copper, Current, Harmony, Current); Østerlars has a Lumen Nord crew inside first.
+    for (const [x, y, pick] of [[6, 6, 0], [17, 15, 1], [27, 6, 2], [35, 15, 1]]) {
+      d.s.party.forEach(healMon);
+      d.walkTo(x, y + 1); d.answers.push(pick); d.send({ t: 'step', dir: 'up' });
+    }
+    expect([flag('shrineNyker'), flag('shrineNylars'), flag('shrineOlsker'), flag('shrineOsterlars')], d.where()).toEqual([true, true, true, true]);
+    d.exit('right', 43, 9); at('hammershus');
+    d.walkTo(13, 7); d.send({ t: 'step', dir: 'up' }); at('hammerdeep');
+    d.s.party.forEach(healMon);
+    d.talkTo(11, 4);                                            // Vinther, then Maja's live broadcast
+    expect(flag('pg4vinther'), d.where()).toBe(true);
+    expect(d.said.join('\n')).toMatch(/investors just pulled out/);
+    d.s.party.splice(0, 6, ...[1, 2, 3, 4, 5, 6].map(i => makeMon('bronzong', 100, new Rng(20 + i), { moves: ['irondefense'] })));
+    d.s.bag.ultraball = 99; d.ball = 'ultraball';
+    d.talkTo(11, 1);                                            // the Baltic Wyrm
+    d.ball = null;
+    expect([...d.s.party, ...d.s.box].some(m => m.species === 'kronikon'), d.where()).toBe(true);
+    expect(flag('pg4done')).toBe(true);
   }, 30_000);
 
   it('a wrong steam valve closes them all again', () => {

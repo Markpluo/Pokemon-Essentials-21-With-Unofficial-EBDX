@@ -1515,6 +1515,85 @@ function peberholm(): MapData {
   };
 }
 
+// ---------- Post-game P4: Bornholm ----------
+
+// Rønne: the ferry harbour on Bornholm's west coast. Half-timbered houses, the smokehouse chimneys up the coast.
+function ronne(): MapData {
+  const W = 26, H = 18, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 2, 'T'); fill(g, 0, 16, W, 2, 'T');
+  fill(g, 0, 0, 4, H, '~');                   // the Baltic
+  fill(g, 4, 2, 1, 14, 'q');                  // the ferry quay
+  fill(g, 5, 9, 21, 1, '=');                  // Store Torv out to the coast road
+  fill(g, 14, 2, 1, 7, 'q');
+  fill(g, 16, 11, 6, 3, 'g'); fill(g, 6, 13, 5, 2, 'g');
+  dots(g, 'f', [[6, 7], [7, 7], [12, 3], [13, 3], [18, 7], [19, 7], [12, 11], [13, 11]]);
+  return {
+    id: 'ronne', name: 'Rønne, Bornholm', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
+    buildings: [{ s: 'pc', x: 8, y: 3, id: 'pc' }, { s: 'red', x: 16, y: 3 }, { s: 'orange', x: 20, y: 3 }, { s: 'green', x: 6, y: 10 }],
+    encounters: [[35, 'lycanroc'], [25, 'pelipper'], [20, 'garganacl'], [20, 'noctowl']], levels: [64, 67],
+    fishing: [[50, 'barraskewda'], [30, 'sharpedo'], [20, 'lapras']], fishLevels: [64, 67],
+    exits: { right: { to: 'route14', offset: 0 } }
+  };
+}
+
+// Route 14: the Bornholm coast from Rønne to Hammershus. Granite, smokehouses and four round churches.
+function route14(): MapData {
+  const W = 44, H = 18, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 1, 'T'); fill(g, 0, 17, W, 1, 'T');
+  fill(g, 0, 9, W, 1, '=');                   // the coast road
+  fill(g, 3, 1, 6, 1, 'T'); fill(g, 30, 1, 4, 1, 'T');
+  fill(g, 10, 2, 4, 5, 'g'); fill(g, 20, 3, 5, 4, 'g'); fill(g, 2, 11, 6, 4, 'g'); fill(g, 23, 11, 5, 5, 'g'); fill(g, 38, 2, 4, 5, 'g');
+  fill(g, 14, 12, 1, 4, 'T'); fill(g, 30, 12, 2, 2, 'T'); fill(g, 40, 12, 3, 3, 'T');
+  dots(g, 'f', [[5, 7], [15, 7], [19, 8], [29, 7], [33, 8], [12, 16], [21, 15], [36, 16]]);
+  return {
+    id: 'route14', name: 'Route 14: Bornholm Coast', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld',
+    buildings: [
+      { s: 'tower', x: 5, y: 2, id: 'nyker' }, { s: 'tower', x: 16, y: 11, id: 'nylars' },
+      { s: 'tower', x: 26, y: 2, id: 'olsker' }, { s: 'tower', x: 34, y: 11, id: 'osterlars' }
+    ],
+    encounters: [[25, 'lycanroc'], [20, 'copperajah'], [20, 'garganacl'], [15, 'gigalith'], [10, 'aerodactyl'], [10, 'pelipper']],
+    encountersNight: [[30, 'noctowl'], [25, 'lycanroc'], [20, 'crobat'], [15, 'gigalith'], [10, 'druddigon']],
+    levels: [66, 70],
+    exits: { left: { to: 'ronne', offset: 0 }, right: { to: 'hammershus', offset: 0 } }
+  };
+}
+
+// Hammershus: the castle ruin on the northern cliffs. Lumen Nord's drill rig sits in the bailey.
+function hammershus(): MapData {
+  const W = 26, H = 18, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 2, '~'); fill(g, 22, 0, 4, H, '~'); fill(g, 0, 16, W, 2, 'T');
+  fill(g, 3, 2, 18, 1, 'n'); fill(g, 21, 2, 1, 14, 'n');        // the cliff edge
+  fill(g, 0, 9, 14, 1, '='); fill(g, 13, 7, 1, 3, '=');
+  fill(g, 3, 11, 6, 4, 'g'); fill(g, 15, 11, 5, 4, 'g');
+  fill(g, 16, 4, 3, 2, 'a');                  // the drill rig's pad
+  return {
+    id: 'hammershus', name: 'Hammershus', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld',
+    buildings: [{ s: 'kastellet', x: 10, y: 4, id: 'gate' }],
+    encounters: [[30, 'lycanroc'], [25, 'aerodactyl'], [25, 'gigalith'], [20, 'garganacl']], levels: [67, 70],
+    exits: { left: { to: 'route14', offset: 0 } }
+  };
+}
+
+// Under Hammershus: granite halls down to the chamber where Krønikon sleeps.
+const hammerdeep = (): MapData => ({
+  id: 'hammerdeep', name: 'Hammershus Depths', ...grid([
+    'RRRRRRRRRRRRRRRRRRRRRRR',
+    'RRRRRRRRccccccRRRRRRRRR',
+    'RRRRRRRRccccccRRRRRRRRR',
+    'RRRRRRRRccccccRRRRRRRRR',
+    'RRRRRRRRRRccRRRRRRRRRRR',
+    'RcccccccccccccccccccccR',
+    'RcccRRRRcccccRRRRRRccRR',
+    'RcccRRRRcccccRccccccccR',
+    'RcccccccccRRRRccRRRcccR',
+    'RRRRRRccccccccccccccccR',
+    'RRRRRRRRRRRRmRRRRRRRRRR'
+  ]),
+  battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true, dark: true,
+  encounterTile: 'c', encounters: [[30, 'golurk'], [25, 'gigalith'], [20, 'excadrill'], [15, 'druddigon'], [10, 'garganacl']], levels: [67, 70],
+  warps: [{ x: 12, y: 10, to: 'hammershus', tx: 13, ty: 7, dir: 'down' }]
+});
+
 export const MAPS = {
   norrebro: norrebro(), flat: flat(), lukasflat: lukasFlat(), pcnorrebro: center('pcnorrebro', 'Pokémon Center', 'norrebro', 22, 8),
   gym1: gym1(), bridge: bridge(), route1: route1(), garden: garden(), palmhouse: palmhouse(), tunnels: tunnels(),
@@ -1537,5 +1616,6 @@ export const MAPS = {
   pchelsingor: center('pchelsingor', 'Pokémon Center', 'helsingor', 5, 14), casemates: casemates(),
   stormhill: stormhill(), smokestack: smokestack(),
   oresund: oresund(), peberholm: peberholm(),
+  ronne: ronne(), pcronne: center('pcronne', 'Pokémon Center', 'ronne', 10, 8), route14: route14(), hammershus: hammershus(), hammerdeep: hammerdeep(),
   leaguehall: leaguehall(), stables: stables(), admiral: admiral(), greathall: greathall(), towerstairs: towerstairs(), towerroof: towerroof()
 };

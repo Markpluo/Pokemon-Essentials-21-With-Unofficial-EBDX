@@ -22,6 +22,12 @@ export const SIM_DATA: Record<string, Record<string, unknown>> = {
       num: -2003, name: 'Kronvakt', types: ['Steel', 'Fighting'], gender: 'N',
       baseStats: { hp: 105, atk: 130, def: 130, spa: 65, spd: 100, spe: 70 },
       abilities: { 0: 'Steadfast' }, heightm: 3.4, weightkg: 520, color: 'Brown', eggGroups: ['Undiscovered']
+    },
+    // The Baltic Wyrm asleep in Bornholm's granite; the siphon pulled from it too. (Showdown ids are ASCII, so no ø.)
+    kronikon: {
+      num: -2004, name: 'Kronikon', types: ['Dragon', 'Rock'], gender: 'N',
+      baseStats: { hp: 110, atk: 95, def: 120, spa: 125, spd: 95, spe: 75 },
+      abilities: { 0: 'Solid Rock' }, heightm: 9.1, weightkg: 680, color: 'Gray', eggGroups: ['Undiscovered']
     }
   },
   Moves: {
@@ -37,6 +43,12 @@ export const SIM_DATA: Record<string, Record<string, unknown>> = {
       num: -2002, name: 'Danish Oath', type: 'Steel', category: 'Physical', basePower: 70, accuracy: true, pp: 10, priority: 0,
       flags: { protect: 1, mirror: 1, contact: 1 }, target: 'normal',
       basePowerCallback(pokemon: { side: { totalFainted: number } }) { return 70 + 20 * Math.min(4, pokemon.side.totalFainted); }
+    },
+    granitesong: {
+      // The chronicle in the stone: a hum that hardens the singer.
+      num: -2003, name: 'Granite Song', type: 'Rock', category: 'Special', basePower: 90, accuracy: 100, pp: 10, priority: 0,
+      flags: { protect: 1, mirror: 1, sound: 1, bypasssub: 1 }, target: 'normal',
+      secondary: { chance: 30, self: { boosts: { def: 1, spd: 1 } } }
     }
   }
 };
@@ -53,6 +65,12 @@ export const SPECIES_EXTRA: Record<string, SpeciesExtra> = {
     dex: 'A granite giant that swore an oath with Holger Danske. Its copper crown hums when Hafnia is in danger.',
     moves: [[1, 'rocktomb'], [1, 'metalclaw'], [10, 'bulkup'], [20, 'brickbreak'], [30, 'ironhead'], [40, 'irondefense'],
       [50, 'hammerarm'], [60, 'danishoath'], [70, 'closecombat'], [80, 'heavyslam']]
+  },
+  kronikon: {
+    key: 'KRONIKON', catchRate: 30, baseExp: 300, growth: 'Slow', category: 'Baltic Wyrm',
+    dex: 'It sleeps coiled in Bornholm\'s granite and hums the island\'s chronicle. The stone remembers everything it sings.',
+    moves: [[1, 'rockthrow'], [1, 'dragonbreath'], [10, 'ancientpower'], [20, 'dragonpulse'], [30, 'stealthrock'], [40, 'powergem'],
+      [50, 'granitesong'], [60, 'earthpower'], [70, 'dracometeor'], [80, 'calmmind']]
   },
   rotomreactor: {
     key: 'ROTOM_REACTOR', catchRate: 0, baseExp: 250, growth: 'Medium', category: 'Plasma',

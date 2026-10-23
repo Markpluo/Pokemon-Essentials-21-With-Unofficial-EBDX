@@ -412,3 +412,25 @@ export function postgame3(p: P) {
   p.answers.push({ when: /Touch it with the charged Coil/, pick: 'Touch it' });
   goal(p, 'the great Echo', () => !!p.flag('pg3done'), () => { goto(p, 'peberholm'); p.talkTo(14, 3); p.talkTo(12, 16); });
 }
+
+export function postgame4(p: P) {
+  grindMaps = ['route14', 'hammerdeep'];
+  goal(p, 'the Bornholm ferry', () => !!p.flag('pg4'), () => goto(p, 'ronne'));
+  shopAndHeal(p, 'pcronne');
+  const shrines: [string, string, string][] = [['nyker', 'shrineNyker', 'Copper'], ['nylars', 'shrineNylars', 'Current'],
+    ['olsker', 'shrineOlsker', 'Harmony'], ['osterlars', 'shrineOsterlars', 'Current']];
+  for (const [door, flag, pick] of shrines) goal(p, `the ${door} shrine`, () => !!p.flag(flag), () => {
+    goto(p, 'route14');
+    p.answers.push({ when: /How do you charge the Coil/, pick, once: true });
+    p.enter(door);
+  });
+  goal(p, 'Vinther', () => !!p.flag('pg4vinther'), () => { goto(p, 'hammershus'); p.talkTo(5, 10); goto(p, 'hammerdeep'); p.talkTo(11, 4); });
+  if ((p.s.bag.ultraball ?? 0) < 15) { goto(p, 'pcronne'); p.buy([['Ultra Ball', 10], ['Ultra Ball', 10]]); }
+  p.wanted.add('kronikon');
+  goal(p, 'Krønikon', () => !!p.flag('pg4done'), () => {
+    for (let i = 0; i < 4 && !p.flag('pg4done'); i++) {    // knocked out by mistake: it settles back into the stone
+      if ((p.s.bag.ultraball ?? 0) < 5) { goto(p, 'pcronne'); p.buy([['Ultra Ball', 10]]); }
+      goto(p, 'hammershus'); p.talkTo(5, 10); goto(p, 'hammerdeep'); p.talkTo(11, 1);
+    }
+  });
+}
