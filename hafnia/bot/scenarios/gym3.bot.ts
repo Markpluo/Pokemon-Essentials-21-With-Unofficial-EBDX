@@ -8,8 +8,17 @@ test('ice gym: slide, valves, Kasper @gym', async ({ bot }) => {
     map: 'gym3', x: 7, y: 10, dir: 'up', party: [{ species: 'charmeleon', level: 40 }],
     badges: ['spray', 'lily'], flags: { ch3: true, dinnerDone: true, neonDone: true }, noEncounters: true
   }));
-  const slide = async (...dirs: Dir[]) => { for (const d of dirs) await bot.step(d); };
   const at = async () => { const s = await bot.state(); return [s.x, s.y]; };
+  // A slide can pause for a frame between ice tiles, so wait until the player has stopped on one tile
+  // before the next push; on a slow runner the next key otherwise lands mid-slide and is lost.
+  const stopped = async () => {
+    let last = '', since = Date.now();
+    for (const end = Date.now() + 5000; Date.now() < end; await bot.frames(1)) {
+      const s = await bot.state(), k = `${s.x},${s.y},${s.moving}`;
+      if (k !== last) { last = k; since = Date.now(); } else if (!s.moving && Date.now() - since > 150) return;
+    }
+  };
+  const slide = async (...dirs: Dir[]) => { for (const d of dirs) { await bot.step(d); await stopped(); } };
   const valve = async (dir: Dir) => { await bot.face(dir); await bot.interact(); };
 
   await slide('up', 'right', 'down', 'left', 'up', 'right');

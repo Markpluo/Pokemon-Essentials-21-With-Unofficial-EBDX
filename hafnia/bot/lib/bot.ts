@@ -341,17 +341,19 @@ export class Bot {
   /** One step (or a turn plus a step). Returns false when blocked. */
   async step(dir: Dir, opts: { settle?: boolean } = {}): Promise<boolean> {
     const s0 = await this.waitFor(Bot.idle, 15_000, 'the overworld to be free');
-    await this.page.keyboard.down(KEYS[dir]);
-    let s = s0, moved = false;
-    try {
-      const end = Date.now() + 1500;
-      for (;;) {
-        s = await this.state();
-        if (s.moving || s.x !== s0.x || s.y !== s0.y || s.map !== s0.map || s.text || s.choice || s.scene !== 'overworld' || s.fade > 0) { moved = true; break; }
-        if (Date.now() > end) break;
-        await sleep(10);
-      }
-    } finally { await this.page.keyboard.up(KEYS[dir]); }
+    // Hold the key in the page and let go on the first frame the game reacts. Polling from here is too slow
+    // on a busy runner: the key stays down after an ice slide ends and the player takes an extra step.
+    const moved = await this.page.evaluate(({ key, s0 }) => new Promise<boolean>(done => {
+      const h = (window as any).__hafnia, end = performance.now() + 1500;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key }));
+      const tick = () => {
+        const s = h.probe();
+        const reacted = s.moving || s.x !== s0.x || s.y !== s0.y || s.map !== s0.map || !!s.text || !!s.choice || s.scene !== 'overworld' || s.fade > 0;
+        if (reacted || performance.now() > end) { window.dispatchEvent(new KeyboardEvent('keyup', { key })); done(reacted); }
+        else requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }), { key: KEYS[dir], s0: { x: s0.x, y: s0.y, map: s0.map } });
     if (!moved) return false;
     await this.waitFor(s => !s.moving, 5000, 'the step to finish');
     if (opts.settle !== false) await this.settle();
