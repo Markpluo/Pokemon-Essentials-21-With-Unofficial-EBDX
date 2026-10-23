@@ -873,7 +873,7 @@ async function debugMenu() {
     ['Give Lv. 10 Sprigatito', 'givePokemon', 'sprigatito'], ['Heal team', 'heal'], ['Lead +5 levels', 'levelUp', 5], ['Give items', 'items'], ['+10,000 kr.', 'money'],
     ['Unlock Copper & Current', 'unlockCoil'], ['Toggle wild encounters', 'encounters'], ['Add a badge', 'badge'], ['Clock +6 hours', 'time'], ['Try a multi battle', 'multiBattle'],
     ['Give Lv. 10 Ditto', 'givePokemon', 'ditto'], ['Vuggestuen: Egg now', 'layEgg'], ['Hatch Eggs now', 'hatchEggs'],
-    ...(['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven', 'dragor', 'route2', 'vesterbro', 'kodbyen', 'route3', 'islandsbrygge', 'assistens', 'frederiksberg', 'osterbro', 'route8', 'lyngby', 'dyrehaven', 'bakken', 'trekroner', 'slotsholmen', 'shipyards', 'copenhill', 'helsingor', 'stormhill'] as const)
+    ...(['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven', 'dragor', 'route2', 'vesterbro', 'kodbyen', 'route3', 'islandsbrygge', 'assistens', 'frederiksberg', 'osterbro', 'route8', 'lyngby', 'dyrehaven', 'bakken', 'trekroner', 'slotsholmen', 'shipyards', 'copenhill', 'helsingor', 'stormhill', 'oresund', 'peberholm', 'ronne', 'route14', 'hammershus'] as const)
       .map(id => [`Warp: ${HAFNIA_MAPS[id].name}`, 'warp', `hafnia:${id}`] as [string, DebugCommand, string])
   ];
   const c = await choose([...cmds.map(x => x[0]), 'Animation viewer', 'Back'], cmds.length + 1, { x: 8, y: 8, w: 300 });
