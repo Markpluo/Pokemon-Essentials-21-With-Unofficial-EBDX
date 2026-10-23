@@ -10,7 +10,7 @@ import * as R from './route';
 
 const OUT = join(process.cwd(), 'bot', 'results', 'playthrough');
 const CHAPTERS: [string, (p: Player) => void][] = [
-  ['prologue', R.prologue], ['ch1', R.chapter1], ['ch2', R.chapter2], ['ch3', R.chapter3], ['ch4', R.chapter4], ['ch5', R.chapter5], ['ch6', R.chapter6], ['ch7', R.chapter7], ['ch8', R.chapter8], ['ch9', R.chapter9], ['ch10', R.chapter10], ['ch11', R.chapter11], ['ch12', R.chapter12], ['ch13', R.chapter13]
+  ['prologue', R.prologue], ['ch1', R.chapter1], ['ch2', R.chapter2], ['ch3', R.chapter3], ['ch4', R.chapter4], ['ch5', R.chapter5], ['ch6', R.chapter6], ['ch7', R.chapter7], ['ch8', R.chapter8], ['ch9', R.chapter9], ['ch10', R.chapter10], ['ch11', R.chapter11], ['ch12', R.chapter12], ['ch13', R.chapter13], ['pg1', R.postgame1], ['pg2', R.postgame2], ['pg3', R.postgame3], ['pg4', R.postgame4], ['pg5', R.postgame5]
 ];
 
 async function main() {

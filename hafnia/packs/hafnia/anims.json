@@ -5,6 +5,14 @@
       { "do": "wave", "from": "user", "to": "target", "color": "#5fd3c2", "ms": 600, "rings": 4 },
       { "do": "par", "steps": [{ "do": "particles", "preset": "rain", "at": "screen", "ms": 700 }, { "do": "shake", "who": "target", "ms": 300 }] }
     ],
+    "granitesong": [
+      { "do": "par", "steps": [{ "do": "screen", "color": "#8a7f72", "ms": 260, "alpha": 0.3 }, { "do": "sfx", "name": "hit", "vol": 0.25 }] },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#b8a58c", "size": 40, "ms": 320 }, { "do": "shake", "ms": 420, "amp": 5 }, { "do": "sfx", "name": "hit_super", "vol": 0.35 }] }
+    ],
+    "danishoath": [
+      { "do": "par", "steps": [{ "do": "screen", "color": "#c9a24a", "ms": 200, "alpha": 0.25 }, { "do": "lunge", "who": "user", "ms": 240, "dist": 44 }] },
+      { "do": "par", "steps": [{ "do": "burst", "color": "#d9a066", "size": 34, "ms": 260 }, { "do": "shake", "ms": 360, "amp": 6 }, { "do": "sfx", "name": "hit_super", "vol": 0.35 }] }
+    ],
     "tackle": [
       { "do": "lunge", "who": "user", "ms": 220, "dist": 40 },
       { "do": "par", "steps": [{ "do": "burst", "color": "#ffffff", "ms": 240 }, { "do": "shake", "ms": 260 }, { "do": "sfx", "name": "hit", "vol": 0.3 }] }

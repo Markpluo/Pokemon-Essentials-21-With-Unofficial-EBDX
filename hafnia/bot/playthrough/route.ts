@@ -374,3 +374,91 @@ export function chapter13(p: P) {
     goal(p, `Elite Four ${m}`, () => !!p.flag(`e4${m}`), () => { goto(p, map); p.talkTo(5, 2); });
   goal(p, 'the Champions', () => !!p.flag('ch13done'), () => goto(p, 'towerroof'));
 }
+
+export function postgame1(p: P) {
+  grindMaps = ['route1', 'copenhill'];
+  // The morning after: P1 starts the first time you step outside after the credits.
+  if (!p.flag('pg1')) try { goto(p, 'norrebro'); } catch (e) { if (!p.flag('pg1')) throw e; }
+  goal(p, 'Ørsted and Brix', () => !!p.flag('pg1palm'), () => goto(p, 'palmhouse'));
+  goal(p, 'the Mermaid\'s Tear', () => !!p.flag('pg1harmony'), () => { goto(p, 'osterbro'); p.talkTo(22, 13); });
+  p.answers.push({ when: /Touch it with the charged Coil/, pick: 'Touch it' });
+  goal(p, 'the first Resonance Rift', () => !!p.flag('pg1done'), () => { goto(p, 'route1'); p.talkTo(14, 11); });
+}
+
+export function postgame2(p: P) {
+  grindMaps = ['casemates', 'route1'];
+  // The Guardian's Oath starts on the way into Helsingør.
+  if (!p.flag('pg2')) try { goto(p, 'helsingor'); } catch (e) { if (!p.flag('pg2')) throw e; }
+  shopAndHeal(p, 'pchelsingor');
+  goal(p, 'the Trial of Copper', () => !!p.flag('oathCopper'), () => { goto(p, 'casemates'); p.talkTo(13, 1); });
+  goal(p, 'the Trial of Current', () => !!p.flag('oathCurrent'), () => { goto(p, 'casemates'); p.talkTo(13, 3); });
+  p.answers.push({ when: /Start the Trial of the Oath/, pick: 'Begin' });
+  goal(p, 'the Trial of the Oath', () => !!p.flag('oathOath'), () => { goto(p, 'casemates'); p.talkTo(20, 3); });
+  if ((p.s.bag.ultraball ?? 0) < 15) { goto(p, 'pchelsingor'); p.buy([['Ultra Ball', 10], ['Ultra Ball', 10]]); }
+  p.wanted.add('kronvakt');
+  goal(p, 'Kronvakt', () => !!p.flag('pg2done'), () => {
+    for (let i = 0; i < 4 && !p.flag('pg2done'); i++) {    // knocked out by mistake: it stands up again
+      if ((p.s.bag.ultraball ?? 0) < 5) { goto(p, 'pchelsingor'); p.buy([['Ultra Ball', 10]]); }
+      goto(p, 'casemates'); p.talkTo(18, 1);
+    }
+  });
+}
+
+export function postgame3(p: P) {
+  grindMaps = ['oresund', 'peberholm'];
+  goal(p, 'the bridge toll', () => !!p.flag('pg3'), () => goto(p, 'oresund'));
+  goal(p, 'Bjørk\'s permit', () => !!p.flag('pg3permit'), () => { goto(p, 'oresund'); p.talkTo(22, 6); });
+  goal(p, 'Lumen Nord\'s field lead', () => !!p.flag('pg3lead'), () => { goto(p, 'peberholm'); p.talkTo(14, 3); p.talkTo(12, 13); });
+  p.answers.push({ when: /Touch it with the charged Coil/, pick: 'Touch it' });
+  goal(p, 'the great Echo', () => !!p.flag('pg3done'), () => { goto(p, 'peberholm'); p.talkTo(14, 3); p.talkTo(12, 16); });
+}
+
+export function postgame4(p: P) {
+  grindMaps = ['route14', 'hammerdeep'];
+  goal(p, 'the Bornholm ferry', () => !!p.flag('pg4'), () => goto(p, 'ronne'));
+  shopAndHeal(p, 'pcronne');
+  const shrines: [string, string, string][] = [['nyker', 'shrineNyker', 'Copper'], ['nylars', 'shrineNylars', 'Current'],
+    ['olsker', 'shrineOlsker', 'Harmony'], ['osterlars', 'shrineOsterlars', 'Current']];
+  for (const [door, flag, pick] of shrines) goal(p, `the ${door} shrine`, () => !!p.flag(flag), () => {
+    goto(p, 'route14');
+    p.answers.push({ when: /How do you charge the Coil/, pick, once: true });
+    p.enter(door);
+  });
+  goal(p, 'Vinther', () => !!p.flag('pg4vinther'), () => { goto(p, 'hammershus'); p.talkTo(5, 10); goto(p, 'hammerdeep'); p.talkTo(11, 4); });
+  if ((p.s.bag.ultraball ?? 0) < 15) { goto(p, 'pcronne'); p.buy([['Ultra Ball', 10], ['Ultra Ball', 10]]); }
+  p.wanted.add('kronikon');
+  goal(p, 'Krønikon', () => !!p.flag('pg4done'), () => {
+    for (let i = 0; i < 4 && !p.flag('pg4done'); i++) {    // knocked out by mistake: it settles back into the stone
+      if ((p.s.bag.ultraball ?? 0) < 5) { goto(p, 'pcronne'); p.buy([['Ultra Ball', 10]]); }
+      goto(p, 'hammershus'); p.talkTo(5, 10); goto(p, 'hammerdeep'); p.talkTo(11, 1);
+    }
+  });
+}
+
+export function postgame5(p: P) {
+  grindMaps = ['trekroner', 'deepsound'];
+  // Freja calls on the way into any hub once P2-P4 are done.
+  goal(p, 'Freja\'s call', () => !!p.flag('pg5'), () => { goto(p, 'pcchristianshavn'); goto(p, 'christianshavn'); });
+  goal(p, 'the hydrofoil', () => !!p.flag('pg5fort'), () => goto(p, 'trekroner'));
+  p.answers.push({ when: /Touch it with the charged Coil/, pick: 'Touch it' });
+  goal(p, 'the last Echo', () => !!p.flag('pg5echo'), () => { goto(p, 'trekroner'); p.talkTo(12, 21); goto(p, 'siphon'); p.talkTo(8, 4); });
+  goal(p, 'the dive', () => p.mapId === 'deepsound' || !!p.flag('pg5song'), () => {
+    goto(p, 'osterbro');
+    p.answers.push({ when: /Dive down to the Deep Sound/, pick: 'Dive', once: true });
+    p.talkTo(22, 16);
+  });
+  const notes: [number, number, string, string][] = [[1, 7, 'noteLow', 'Copper'], [17, 7, 'noteHigh', 'Current'], [9, 6, 'noteBoth', 'Harmony']];
+  for (const [x, y, flag, pick] of notes) goal(p, `the ${flag} stone`, () => !!p.flag(flag) || !!p.flag('pg5song'), () => {
+    if (p.mapId !== 'deepsound') { goto(p, 'osterbro'); p.answers.push({ when: /Dive down/, pick: 'Dive', once: true }); p.talkTo(22, 16); }
+    p.answers.push({ when: /How do you charge the Coil/, pick, once: true });
+    p.talkTo(x, y);
+  });
+  goal(p, 'the concert', () => !!p.flag('pg5song'), () => {
+    if (p.mapId !== 'deepsound') { goto(p, 'osterbro'); p.answers.push({ when: /Dive down/, pick: 'Dive', once: true }); p.talkTo(22, 16); }
+    p.sing = true;
+    try { p.talkTo(9, 1); } finally { p.sing = false; }
+  });
+  p.answers.push({ when: /Charge the lamp/, pick: 'Charge it' });
+  goal(p, 'the lamp', () => !!p.flag('pg5done'), () => { goto(p, 'tklighthouse'); p.talkTo(2, 4); });
+  goal(p, 'Lindholm\'s letter', () => !!p.flag('pg5letter'), () => goto(p, 'flat'));
+}

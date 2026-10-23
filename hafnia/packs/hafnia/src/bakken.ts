@@ -61,6 +61,15 @@ const statue: Script = function* (s) {
 const train = (here: 'osterbro' | 'dyrehaven'): Script => function* (s) {
   s.say(here === 'osterbro' ? 'c7.train.osterport' : 'c7.train.klampenborg');
   if (!s.flag('dyrehavenSeen')) { s.say('c7.train.closed'); return; }
+  if (here === 'osterbro' && s.flag('pg1done')) {
+    // The post-game: Kystbanen runs all the way up to Helsingør again.
+    const c: number = yield s.ask('pg2.train.ask', ['Klampenborg', 'Helsingør', 'Stay'], 2);
+    if (c === 2) return;
+    s.sfx('door'); s.fade(1, 20);
+    if (c === 0) s.warp('dyrehaven', 15, 25, 'up'); else s.warp('helsingor', 2, 7, 'right');
+    s.fade(0, 20);
+    return;
+  }
   const c: number = yield s.ask(here === 'osterbro' ? 'c7.train.ask.north' : 'c7.train.ask.south', ['Ride', 'Stay'], 1);
   if (c !== 0) return;
   s.sfx('door'); s.fade(1, 20);

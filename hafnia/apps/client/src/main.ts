@@ -1022,7 +1022,7 @@ async function debugMenu() {
     ['Give Lv. 10 Sprigatito', 'givePokemon', 'sprigatito'], ['Heal team', 'heal'], ['Lead +5 levels', 'levelUp', 5], ['Give items', 'items'], ['+10,000 kr.', 'money'],
     ['Unlock Copper & Current', 'unlockCoil'], ['Toggle wild encounters', 'encounters'], ['Add a badge', 'badge'], ['Clock +6 hours', 'time'], ['Try a multi battle', 'multiBattle'],
     ['Give Lv. 10 Ditto', 'givePokemon', 'ditto'], ['Vuggestuen: Egg now', 'layEgg'], ['Hatch Eggs now', 'hatchEggs'],
-    ...(['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven', 'dragor', 'route2', 'vesterbro', 'kodbyen', 'route3', 'islandsbrygge', 'assistens', 'frederiksberg', 'osterbro', 'route8', 'lyngby', 'dyrehaven', 'bakken', 'trekroner', 'slotsholmen', 'shipyards', 'copenhill', 'helsingor', 'stormhill'] as const)
+    ...(['norrebro', 'route1', 'garden', 'tunnels', 'indreby', 'nyhavn', 'drydock', 'route4', 'christianshavn', 'stadsgraven', 'dragor', 'route2', 'vesterbro', 'kodbyen', 'route3', 'islandsbrygge', 'assistens', 'frederiksberg', 'osterbro', 'route8', 'lyngby', 'dyrehaven', 'bakken', 'trekroner', 'slotsholmen', 'shipyards', 'copenhill', 'helsingor', 'stormhill', 'oresund', 'peberholm', 'ronne', 'route14', 'hammershus'] as const)
       .map(id => [`Warp: ${HAFNIA_MAPS[id].name}`, 'warp', `hafnia:${id}`] as [string, DebugCommand, string])
   ];
   const c = await choose([...cmds.map(x => x[0]), 'Animation viewer', 'Back'], cmds.length + 1, { x: 8, y: 8, w: 300 });
@@ -1808,12 +1808,13 @@ async function battleEvent(e: BattleEvent) {
       await say(e.text);
       break;
     }
-    case 'current': case 'overcharge': {
+    case 'current': case 'overcharge': case 'harmony': {
       Sound.se('hit_super', 0.4);
       for (let t = 0; t < 30; t++) { b.arc = { side: e.side, t }; await nextFrame(); }
       b.arc = null;
       const mon = st.mon;
-      if (e.b === 'overcharge' && mon?.uid) { b.patina.add(mon.uid); b.overcharged.add(mon.uid); }
+      if (e.b !== 'current' && mon?.uid) b.patina.add(mon.uid);
+      if (e.b === 'overcharge' && mon?.uid) b.overcharged.add(mon.uid);
       await say(e.text);
       break;
     }
@@ -1828,11 +1829,15 @@ async function fightMenu(req: BattleRequest): Promise<BattleAction | null> {
   for (;;) {
     const moves: GridState['items'] = pad<GridState['items'][number]>(req.moves.map((m: MoveView) => ({
       label: m.name, type: m.type, sub: `${m.pp}/${m.maxpp}`,
-      dim: m.disabled || (mode === 'current' && m.category === 'Status')
+      dim: m.disabled || ((mode === 'current' || mode === 'harmony') && m.category === 'Status')
     })), { label: '', dim: true });
     const toggles: GridState['items'] = coil ? [
       { label: mode === 'copper' ? 'Copper ✓' : 'Copper', sub: coil.copper ? '' : 'ready', dim: !!coil.copper, on: mode === 'copper' ? '#cdeedd' : undefined },
-      { label: mode === 'current' ? 'Current ✓' : 'Current', sub: coil.current ? '' : 'ready', dim: !!coil.current, on: mode === 'current' ? '#d6efff' : undefined }
+      { label: mode === 'current' ? 'Current ✓' : 'Current', sub: coil.current ? '' : 'ready', dim: !!coil.current, on: mode === 'current' ? '#d6efff' : undefined },
+      ...(coil.harmony !== undefined ? [
+        { label: mode === 'harmony' ? 'Harmony ✓' : 'Harmony', sub: coil.harmony ? '' : 'ready', dim: !!coil.harmony, on: mode === 'harmony' ? '#f4ecc4' : undefined },
+        { label: '', dim: true }
+      ] : [])
     ] : [];
     const items = [...moves, ...toggles];
     const rows = items.length / 2;
@@ -1840,7 +1845,8 @@ async function fightMenu(req: BattleRequest): Promise<BattleAction | null> {
     const mi = await gridChoose(items, { x: 0, y: VH - h, w: 512, h, key: 'move' }, 2, true);
     if (mi < 0) return null;
     if (mi >= moves.length) {
-      const which: CoilMode = mi === moves.length ? 'copper' : 'current';
+      const which: CoilMode = (['copper', 'current', 'harmony'] as const)[mi - moves.length];
+      if (!which) continue;
       const why = coil?.[which];
       if (why) { await say(why); continue; }
       mode = mode === which ? null : which;
@@ -1850,7 +1856,7 @@ async function fightMenu(req: BattleRequest): Promise<BattleAction | null> {
     const m = req.moves[mi];
     if (!m) continue;
     if (m.disabled) { await say(m.pp === 0 ? 'There\'s no PP left for this move!' : 'That move can\'t be used right now!'); continue; }
-    if (mode === 'current' && m.category === 'Status') { await say('Status moves can\'t carry Current.'); continue; }
+    if ((mode === 'current' || mode === 'harmony') && m.category === 'Status') { await say('Status moves can\'t carry Current.'); continue; }
     let target: Slot | undefined;
     if (m.aim && req.targets && req.targets.length > 1) {
       const ti = await gridChoose(req.targets.map(t => ({ label: t.name, sub: t.slot ? 'right' : 'left' })), { x: 0, y: VH - 74, w: 512, h: 74, key: 'target' }, 2, true);

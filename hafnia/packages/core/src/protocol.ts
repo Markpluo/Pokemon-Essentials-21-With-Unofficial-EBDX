@@ -7,7 +7,7 @@ export type StatusId = '' | 'brn' | 'par' | 'psn' | 'tox' | 'slp' | 'frz';
 export type Weather = 'rain' | 'sun' | 'sand' | 'snow' | 'none';
 
 // ---------- client -> server ----------
-export type CoilMode = 'copper' | 'current';
+export type CoilMode = 'copper' | 'current' | 'harmony';
 export type BattleAction =
   | { kind: 'move'; index: number; mode?: CoilMode; target?: Slot }
   | { kind: 'switch'; uid: string }
@@ -98,7 +98,8 @@ export type BattleEvent =
   | { b: 'coil'; side: BattleSide; coil: CoilView }
   | { b: 'copper'; side: BattleSide; text: string }
   | { b: 'current'; side: BattleSide; text: string }
-  | { b: 'overcharge'; side: BattleSide; text: string };
+  | { b: 'overcharge'; side: BattleSide; text: string }
+  | { b: 'harmony'; side: BattleSide; text: string };
 
 /** A side's Coil gauge. `ready` is the pip count needed to activate. */
 export interface CoilView { pips: number; max: number; ready: number; used: boolean; overcharge?: boolean }
@@ -114,7 +115,7 @@ export interface BattleRequest {
   party: MonView[];
   bag: Record<string, number>;
   /** Present when the player's Coil is online. A string says why a mode can't be used now. */
-  coil?: CoilView & { copper: string | null; current: string | null };
+  coil?: CoilView & { copper: string | null; current: string | null; harmony?: string | null };
   /** Multi battles: the opposing Pokémon a move with `aim` can target. */
   targets?: { slot: Slot; name: string }[];
 }

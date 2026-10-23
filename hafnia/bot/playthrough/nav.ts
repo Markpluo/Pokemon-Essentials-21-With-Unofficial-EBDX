@@ -24,10 +24,14 @@ const DOORS: Record<string, Record<string, string>> = {
   trekroner: { lighthouse: 'tklighthouse', battery: 'battery', siphon: 'siphon' },
   slotsholmen: { borsen: 'borsen', pc: 'pcslotsholmen', palace: 'leaguehall' },
   copenhill: { plant: 'gym8', pc: 'pccopenhill' },
-  helsingor: { kronborg: 'casemates', pc: 'pchelsingor' }
+  helsingor: { kronborg: 'casemates', pc: 'pchelsingor' },
+  ronne: { pc: 'pcronne' },
+  hammershus: { gate: 'hammerdeep' }
 };
 /** Things you talk to that move you. */
-const TALK: Record<string, { to: string; x: number; y: number }[]> = {
+/** The player whose story flags gate hops (`needs`); set by goto. */
+let current: Player | null = null;
+const TALK: Record<string, { to: string; x: number; y: number; pick?: string; needs?: string; not?: string }[]> = {
   garden: [{ to: 'tunnels', x: 23, y: 10 }],
   nyhavn: [{ to: 'drydock', x: 22, y: 11 }],
   drydock: [{ to: 'nyhavn', x: 1, y: 2 }],
@@ -35,10 +39,13 @@ const TALK: Record<string, { to: string; x: number; y: number }[]> = {
   stormdrain: [{ to: 'assistens', x: 1, y: 1 }],
   cisterns: [{ to: 'frederiksberg', x: 1, y: 1 }],
   islandsbrygge: [{ to: 'dragor', x: 2, y: 11 }],
-  dragor: [{ to: 'islandsbrygge', x: 20, y: 8 }],
-  osterbro: [{ to: 'dyrehaven', x: 27, y: 4 }],
+  dragor: [{ to: 'islandsbrygge', x: 20, y: 8 }, { to: 'oresund', x: 19, y: 16, needs: 'pg1done' }, { to: 'ronne', x: 20, y: 5, pick: 'Bornholm', needs: 'pg1done' }],
+  ronne: [{ to: 'dragor', x: 4, y: 10, pick: 'Dragør' }],
+  osterbro: [{ to: 'dyrehaven', x: 27, y: 4 }, { to: 'helsingor', x: 27, y: 4, pick: 'Helsingør', needs: 'pg1done' }],
+  helsingor: [{ to: 'osterbro', x: 1, y: 6, needs: 'ch12done' }],
   dyrehaven: [{ to: 'osterbro', x: 14, y: 26 }],
-  christianshavn: [{ to: 'fleetboat', x: 3, y: 6 }],
+  christianshavn: [{ to: 'fleetboat', x: 3, y: 6, not: 'ch8done' }, { to: 'trekroner', x: 3, y: 6, pick: 'Trekroner', needs: 'pg5' }],
+  trekroner: [{ to: 'christianshavn', x: 12, y: 20, pick: 'Christianshavn', needs: 'pg5fort' }],
   borsen: [{ to: 'gym7', x: 12, y: 1 }],
   gym7: [{ to: 'borsen', x: 9, y: 13 }],
   shipyards: [{ to: 'eastquay', x: 14, y: 9 }],
@@ -85,7 +92,10 @@ export function hops(map: string): Hop[] {
     const to = w.to.replace(/^hafnia:/, '');
     if (!out.some(h => h.to === to)) out.push({ to, cost: 10, how: p => p.walkTo(w.x, w.y) });
   }
-  for (const t of TALK[map] ?? []) out.push({ to: t.to, cost: 15, how: p => p.talkTo(t.x, t.y) });
+  for (const t of TALK[map] ?? []) if ((!t.needs || current?.flag(t.needs)) && !(t.not && current?.flag(t.not))) out.push({ to: t.to, cost: 15, how: p => {
+    if (t.pick) p.answers.push({ when: /Where to\?/, pick: t.pick, once: true });
+    p.talkTo(t.x, t.y);
+  } });
   for (const t of STEP[map] ?? []) out.push({ to: t.to, cost: 10, how: p => p.walkTo(t.x, t.y) });
   return out;
 }
@@ -110,6 +120,7 @@ export function plan(from: string, to: string, closed: Set<string> = new Set()):
 }
 
 export function goto(p: Player, to: string) {
+  current = p;
   const closed = new Set<string>();
   for (let guard = 0; guard < 40 && p.mapId !== to; guard++) {
     const route = plan(p.mapId, to, closed);

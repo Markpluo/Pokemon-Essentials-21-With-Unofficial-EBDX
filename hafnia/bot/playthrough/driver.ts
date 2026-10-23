@@ -26,6 +26,9 @@ export class Player {
   steps = 0;
   /** Species the player wants on the team (caught on sight while there is room). */
   wanted = new Set<string>();
+  /** The concert (P5): use each Coil mode once as soon as it is charged; `sung` holds the ones used. */
+  sing = false;
+  sung = new Set<string>();
   catchAll = false;
   private prompt: Extract<ServerEvent, { t: 'prompt' }> | null = null;
   private req: BattleRequest | null = null;
@@ -52,6 +55,7 @@ export class Player {
         case 'say': this.said.push(e.text); break;
         case 'chapterEnd': this.said.push(`=== ${e.title}: ${e.subtitle} ===`); if (!/complete/.test(e.title)) this.chapter = e.title; break;
         case 'battleStart': {
+          this.sung.clear();
           this.inBattle = true; this.foe = {};
           const t = e.battle.trainer;
           this.battle = { kind: e.battle.kind, trainer: t ? `${t.title} ${t.name}${e.battle.multi ? ` + ${e.battle.multi.second.title} ${e.battle.multi.second.name} (with ${e.battle.multi.partner.name})` : ''}` : '', foes: [], turns: 0, items: 0, map: this.mapId };
@@ -201,7 +205,11 @@ export class Player {
       if (hits) { this.send({ t: 'battle', action: { kind: 'switch', uid: hits.uid } }); return; }
     }
     const coil = r.coil;
-    const mode = coil && coil.current === null && b.kind === 'trainer' ? 'current' as const : undefined;
+    // Current and Harmony need an attacking move to carry them, or the server refuses the mode.
+    const attacking = r.moves[mv.index]?.category !== 'Status';
+    const song = this.sing ? (['copper', 'current', 'harmony'] as const).find(m => coil?.[m] === null && !this.sung.has(m) && (m === 'copper' || attacking)) : undefined;
+    if (song) this.sung.add(song);
+    const mode = song ?? (coil && coil.current === null && b.kind === 'trainer' ? 'current' as const : undefined);
     this.send({ t: 'battle', action: { kind: 'move', index: mv.index, mode, target: r.targets ? (target as 0 | 1) : undefined } });
   }
 
