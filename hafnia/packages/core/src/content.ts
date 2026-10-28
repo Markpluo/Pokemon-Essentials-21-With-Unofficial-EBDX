@@ -55,6 +55,8 @@ export interface MapDef {
   npcs: NpcDef[];
   encounters?: [number, string][];  // [weight %, species]
   levels?: [number, number];
+  /** Optional side areas: wild (and fishing) levels follow the level cap, from this many below it to two below. */
+  scaleLevels?: number;
   encountersNight?: [number, string][];
   /** Tile that triggers wild encounters (default tall grass). */
   encounterTile?: string;

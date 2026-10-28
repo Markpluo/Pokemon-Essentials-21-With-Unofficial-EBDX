@@ -432,7 +432,7 @@ export function postgame4(p: P) {
     ['olsker', 'shrineOlsker', 'Harmony'], ['osterlars', 'shrineOsterlars', 'Current']];
   for (const [door, flag, pick] of shrines) goal(p, `the ${door} shrine`, () => !!p.flag(flag), () => {
     goto(p, 'route14');
-    p.answers.push({ when: /How do you charge the Coil/, pick, once: true });
+    coilAnswer(p, pick);
     p.enter(door);
   });
   goal(p, 'Vinther', () => !!p.flag('pg4vinther'), () => { goto(p, 'hammershus'); p.talkTo(5, 10); goto(p, 'hammerdeep'); p.talkTo(11, 4); });
@@ -461,7 +461,7 @@ export function postgame5(p: P) {
   const notes: [number, number, string, string][] = [[1, 7, 'noteLow', 'Copper'], [17, 7, 'noteHigh', 'Current'], [9, 6, 'noteBoth', 'Harmony']];
   for (const [x, y, flag, pick] of notes) goal(p, `the ${flag} stone`, () => !!p.flag(flag) || !!p.flag('pg5song'), () => {
     if (p.mapId !== 'deepsound') { goto(p, 'osterbro'); p.answers.push({ when: /Dive down/, pick: 'Dive', once: true }); p.talkTo(22, 16); }
-    p.answers.push({ when: /How do you charge the Coil/, pick, once: true });
+    coilAnswer(p, pick);
     p.talkTo(x, y);
   });
   goal(p, 'the concert', () => !!p.flag('pg5song'), () => {
@@ -478,4 +478,105 @@ export function postgame5(p: P) {
   p.talkTo(7, 2);
   if (!/One round a day/.test(p.said.slice(-3).join('\n'))) throw new Error('Tariq took a second rematch on the same day');
   p.notes.push(`Tariq's rematch paid ${p.s.money - money} kr.`);
+}
+
+// ---------- Side areas (npm run playthrough -- --side) ----------
+// Each starts from a saved chapter: the Wilds and the Last Singers after Chapter 3 (three badges), the Roskilde
+// Saga after Chapter 7 (six), Tivoli after the post-game. They don't feed back into the story run.
+
+/** Answers the next Coil prompt (shrines, note stones). Drops an unused answer left by a retried goal first, or it
+ *  would answer the wrong stone. */
+function coilAnswer(p: P, pick: string) {
+  for (let i = p.answers.length - 1; i >= 0; i--) if (String(p.answers[i].when) === String(/How do you charge the Coil/)) p.answers.splice(i, 1);
+  p.answers.push({ when: /How do you charge the Coil/, pick, once: true });
+}
+
+/** Six hours pass (a player would wait it out; the bot uses the debug clock). */
+function passTime(p: P) {
+  p.game.debug = true;
+  p.send({ t: 'debug', cmd: 'time' });
+  p.game.debug = false;
+}
+
+const KALVEBOD_WILD = ['tauros', 'mudbray', 'wooloo', 'starly', 'lotad', 'poliwag', 'phanpy', 'flamigo', 'girafarig', 'hoothoot', 'stunky', 'chewtle', 'wiglett', 'buizel', 'rolycoly', 'silicobra', 'cufant', 'rufflet', 'orthworm'];
+
+export function sideKalvebod(p: P) {
+  p.eagerCatch = true;
+  grindMaps = ['kalvebod'];
+  HEALERS.push(['rangerhut', 1, 1, 'kalvebodArrive']);
+  goal(p, 'the skiff to Kalvebod', () => p.mapId === 'kalvebod', () => goto(p, 'kalvebod'));
+  p.talkTo(21, 2);                                           // Ranger Ebbe's first task
+  if ((p.s.bag.pokeball ?? 0) + (p.s.bag.greatball ?? 0) < 15) { goto(p, 'pcvesterbro'); p.buy([['Great Ball', 10], ['Great Ball', 10]]); }
+  for (const sp of KALVEBOD_WILD) p.wanted.add(sp);
+  const caught = () => KALVEBOD_WILD.filter(sp => p.s.dex.caught[sp]).length;
+  for (let round = 0; round < 8 && caught() < 10; round++) {
+    heal(p);
+    goto(p, round % 2 ? 'kalvebodrange' : 'kalvebod');
+    p.grind(() => caught() >= 10 || p.hurt() || (p.s.bag.greatball ?? 0) + (p.s.bag.pokeball ?? 0) < 2, 40);
+    if ((p.s.bag.greatball ?? 0) + (p.s.bag.pokeball ?? 0) < 2) { goto(p, 'pcvesterbro'); p.buy([['Great Ball', 10]]); }
+  }
+  goal(p, 'Ebbe\'s first two tasks', () => !!p.flag('ebbe2'), () => { goto(p, 'kalvebod'); p.talkTo(21, 2); });
+  goal(p, 'the giant Orthworm', () => !!p.flag('orthwormDone'), () => { heal(p); goto(p, 'kalvebodrange'); p.talkTo(15, 14); });
+  goal(p, 'Ebbe\'s last task', () => !!p.flag('ebbe3'), () => { goto(p, 'kalvebod'); p.talkTo(21, 2); });
+  p.notes.push(`Kalvebod: ${caught()} of ${KALVEBOD_WILD.length} kinds caught, Exp. Charm ${p.s.bag.expcharm ? 'yes' : 'no'}`);
+}
+
+export function sideSingers(p: P) {
+  p.eagerCatch = true;
+  grindMaps = ['kalvebod', 'islandsbrygge'];
+  const elder = (id: string, x: number, y: number) => { goto(p, 'dragor'); p.talkTo(x, y); void id; };
+  goal(p, 'Ingeborg\'s errand', () => !!p.flag('sing.ingeborg'), () => elder('ingeborg', 12, 10));
+  goal(p, 'the net float', () => !!p.s.bag.netfloat || p.flag('sing.ingeborg') === 2, () => { goto(p, 'islandsbrygge'); p.talkTo(2, 17); });
+  goal(p, 'Ingeborg\'s verse', () => p.flag('sing.ingeborg') === 2, () => elder('ingeborg', 12, 10));
+  goal(p, 'Henning\'s errand', () => !!p.flag('sing.henning'), () => elder('henning', 20, 14));
+  goal(p, 'beat Oluf', () => !!p.flag('tr.oluf'), () => elder('oluf', 19, 11));
+  goal(p, 'Henning\'s verse', () => p.flag('sing.henning') === 2, () => elder('henning', 20, 14));
+  p.answers.push({ when: /Battle Elder Asta/, pick: 'Yes' });
+  goal(p, 'Asta\'s verse', () => p.flag('sing.asta') === 2, () => { heal(p); elder('asta', 16, 7); });
+  goal(p, 'Poul\'s errand', () => !!p.flag('sing.poul'), () => elder('poul', 17, 16));
+  if (!p.s.party.some(m => m.species === 'wiglett')) {
+    p.wanted.add('wiglett');
+    if ((p.s.bag.pokeball ?? 0) + (p.s.bag.greatball ?? 0) < 10) { goto(p, 'pcvesterbro'); p.buy([['Great Ball', 10]]); }
+    // Fish off the Dragør quay until a Wiglett bites (it has to be in the party to show Poul).
+    const has = () => [...p.s.party, ...p.s.box].some(m => m.species === 'wiglett');
+    for (let i = 0; i < 60 && !has(); i++) {
+      if (p.hurt()) heal(p);
+      goto(p, 'dragor');
+      p.walkTo(20, 12); p.face('right'); p.send({ t: 'interact' });
+    }
+    swapIn(p, 'pcvesterbro', 'wiglett');     // a full team sends it to the box: take it out at a PC
+  }
+  goal(p, 'Poul\'s verse', () => p.flag('sing.poul') === 2, () => elder('poul', 17, 16));
+  goal(p, 'Karen at night', () => !!p.flag('dragorMelody'), () => {
+    goto(p, 'dragor');
+    for (let i = 0; i < 4 && p.game.period !== 'night'; i++) passTime(p);
+    p.talkTo(11, 16);
+  });
+  goal(p, 'the safehouse', () => p.mapId === 'safehouse', () => goto(p, 'safehouse'));
+  p.notes.push(`Last Singers: melody ${p.flag('dragorMelody') ? 'learned' : 'missing'}, Lapras ${[...p.s.party, ...p.s.box].some(m => m.species === 'lapras') ? 'received' : 'missing'}`);
+}
+
+export function sideRoskilde(p: P) {
+  grindMaps = ['route10'];
+  HEALERS.push(['pcroskilde', 2, 2, 'roskildeArrive']);
+  goal(p, 'Roskilde', () => !!p.flag('roskildeArrive'), () => goto(p, 'roskilde'));
+  shopAndHeal(p, 'pcroskilde');
+  goal(p, 'the crypt grunt', () => !!p.flag('tr.crEnf1'), () => { goto(p, 'crypt'); p.talkTo(10, 7); });
+  goal(p, 'Enforcer Ravn', () => !!p.flag('roskildePage'), () => { heal(p); goto(p, 'crypt'); p.talkTo(10, 1); });
+  goal(p, 'the museum Dhelmise', () => !!p.flag('museumGift'), () => { goto(p, 'museum'); p.talkTo(6, 1); });
+  p.notes.push(`Roskilde: page ${p.s.bag.roskildepage ? 'found' : 'missing'}, Dhelmise ${[...p.s.party, ...p.s.box].some(m => m.species === 'dhelmise') ? 'received' : 'missing'}`);
+}
+
+export function sideTivoli(p: P) {
+  grindMaps = ['peberholm', 'route14'];
+  HEALERS.push(['tivoli', 18, 13, 'tivoliOpen']);
+  p.answers.push({ when: /Buy æbleskiver/, pick: 'Yes (200 kr.)' });
+  const m0 = p.s.money;
+  goal(p, 'Tivoli', () => p.mapId === 'tivoli', () => goto(p, 'tivoli'));
+  p.answers.push({ when: /Start the Tower Challenge/, pick: 'Start' });
+  goal(p, 'the Tower Challenge', () => Number(p.flag('tower.wins') ?? 0) >= 1, () => { heal(p); goto(p, 'daemonentower'); p.talkTo(5, 2); if (!p.flag('tower.wins')) for (let i = 0; i < 4; i++) passTime(p); });
+  for (const [map, x, y, key] of [['concerthall', 6, 2, 'valdemar'], ['tivoli', 12, 18, 'clara'], ['pantomimehall', 5, 2, 'freja']] as const) {
+    goal(p, `${key}'s rematch`, () => p.flag(`rematch.${key}`) !== undefined, () => { heal(p); goto(p, map); p.queue.push('Yes'); p.talkTo(x, y); p.queue = []; });
+  }
+  p.notes.push(`Tivoli: tower wins ${p.flag('tower.wins') ?? 0}, money ${m0} -> ${p.s.money} kr.`);
 }

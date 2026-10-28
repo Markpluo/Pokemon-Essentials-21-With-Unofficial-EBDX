@@ -37,7 +37,15 @@ export const STAMPS: Record<string, Stamp> = {
   kronborg: { draw: 'kronborg', w: 10, h: 6, door: [5, 5] },   // Kronborg: sandstone walls, green spires, the casemates gate
   coldstores: { draw: 'coldStores', w: 7, h: 5, door: [3, 4] }, // Gym 3: Kødbyen's white-tiled cold store with the loading bay
   brick: { draw: 'brickBlock', w: 4, h: 3, door: [1, 2] },     // a Vesterbro red-brick block with a stairwell door
-  brickgate: { draw: 'brickGate', w: 4, h: 3 }                // the same block with the courtyard archway (gated)
+  brickgate: { draw: 'brickGate', w: 4, h: 3 },               // the same block with the courtyard archway (gated)
+  hut: { draw: 'rangerHut', w: 4, h: 3, door: [1, 2] },       // the Kalvebod rangers' wooden hut
+  cathedral: { draw: 'cathedral', w: 8, h: 6, door: [4, 5] }, // Roskilde Domkirke: red brick, twin green spires
+  vikingmuseum: { draw: 'vikingMuseum', w: 7, h: 3, door: [3, 2] }, // the Viking Ship Museum's concrete hall on the fjord
+  tivoligate: { draw: 'tivoliGate', w: 5, h: 3, door: [2, 2] }, // Tivoli's Moorish main gate on Vesterbrogade
+  daemonen: { draw: 'daemonen', w: 5, h: 5, door: [2, 4] },  // Dæmonen, the roller coaster, with its tower station
+  concerthall: { draw: 'concertHall', w: 7, h: 4, door: [3, 3] }, // Tivoli's Concert Hall
+  pantomime: { draw: 'pantomime', w: 5, h: 4, door: [2, 3] }, // the Pantomime Theatre and its peacock curtain
+  coaster: { draw: 'rutschebanen', w: 7, h: 4 }               // Rutschebanen, the old wooden coaster's painted mountain
 };
 
 const makeGrid = (w: number, h: number, ch: string) => Array.from({ length: h }, () => Array<string>(w).fill(ch));
@@ -565,8 +573,9 @@ function dragor(): MapData {
     id: 'dragor', name: 'Dragør', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
     buildings: [
       { s: 'home', x: 3, y: 3, id: 'vuggestuen' }, { s: 'orange', x: 12, y: 3 }, { s: 'green', x: 16, y: 3 },
-      { s: 'red', x: 12, y: 12 }, { s: 'orange', x: 16, y: 12 }
-    ]
+      { s: 'red', x: 12, y: 12, id: 'safehouse' }, { s: 'orange', x: 16, y: 12 }
+    ],
+    fishing: [[40, 'wiglett'], [30, 'tentacool'], [30, 'finizen']], fishLevels: [18, 22]
   };
 }
 
@@ -600,14 +609,14 @@ function vesterbro(): MapData {
   fill(g, 0, 0, W, 2, 'H'); fill(g, 0, 18, W, 2, 'H'); fill(g, 0, 0, 2, H, 'H'); fill(g, 26, 0, 2, H, 'H');
   fill(g, 12, 0, 3, H, 'q');                  // Vesterbrogade, north to the Green Path and south to Kødbyen
   fill(g, 2, 9, 26, 2, 'q');                  // Istedgade, east to the bridge
-  fill(g, 2, 15, 6, 3, 'H'); fill(g, 20, 15, 6, 3, 'H');
+  fill(g, 2, 15, 6, 3, 'H'); fill(g, 20, 17, 6, 1, 'H');   // Tivoli's gate stands where the rest of the block was
   dots(g, 'f', [[3, 3], [3, 4], [10, 3], [16, 12], [16, 13], [23, 12], [3, 12], [9, 13]]);
   fill(g, 22, 3, 3, 2, 'T');
   return {
     id: 'vesterbro', name: 'Vesterbro', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld', theme: 'brick',
     buildings: [
       { s: 'cafe', x: 4, y: 5, id: 'cafe' }, { s: 'brickgate', x: 8, y: 4 }, { s: 'pc', x: 16, y: 3, id: 'pc' },
-      { s: 'brickgate', x: 4, y: 12 }, { s: 'brick', x: 17, y: 12, id: 'bakery' }
+      { s: 'brickgate', x: 4, y: 12 }, { s: 'brick', x: 17, y: 12, id: 'bakery' }, { s: 'tivoligate', x: 21, y: 13, id: 'tivoli' }
     ],
     exits: { up: { to: 'route2', offset: -9 }, right: { to: 'route3', offset: -5 }, down: { to: 'kodbyen', offset: 0 } }
   };
@@ -794,14 +803,15 @@ function frederiksberg(): MapData {
   fill(g, 2, 17, 9, 1, 'n'); fill(g, 2, 18, 9, 4, 'g');   // the zoo fence; the paddock behind it
   fill(g, 17, 9, 4, 3, 'g'); fill(g, 22, 17, 3, 3, 'g'); fill(g, 16, 18, 3, 3, 'g'); fill(g, 3, 2, 4, 2, 'g');
   fill(g, 23, 9, 2, 2, 'T'); fill(g, 17, 13, 2, 1, 'T'); fill(g, 24, 13, 2, 2, 'T'); fill(g, 21, 2, 3, 2, 'T');
-  dots(g, 'f', [[8, 4], [19, 4], [16, 7], [11, 7], [4, 8], [22, 21], [15, 20], [25, 16]]);
+  fill(g, 0, 7, 13, 1, '=');                  // Roskildevej, west to the old king's road (six badges)
+  dots(g, 'f', [[8, 4], [19, 4], [16, 7], [4, 8], [22, 21], [15, 20], [25, 16]]);
   return {
     id: 'frederiksberg', name: 'Frederiksberg', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld',
     buildings: [{ s: 'pc', x: 3, y: 9, id: 'pc' }, { s: 'pyramid', x: 20, y: 13, id: 'cisterns' }],
     encounters: [[25, 'deerling'], [25, 'fletchling'], [20, 'pikipek'], [15, 'skwovet'], [10, 'hoppip'], [5, 'buneary']],
     encountersNight: [[30, 'noibat'], [25, 'hoothoot'], [20, 'deerling'], [15, 'murkrow'], [10, 'stunky']],
     levels: [25, 28],
-    exits: { down: { to: 'route2', offset: 9 } }
+    exits: { down: { to: 'route2', offset: 9 }, left: { to: 'route10', offset: 1 } }
   };
 }
 
@@ -1515,6 +1525,7 @@ const casemates = (): MapData => ({
   ]),
   battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true, dark: true,
   encounterTile: 'c', encounters: [[35, 'golbat'], [25, 'haunter'], [20, 'sableye'], [20, 'golett']], levels: [48, 51],
+  scaleLevels: 7,   // Chapter 11 about 48-53; in the post-game it keeps up, so training for the Oath Trials goes faster
   warps: [{ x: 4, y: 10, to: 'helsingor', tx: 15, ty: 7, dir: 'down' }]
 });
 
@@ -1840,6 +1851,255 @@ const deepsound = (): MapData => ({
   warps: [{ x: 9, y: 9, to: 'osterbro', tx: 21, ty: 16, dir: 'down' }]
 });
 
+// ---------- Side areas: Kalvebod Wilds, Dragør's safehouse, the Roskilde Saga, Tivoli ----------
+
+// Kalvebod Wilds (from Badge 3): the rangers' skiff lands at a jetty in the north. Reed marsh and ponds to the west,
+// the Tauros meadow to the east, the boardwalk between them, and the old firing range through the south gate.
+// Wild levels follow the level cap, so the Wilds stay worth a visit all game.
+function kalvebod(): MapData {
+  const W = 40, H = 28, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 2, '~'); fill(g, 0, 2, 2, H - 2, 'T'); fill(g, 38, 2, 2, H - 2, 'T'); fill(g, 0, 26, W, 2, 'T');
+  fill(g, 19, 0, 2, 2, 'd');                  // the rangers' jetty
+  fill(g, 19, 2, 2, 26, '=');                 // the gravel track south to the firing range
+  fill(g, 3, 4, 15, 21, 'g');                 // the reed marsh...
+  fill(g, 5, 6, 4, 3, 'o'); fill(g, 11, 15, 5, 4, 'o'); fill(g, 4, 20, 3, 2, 'o');   // ...and its ponds
+  fill(g, 3, 11, 16, 1, 'd'); fill(g, 9, 4, 1, 7, 'd');                              // boardwalks over the reeds
+  fill(g, 23, 9, 14, 15, 'g');                // the Tauros meadow
+  fill(g, 21, 15, 16, 1, '.');                // a cattle track through it
+  fill(g, 26, 11, 2, 2, 'T'); fill(g, 32, 9, 2, 3, 'T'); fill(g, 29, 18, 3, 2, 'T'); fill(g, 35, 20, 2, 2, 'T');
+  fill(g, 26, 3, 11, 1, 'n');                 // the meadow fence
+  dots(g, 'f', [[22, 6], [24, 7], [30, 6], [35, 5], [22, 24], [36, 24], [17, 3], [3, 3]]);
+  return {
+    id: 'kalvebod', name: 'Kalvebod Wilds', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld',
+    buildings: [{ s: 'hut', x: 22, y: 3, id: 'hut' }],
+    encounters: [[18, 'tauros'], [14, 'mudbray'], [12, 'wooloo'], [12, 'starly'], [12, 'lotad'], [10, 'poliwag'], [10, 'phanpy'], [7, 'flamigo'], [5, 'girafarig']],
+    encountersNight: [[22, 'poliwag'], [18, 'lotad'], [18, 'hoothoot'], [15, 'mudbray'], [12, 'stunky'], [10, 'girafarig'], [5, 'tauros']],
+    levels: [20, 23], scaleLevels: 6,
+    fishing: [[35, 'chewtle'], [30, 'wiglett'], [25, 'buizel'], [10, 'poliwag']], fishLevels: [20, 23],
+    exits: { down: { to: 'kalvebodrange', offset: -5 } }
+  };
+}
+
+// The old Vestamager firing range: fenced lanes of rough ground, the concrete firing line and a grassed bunker.
+// Something big tunnels under the far end.
+function kalvebodrange(): MapData {
+  const W = 30, H = 18, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 1, 'T'); g[0][14] = g[0][15] = '=';
+  fill(g, 0, 17, W, 1, 'T'); fill(g, 0, 0, 1, H, 'T'); fill(g, 29, 0, 1, H, 'T');
+  fill(g, 14, 1, 2, 5, '=');
+  fill(g, 1, 5, 12, 1, 'n'); fill(g, 17, 5, 12, 1, 'n');      // the range fence, a gate in the middle
+  fill(g, 2, 7, 10, 3, 'g'); fill(g, 18, 7, 10, 3, 'g'); fill(g, 3, 11, 8, 4, 'g'); fill(g, 19, 11, 8, 4, 'g');
+  fill(g, 13, 9, 4, 7, 'a');                  // the firing line
+  dots(g, 'f', [[3, 2], [8, 3], [21, 2], [26, 3]]);
+  return {
+    id: 'kalvebodrange', name: 'Vestamager Firing Range', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld',
+    buildings: [{ s: 'bunker', x: 3, y: 1 }],
+    encounters: [[25, 'rolycoly'], [20, 'silicobra'], [20, 'cufant'], [15, 'rufflet'], [12, 'mudbray'], [8, 'orthworm']],
+    encountersNight: [[25, 'rolycoly'], [20, 'silicobra'], [20, 'stunky'], [15, 'orthworm'], [10, 'hoothoot'], [10, 'cufant']],
+    levels: [21, 24], scaleLevels: 5,
+    exits: { up: { to: 'kalvebod', offset: 5 } }
+  };
+}
+
+const rangerhut = () => room('rangerhut', 'Ranger Hut', [
+  'wwwwwwwww',
+  'wKK___KKw',
+  'w_______w',
+  'w_K___K_w',
+  'w___m___w',
+  'wwwwwwwww'
+], { to: 'kalvebod', x: 23, y: 6 }, { theme: 'loft', decor: [
+  '.I..W..U.',
+  '.BB...SS.',
+  '.........',
+  '.D....X..',
+  '.........',
+  '.........'
+] });
+
+// Freja's crew safehouse in Dragør: the Last Singers give you the key.
+const safehouse = () => room('safehouse', 'The Fleet Safehouse', [
+  'wwwwwwwww',
+  'wKK___KKw',
+  'w_______w',
+  'w__KK___w',
+  'w___m___w',
+  'wwwwwwwww'
+], { to: 'dragor', x: 13, y: 15 }, { theme: 'boat', decor: [
+  '.0..I..1.',
+  '.bb...YX.',
+  '.........',
+  '..hT.....',
+  '.........',
+  '.........'
+] });
+
+// Route 10, Roskilde Road (from Badge 6): the old king's road west from Frederiksberg, through wheat and wind.
+function route10(): MapData {
+  const W = 44, H = 16, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 2, 'T'); fill(g, 0, 14, W, 2, 'T');
+  fill(g, 0, 8, W, 1, '=');                   // Roskildevej
+  fill(g, 3, 2, 9, 5, 'g'); fill(g, 16, 3, 8, 4, 'g'); fill(g, 30, 2, 10, 5, 'g');   // wheat fields
+  fill(g, 6, 10, 10, 3, 'g'); fill(g, 22, 10, 6, 4, 'g'); fill(g, 33, 10, 8, 3, 'g');
+  fill(g, 13, 3, 2, 3, 'T'); fill(g, 26, 2, 3, 3, 'T'); fill(g, 18, 11, 2, 2, 'T'); fill(g, 30, 11, 2, 2, 'T');
+  dots(g, 'f', [[2, 7], [14, 7], [25, 9], [29, 7], [42, 9], [5, 13]]);
+  return {
+    id: 'route10', name: 'Route 10: Roskilde Road', grid: g, w: W, h: H, battleBg: 'field', bgm: 'overworld', buildings: [],
+    encounters: [[22, 'wooloo'], [20, 'mudbray'], [18, 'tauros'], [15, 'rufflet'], [15, 'girafarig'], [10, 'skwovet']],
+    encountersNight: [[25, 'hoothoot'], [20, 'stunky'], [20, 'mudbray'], [20, 'girafarig'], [15, 'tauros']],
+    levels: [37, 40], scaleLevels: 7,
+    exits: { right: { to: 'frederiksberg', offset: -1 }, left: { to: 'roskilde', offset: 3 } }
+  };
+}
+
+// Roskilde: the cathedral of the kings' tombs, the Viking Ship Museum on the fjord, and a Pokémon Center.
+function roskilde(): MapData {
+  const W = 30, H = 22, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 2, 'T'); fill(g, 0, 0, 2, H, 'T'); fill(g, 28, 0, 2, 11, 'T'); fill(g, 28, 12, 2, 6, 'T');
+  fill(g, 0, 18, W, 4, '~');                  // Roskilde Fjord
+  fill(g, 2, 11, 28, 1, '=');                 // Algade, east to the king's road
+  fill(g, 8, 8, 1, 3, 'q'); fill(g, 22, 7, 1, 4, 'q');
+  fill(g, 14, 12, 1, 5, 'q'); fill(g, 2, 17, 26, 1, 'q');   // down to the quay
+  fill(g, 3, 13, 8, 3, 'g'); fill(g, 24, 13, 3, 3, 'T');
+  dots(g, 'f', [[13, 3], [14, 3], [13, 6], [3, 10], [27, 10], [12, 9]]);
+  return {
+    id: 'roskilde', name: 'Roskilde', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
+    buildings: [{ s: 'cathedral', x: 4, y: 3, id: 'cathedral' }, { s: 'pc', x: 20, y: 2, id: 'pc' }, { s: 'vikingmuseum', x: 16, y: 14, id: 'museum' }],
+    encounters: [[30, 'wooloo'], [25, 'starly'], [25, 'skwovet'], [20, 'mudbray']], levels: [37, 40], scaleLevels: 7,
+    fishing: [[35, 'finizen'], [30, 'shellos'], [20, 'clauncher'], [15, 'relicanth']], fishLevels: [37, 40],
+    exits: { right: { to: 'route10', offset: -3 } }
+  };
+}
+
+const domkirke = () => room('domkirke', 'Roskilde Cathedral', [
+  'wwwwwwwwwwwww',
+  'wKKK_____KKKw',
+  'w___________w',
+  'wKK__KKK__KKw',
+  'w___________w',
+  'wKK_______KKw',
+  'w_____m_____w',
+  'wwwwwwwwwwwww'
+], { to: 'roskilde', x: 8, y: 9 }, { theme: 'palace', decor: [
+  '..P..WWW..P..',
+  '.LDL.....SSS.',
+  '.............',
+  '.hh..TTT..hh.',
+  '.....rrr.....',
+  '.hh..rrr..hh.',
+  '.....rrr.....',
+  '.............'
+] });
+
+// Under the cathedral: the royal crypt, rows of kings in stone, and Vinther's Enforcers at the far vault.
+const crypt = (): MapData => ({
+  id: 'crypt', name: 'The Royal Crypt', ...grid([
+    'RRRRRRRRRRRRRRRRRRRRR',
+    'RRRRRRRRccccccRRRRRRR',
+    'RRRRRRRRccccccRRRRRRR',
+    'RRRRRRRRRRccRRRRRRRRR',
+    'RcccccRRRRccRRRRccccR',
+    'RcRcRcccccccccccRcRcR',
+    'RcccccRRRRccRRRRccccR',
+    'RRRRccRRRRccRRRRccRRR',
+    'RRRRccccccccccccccRRR',
+    'RRRRRRRRRRmRRRRRRRRRR'
+  ]),
+  battleBg: 'indoor1', bgm: 'overworld', buildings: [], indoor: true, dark: true,
+  encounterTile: 'c', encounters: [[35, 'sinistea'], [30, 'golett'], [20, 'sableye'], [15, 'bronzor']], levels: [38, 41], scaleLevels: 6,
+  warps: [{ x: 10, y: 9, to: 'domkirke', tx: 6, ty: 4, dir: 'down' }]
+});
+
+const museum = () => room('museum', 'Viking Ship Museum', [
+  'wwwwwwwwwwwww',
+  'w___________w',
+  'w_KKKK_KKKK_w',
+  'w___________w',
+  'w_KKKK_KKKK_w',
+  'w_____m_____w',
+  'wwwwwwwwwwwww'
+], { to: 'roskilde', x: 19, y: 17 }, { theme: 'stone', decor: [
+  '..W..U.I..W..',
+  '.p.........p.',
+  '..XYYX.XYYX..',
+  '.............',
+  '..XYYX.XYYX..',
+  '.............',
+  '.............'
+] });
+
+// Tivoli Gardens (post-game, the Christmas season): the lake and its boats, the Concert Hall, the Pantomime
+// Theatre, Rutschebanen's painted mountain, and Dæmonen, where Nikolai runs the Tower Challenge.
+function tivoli(): MapData {
+  const W = 32, H = 24, g = makeGrid(W, H, '.');
+  fill(g, 0, 0, W, 2, 'T'); fill(g, 0, 0, 2, H, 'T'); fill(g, 30, 0, 2, H, 'T'); fill(g, 0, 22, W, 2, 'H');
+  fill(g, 15, 21, 2, 3, '=');                 // the main gate, back to Vesterbrogade
+  fill(g, 2, 12, 28, 1, '='); fill(g, 15, 7, 2, 15, '='); fill(g, 4, 7, 24, 1, '=');
+  fill(g, 4, 14, 9, 6, 'o'); fill(g, 4, 14, 9, 1, 'd'); fill(g, 12, 15, 1, 4, 'd');   // Tivoli Lake and the boat pier
+  dots(g, 'f', [[3, 9], [4, 9], [13, 9], [18, 9], [27, 9], [28, 9], [19, 15], [27, 15], [20, 19], [26, 19], [3, 20], [13, 20]]);
+  fill(g, 22, 15, 2, 2, 'T'); fill(g, 2, 2, 2, 2, 'T'); fill(g, 28, 2, 2, 2, 'T');
+  return {
+    id: 'tivoli', name: 'Tivoli Gardens', grid: g, w: W, h: H, battleBg: 'city', bgm: 'overworld',
+    buildings: [
+      { s: 'daemonen', x: 4, y: 2, id: 'daemonen' }, { s: 'concerthall', x: 19, y: 3, id: 'concert' },
+      { s: 'pantomime', x: 24, y: 15, id: 'pantomime' }, { s: 'coaster', x: 9, y: 2 }
+    ],
+    warps: [15, 16].map(x => ({ x, y: 23, to: 'vesterbro', tx: 23, ty: 16, dir: 'down' as Dir }))
+  };
+}
+
+const daemonenTower = () => room('daemonentower', 'Dæmonen Tower', [
+  'wwwwwwwwwww',
+  'wKK_____KKw',
+  'w_________w',
+  'w_________w',
+  'wK_______Kw',
+  'w____m____w',
+  'wwwwwwwwwww'
+], { to: 'tivoli', x: 6, y: 7 }, { theme: 'metal', decor: [
+  '..L..U..L..',
+  '.NN.....NN.',
+  '....rrr....',
+  '....rrr....',
+  '.p.......p.',
+  '...........',
+  '...........'
+] });
+
+const concertHall = () => room('concerthall', 'Tivoli Concert Hall', [
+  'wwwwwwwwwwwww',
+  'wKKKKKKKKKKKw',
+  'w___________w',
+  'wKKK_____KKKw',
+  'wKKK_____KKKw',
+  'w_____m_____w',
+  'wwwwwwwwwwwww'
+], { to: 'tivoli', x: 22, y: 7 }, { theme: 'palace', decor: [
+  '..L..PPP..L..',
+  '.TTTTTTTTTTT.',
+  '.............',
+  '.hhh.....hhh.',
+  '.hhh.....hhh.',
+  '.............',
+  '.............'
+] });
+
+const pantomimeHall = () => room('pantomimehall', 'Pantomime Theatre', [
+  'wwwwwwwwwww',
+  'wKKKKKKKKKw',
+  'w_________w',
+  'wKK_____KKw',
+  'w____m____w',
+  'wwwwwwwwwww'
+], { to: 'tivoli', x: 26, y: 19 }, { theme: 'cafe', decor: [
+  '..P..L..P..',
+  '.TTTTTTTTT.',
+  '...........',
+  '.hh.....hh.',
+  '...........',
+  '...........'
+] });
+
 export const MAPS = {
   norrebro: norrebro(), flat: flat(), lukasflat: lukasFlat(), pcnorrebro: center('pcnorrebro', 'Pokémon Center', 'norrebro', 22, 8),
   gym1: gym1(), bridge: bridge(), route1: route1(), garden: garden(), palmhouse: palmhouse(), tunnels: tunnels(),
@@ -1863,5 +2123,8 @@ export const MAPS = {
   stormhill: stormhill(), smokestack: smokestack(),
   oresund: oresund(), peberholm: peberholm(),
   ronne: ronne(), pcronne: center('pcronne', 'Pokémon Center', 'ronne', 10, 8), route14: route14(), hammershus: hammershus(), hammerdeep: hammerdeep(), deepsound: deepsound(),
+  kalvebod: kalvebod(), kalvebodrange: kalvebodrange(), rangerhut: rangerhut(), safehouse: safehouse(),
+  route10: route10(), roskilde: roskilde(), pcroskilde: center('pcroskilde', 'Pokémon Center', 'roskilde', 22, 7), domkirke: domkirke(), crypt: crypt(), museum: museum(),
+  tivoli: tivoli(), daemonentower: daemonenTower(), concerthall: concertHall(), pantomimehall: pantomimeHall(),
   leaguehall: leaguehall(), stables: stables(), admiral: admiral(), greathall: greathall(), towerstairs: towerstairs(), towerroof: towerroof()
 };

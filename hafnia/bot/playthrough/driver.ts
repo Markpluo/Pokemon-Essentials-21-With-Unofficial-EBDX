@@ -30,6 +30,8 @@ export class Player {
   sing = false;
   sung = new Set<string>();
   catchAll = false;
+  /** Throw at once at a wanted Pokémon far below the lead's level (side quests that need one alive). */
+  eagerCatch = false;
   private prompt: Extract<ServerEvent, { t: 'prompt' }> | null = null;
   private req: BattleRequest | null = null;
   private inBattle = false;
@@ -180,7 +182,8 @@ export class Player {
     // Wild: catch what we want.
     if (b.kind === 'wild' && r.canCatch && foe && this.wantsToCatch(foe.species)) {
       const ball = ['ultraball', 'greatball', 'pokeball', 'netball'].find(x => (r.bag[x] ?? 0) > 0);
-      if (ball && (foe.hp / foe.maxhp <= 0.5 || this.weakestMove(r, active) === null)) { b.items++; this.send({ t: 'battle', action: { kind: 'ball', item: ball } }); return; }
+      // Side quests: a much weaker foe would faint to any hit, so throw straight away.
+      if (ball && (foe.hp / foe.maxhp <= 0.5 || this.weakestMove(r, active) === null || (this.eagerCatch && active.level >= foe.level + 6))) { b.items++; this.send({ t: 'battle', action: { kind: 'ball', item: ball } }); return; }
       const weak = this.weakestMove(r, active);
       if (ball && weak !== null) { this.send({ t: 'battle', action: { kind: 'move', index: weak } }); return; }
     }

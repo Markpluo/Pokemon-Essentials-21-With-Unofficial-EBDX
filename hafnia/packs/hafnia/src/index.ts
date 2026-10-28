@@ -12,6 +12,9 @@ import { CITY } from './city';
 import { goal } from './goal';
 import { STOPS, stopNpc } from './natbus';
 import { DRAGOR_SCRIPTS } from './dragor';
+import { KALVEBOD_SCRIPTS } from './kalvebod';
+import { ROSKILDE_SCRIPTS, roskildeGate } from './roskilde';
+import { TIVOLI_SCRIPTS, tivoliDoor } from './tivoli';
 import { FREETOWN } from './freetown';
 import { HOME, centerNpcs, intro } from './home';
 import { LAKES } from './lakes';
@@ -30,8 +33,12 @@ import { DAWN_NPCS, FLEET_DECKHAND, TREKRONER_SCRIPTS, ch8Start } from './trekro
 import { MAPS, STAMPS } from './world';
 
 const SCRIPTS: Record<string, MapScripts & { exitGuards?: Partial<Record<Dir, Script>> }> = {
-  ...HOME, ...LAKES, ...CITY, ...FREETOWN, ...DRAGOR_SCRIPTS, ...VESTERBRO_SCRIPTS, ...ASSISTENS_SCRIPTS, ...CISTERNS_SCRIPTS, ...RUNDETARN_SCRIPTS, ...BAKKEN_SCRIPTS, ...TREKRONER_SCRIPTS, ...SPIRE_SCRIPTS, ...SHIPYARD_SCRIPTS, ...KRONBORG_SCRIPTS, ...REACTOR_SCRIPTS, ...LEAGUE_SCRIPTS
+  ...HOME, ...LAKES, ...CITY, ...FREETOWN, ...DRAGOR_SCRIPTS, ...VESTERBRO_SCRIPTS, ...ASSISTENS_SCRIPTS, ...CISTERNS_SCRIPTS, ...RUNDETARN_SCRIPTS, ...BAKKEN_SCRIPTS, ...TREKRONER_SCRIPTS, ...SPIRE_SCRIPTS, ...SHIPYARD_SCRIPTS, ...KRONBORG_SCRIPTS, ...REACTOR_SCRIPTS, ...LEAGUE_SCRIPTS,
+  ...KALVEBOD_SCRIPTS, ...ROSKILDE_SCRIPTS, ...TIVOLI_SCRIPTS
 };
+// Side areas: Roskildevej opens with six badges; Tivoli's gate on Vesterbrogade opens for the Champion.
+SCRIPTS.frederiksberg = { ...SCRIPTS.frederiksberg, exitGuards: { left: roskildeGate } };
+SCRIPTS.vesterbro = { ...SCRIPTS.vesterbro, doors: { ...SCRIPTS.vesterbro.doors, tivoli: tivoliDoor } };
 const homeEnter = SCRIPTS.norrebro.onEnter;
 SCRIPTS.norrebro = {
   ...SCRIPTS.norrebro, exitGuards: { left: norrebroWest, up: norrebroNorth },
