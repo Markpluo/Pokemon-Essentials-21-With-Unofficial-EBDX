@@ -382,8 +382,21 @@ export function chapter13(p: P) {
   p.talkTo(3, 1);
   p.notes.push(`sparred with Karla: team ${p.minLevel}-${p.leadLevel} before the Elite Four`);
   for (const [m, map] of [['valdemar', 'stables'], ['clara', 'admiral'], ['nikolai', 'greathall'], ['freja', 'towerstairs']] as const)
-    goal(p, `Elite Four ${m}`, () => !!p.flag(`e4${m}`), () => { goto(p, map); p.talkTo(5, 2); });
+    goal(p, `Elite Four ${m}`, () => !!p.flag(`e4${m}`), () => { goto(p, map); e4Puzzle(p, m); p.talkTo(5, 2); });
   goal(p, 'the Champions', () => !!p.flag('ch13done'), () => goto(p, 'towerroof'));
+}
+
+/** The puzzle that opens each Elite Four hall's gap, solved like a player who has read the signs. */
+function e4Puzzle(p: P, m: string) {
+  if (p.flag(`e4p${m}`)) return;
+  if (m === 'valdemar') for (const [x, y] of [[2, 5], [8, 5], [8, 7]]) p.talkTo(x, y);   // eldest first, by the stable board
+  if (m === 'clara') for (const x of [2, 4, 6]) p.talkTo(x, 6);                           // lamps 1-3 light all four
+  if (m === 'nikolai') {
+    p.answers.push({ when: /squares loud/, pick: 'Tariq', once: true }, { when: /captains the Black Fleet/, pick: 'Freja', once: true },
+      { when: /storm on CopenHill/, pick: 'Langelira', once: true });
+    p.talkTo(5, 4);
+  }
+  if (m === 'freja') { p.talkTo(2, 6); p.talkTo(8, 6); p.talkTo(5, 4); }
 }
 
 export function postgame1(p: P) {
@@ -518,7 +531,35 @@ export function sideKalvebod(p: P) {
   goal(p, 'Ebbe\'s first two tasks', () => !!p.flag('ebbe2'), () => { goto(p, 'kalvebod'); p.talkTo(21, 2); });
   goal(p, 'the giant Orthworm', () => !!p.flag('orthwormDone'), () => { heal(p); goto(p, 'kalvebodrange'); p.talkTo(15, 14); });
   goal(p, 'Ebbe\'s last task', () => !!p.flag('ebbe3'), () => { goto(p, 'kalvebod'); p.talkTo(21, 2); });
+  goal(p, 'the Titan Store Mor', () => !!p.flag('titan.storemor'), () => { heal(p); goto(p, 'kalvebod'); p.talkTo(37, 20); });
   p.notes.push(`Kalvebod: ${caught()} of ${KALVEBOD_WILD.length} kinds caught, Exp. Charm ${p.s.bag.expcharm ? 'yes' : 'no'}`);
+}
+
+const TITAN_SPOTS = [{ id: 'storemor', map: 'kalvebod', x: 37, y: 20 }, { id: 'pia', map: 'dragor', x: 2, y: 17 },
+  { id: 'ulf', map: 'dyrehaven', x: 32, y: 1 }, { id: 'lilletom', map: 'drydock', x: 26, y: 8 },
+  { id: 'hjalte', map: 'route10', x: 27, y: 5 }, { id: 'gamleknas', map: 'route14', x: 41, y: 15 }];
+/** The Six Forgotten Trolls: battle each Titan where it sleeps, then Store Mor sends Lille Tom along. */
+export function sideTrolls(p: P) {
+  grindMaps = ['kalvebod', 'route14'];
+  for (const t of TITAN_SPOTS) {
+    goal(p, `the Titan ${t.id}`, () => !!p.flag(`titan.${t.id}`), () => { heal(p); goto(p, t.map); p.talkTo(t.x, t.y); });
+  }
+  const mor = TITAN_SPOTS.find(t => t.id === 'storemor')!;
+  goal(p, 'Lille Tom joins', () => !!p.flag('trollGift'), () => { goto(p, mor.map); p.talkTo(mor.x, mor.y); });
+  p.notes.push(`Trolls: ${TITAN_SPOTS.filter(t => p.flag(`titan.${t.id}`)).length}/6 woken, Titan Herbs ${p.s.bag.titanherb ?? 0}, Lille Tom ${[...p.s.party, ...p.s.box].some(m => m.nickname === 'Lille Tom') ? 'yes' : 'no'}`);
+}
+
+/** Gækkebrev (Ella's eight snowdrop letters) and the Winter Bathers' Relay, both from Chapter 3. */
+export function sideSmall(p: P) {
+  grindMaps = ['kalvebod', 'islandsbrygge'];
+  goal(p, 'Gækkebrev', () => !!p.flag('gaekDone'), () => {
+    goto(p, 'christianshavn');
+    p.queue.push('Read', 'Tariq', 'Kasper', 'Ørsted', 'Maja', 'Lukas', 'Lene', 'Freja', 'Knud');
+    p.talkTo(7, 11);
+  });
+  goal(p, 'the bath swimmers', () => !!p.flag('tr.ibswim1') && !!p.flag('tr.ibswim2'), () => { goto(p, 'islandsbrygge'); p.talkTo(5, 3); p.talkTo(10, 7); });
+  goal(p, 'the Winter Bathers\' Relay', () => !!p.flag('relayDone'), () => { heal(p); goto(p, 'islandsbrygge'); p.talkTo(11, 4); });
+  p.notes.push(`Gækkebrev ${p.flag('gaekDone') ? 'done' : 'not done'} (egg ${[...p.s.party, ...p.s.box].some(m => m.egg && m.species === 'togepi') ? 'yes' : 'no'}), relay ${p.flag('relayDone') ? 'won' : 'not won'}, TM Scald ${p.s.bag.tmscald ? 'yes' : 'no'}`);
 }
 
 export function sideSingers(p: P) {
@@ -564,6 +605,7 @@ export function sideRoskilde(p: P) {
   goal(p, 'the crypt grunt', () => !!p.flag('tr.crEnf1'), () => { goto(p, 'crypt'); p.talkTo(10, 7); });
   goal(p, 'Enforcer Ravn', () => !!p.flag('roskildePage'), () => { heal(p); goto(p, 'crypt'); p.talkTo(10, 1); });
   goal(p, 'the museum Dhelmise', () => !!p.flag('museumGift'), () => { goto(p, 'museum'); p.talkTo(6, 1); });
+  goal(p, 'the Titan Hjalte', () => !!p.flag('titan.hjalte'), () => { heal(p); goto(p, 'route10'); p.talkTo(27, 5); });
   p.notes.push(`Roskilde: page ${p.s.bag.roskildepage ? 'found' : 'missing'}, Dhelmise ${[...p.s.party, ...p.s.box].some(m => m.species === 'dhelmise') ? 'received' : 'missing'}`);
 }
 

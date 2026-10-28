@@ -9,7 +9,7 @@ test('christiansborg: the League hall, Freja, the Champions, the ending @story',
     map: 'slotsholmen', x: 6, y: 7, dir: 'up',
     party: [{ species: 'garchomp', level: 95, moves: ['crunch', 'dragonclaw', 'firefang', 'stoneedge'] }, { species: 'charizard', level: 90, moves: ['flamethrower', 'airslash', 'dragonclaw', 'slash'] }, { species: 'lapras', level: 90, moves: ['surf', 'icebeam', 'thunderbolt', 'psychic'] }],
     badges: ['spray', 'lily', 'frost', 'lantern', 'orrery', 'harlequin', 'spire', 'turbine'], noEncounters: true,
-    flags: { ch12done: true, ch13: true, e4valdemar: true, e4clara: true, e4nikolai: true }
+    flags: { ch12done: true, ch13: true, e4valdemar: true, e4clara: true, e4nikolai: true, e4pfreja: true }
   }));
   await bot.enter('palace');                                // Christiansborg's doors are open
   let s = await bot.state();

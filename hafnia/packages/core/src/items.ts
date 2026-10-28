@@ -19,6 +19,7 @@ export interface ItemDef {
   tm?: string;               // move taught (reusable)
   evolve?: string;           // evolution item: species.json "Item" evolutions with this parameter (DUSKSTONE)
   exp?: number;              // Exp. Candy: experience points given
+  evs?: number;              // Titan Herb: effort values added to every stat (max 252 each)
 }
 
 export const ITEMS: Record<string, ItemDef> = {
@@ -50,10 +51,12 @@ export const ITEMS: Record<string, ItemDef> = {
   mussels: { name: 'Harbour Mussels', pocket: 'key', price: 0, desc: 'From the harbour bath ladder at Islands Brygge. For Kasper.' },
   buckthorn: { name: 'Sea Buckthorn', pocket: 'key', price: 0, desc: 'Sour orange berries from the Kalvebod edge. For Kasper.' },
   icesalt: { name: 'Smoked-Ice Salt', pocket: 'key', price: 0, desc: 'Kasper\'s secret seasoning, rescued from his locker.' },
+  tmscald: { name: 'TM Scald', pocket: 'tms', price: 0, tm: 'scald', desc: 'Teaches Scald. Can be used again and again.' },
   tmhex: { name: 'TM Hex', pocket: 'tms', price: 0, tm: 'hex', desc: 'Teaches Hex. Can be used again and again.' },
   duskstone: { name: 'Dusk Stone', pocket: 'other', price: 3000, evolve: 'DUSKSTONE', desc: 'A dark stone. Some Pokémon evolve when it touches them (Lampent, Misdreavus).' },
   thunderstone: { name: 'Thunder Stone', pocket: 'other', price: 3000, evolve: 'THUNDERSTONE', desc: 'A stone with a thunderbolt pattern. Some Pokémon evolve when it touches them (Pikachu, Magneton).' },
   reapercloth: { name: 'Reaper Cloth', pocket: 'other', price: 2000, desc: 'A cloth that hums when ghosts are near. Collectors pay well for it.' },
+  titanherb: { name: 'Titan Herb', pocket: 'medicine', price: 0, evs: 40, desc: 'Moss from a Troldtræ Titan\'s shoulder. Raises every stat of one Pokémon a little, for good.' },
   expcandym: { name: 'Exp. Candy M', pocket: 'medicine', price: 0, exp: 3000, desc: 'A candy packed with energy. Gives a Pokémon 3,000 Exp. Points.' },
   kanelsnegl: { name: 'Kanelsnegl', pocket: 'key', price: 0, desc: 'A warm cinnamon swirl from the Vesterbro bakery. For delivery before 8.' },
   poembook: { name: 'Søren\'s Poem Book', pocket: 'key', price: 0, desc: 'Ghost stories from Assistens, written out by hand. One page is still blank.' },

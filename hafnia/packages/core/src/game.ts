@@ -472,6 +472,7 @@ export class Game {
     if (m && it.tm) { this.teachTM(m, it.tm, it.name); return; }
     if (m && it.evolve) { this.evolveWithItem(m, item); return; }
     if (m && it.exp) { this.giveExpCandy(m, item); return; }
+    if (m && it.evs) { this.giveVitamin(m, item); return; }
     if (!m || it.pocket !== 'medicine') return;
     const fx = itemEffect(it, m.hp, maxHp(m), m.status);
     if (!fx) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
@@ -503,6 +504,17 @@ export class Game {
     this.state.bag[item]--;
     const g = this;
     this.run(function* () { yield* g.evolveScene(m, to); }, this.map.pack);
+  }
+
+  /** Titan Herb: effort values on every stat, up to the usual 252 per stat. */
+  private giveVitamin(m: Mon, item: string) {
+    const keys = Object.keys(m.evs) as (keyof Mon['evs'])[];
+    if (keys.every(k => m.evs[k] >= 252)) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
+    const before = maxHp(m);
+    for (const k of keys) m.evs[k] = Math.min(252, m.evs[k] + ITEMS[item].evs!);
+    if (m.hp > 0) m.hp += maxHp(m) - before;
+    this.state.bag[item]--;
+    this.out.push({ t: 'sfx', name: 'select' }, { t: 'say', text: `${monName(m)} feels sturdier all over!` });
   }
 
   private giveExpCandy(m: Mon, item: string) {
@@ -833,6 +845,7 @@ export class Game {
       setTime: period => { if (PERIOD_START[period] <= s.clock) s.day = (s.day ?? 0) + 1; s.clock = PERIOD_START[period]; },
       get day() { return s.day ?? 0; },
       hasCaught: species => !!s.dex.caught[species],
+      hatched: () => s.hatched,
       get clock() { return Math.floor(s.clock); },
       setClock: minutes => { s.clock = ((Math.floor(minutes) % 1440) + 1440) % 1440; },
       givePokemon: (species, level) => {
