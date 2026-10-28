@@ -1100,7 +1100,7 @@ async function bagMenu(bag: Record<string, number>, party: MonView[], inBattle: 
     if (!inBattle) { await say('Throw Poké Balls at weakened wild Pokémon.'); return null; }
     return { kind: 'ball', item };
   }
-  if (def.repel) return { kind: 'item', item, uid: '' };
+  if (def.repel || def.field) return { kind: 'item', item, uid: '' };
   if (def.breeding) { await say(def.desc); return null; }
   if (def.pocket === 'key' || (def.pocket === 'other' && !def.heal && !def.cures && !def.evolve)) { await say(def.desc); return null; }
   const i = await partyScreen('item', party);

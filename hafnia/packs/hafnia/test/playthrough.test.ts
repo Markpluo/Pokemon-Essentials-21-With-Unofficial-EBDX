@@ -695,6 +695,13 @@ describe('Hafnia demo', () => {
     for (const [m, next] of [['valdemar', 'admiral'], ['clara', 'greathall'], ['nikolai', 'towerstairs'], ['freja', 'towerroof']]) {
       d.s.party[0].moves = [{ id: hits[m], pp: 99 }, { id: 'surf', pp: 99 }, { id: 'thunderbolt', pp: 99 }];
       d.s.party.forEach(healMon);
+      // Each hall's gap opens to its puzzle: saddle the horses eldest first, light all four lamps (the first three
+      // wicks from the start), answer the Lampent, beat the two deckhands.
+      if (m === 'valdemar') for (const [x, y] of [[2, 5], [8, 5], [8, 7]]) d.talkTo(x, y);
+      if (m === 'clara') for (const x of [2, 4, 6]) d.talkTo(x, 6);
+      if (m === 'nikolai') { d.answers.push(0, 1, 2); d.talkTo(5, 4); }
+      if (m === 'freja') { d.talkTo(2, 6); d.talkTo(8, 6); d.s.party.forEach(healMon); d.talkTo(5, 4); }
+      expect(flag(`e4p${m}`), d.where()).toBe(true);
       d.talkTo(5, 2);
       expect(flag(`e4${m}`), d.where()).toBe(true);
       if (next === 'towerroof') { d.s.party[0].moves = [{ id: 'flamethrower', pp: 99 }, { id: 'surf', pp: 99 }]; d.s.party.forEach(healMon); }

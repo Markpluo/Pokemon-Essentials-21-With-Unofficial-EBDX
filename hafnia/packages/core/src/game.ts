@@ -461,6 +461,7 @@ export class Game {
   private useItem(item: string, uid: string) {
     const it = ITEMS[item];
     if (!it || !this.state.bag[item]) return;
+    if (it.field === 'thermos') { this.thermos(); return; }
     if (it.repel) {
       if (this.state.repel > 0) { this.out.push({ t: 'say', text: 'A Repel is still working.' }); return; }
       this.state.bag[item]--; this.state.repel = it.repel;
@@ -472,6 +473,7 @@ export class Game {
     if (m && it.tm) { this.teachTM(m, it.tm, it.name); return; }
     if (m && it.evolve) { this.evolveWithItem(m, item); return; }
     if (m && it.exp) { this.giveExpCandy(m, item); return; }
+    if (m && it.evs) { this.giveVitamin(m, item); return; }
     if (!m || it.pocket !== 'medicine') return;
     const fx = itemEffect(it, m.hp, maxHp(m), m.status);
     if (!fx) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
@@ -495,14 +497,49 @@ export class Game {
     }, this.map.pack);
   }
 
-  /** Evolution stones: the Pokémon evolves at once if its species.json lists an "Item" evolution for this item. */
+  /** Evolution stones: the Pokémon evolves at once if its species.json lists an "Item" evolution for this item.
+   *  Day/NightHoldItem evolutions (Happiny's Oval Stone) work the same way at the right time of day, and the
+   *  Soothe Bell stands in for friendship: it triggers Happiness evolutions and is never used up. */
   private evolveWithItem(m: Mon, item: string) {
-    const it = ITEMS[item];
-    const to = (speciesExtra(m.species).evolutions ?? []).find(([, method, param]) => method === 'Item' && param === it.evolve)?.[0];
-    if (!to) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
-    this.state.bag[item]--;
+    const it = ITEMS[item], p = this.period, day = p === 'morning' || p === 'day';
+    const evos = speciesExtra(m.species).evolutions ?? [];
+    const to = evos.find(([, method, param]) => (method === 'Item' && param === it.evolve)
+      || (method === 'DayHoldItem' && param === it.evolve && day) || (method === 'NightHoldItem' && param === it.evolve && p === 'night')
+      || (it.evolve === 'SOOTHEBELL' && (method === 'Happiness' || (method === 'HappinessDay' && day) || (method === 'HappinessNight' && p === 'night'))))?.[0];
+    if (!to) {
+      const later = evos.some(([, method, param]) => (/HoldItem$/.test(method) && param === it.evolve) || (it.evolve === 'SOOTHEBELL' && /^Happiness(Day|Night)$/.test(method)));
+      this.out.push({ t: 'say', text: later ? `Nothing happened... ${monName(m)} seems to want ${day ? 'the night' : 'daylight'}.` : 'It won\'t have any effect.' });
+      return;
+    }
+    if (!it.keep) this.state.bag[item]--;
     const g = this;
-    this.run(function* () { yield* g.evolveScene(m, to); }, this.map.pack);
+    this.run(function* (api) {
+      if (it.evolve === 'SOOTHEBELL') api.say(`The Soothe Bell chimed softly.\n${monName(m)} looks very fond of you!`);
+      yield* g.evolveScene(m, to);
+    }, this.map.pack);
+  }
+
+  /** The Termokande (Hygge Passport reward): a coffee break outdoors that moves the clock on, without the café's heal. */
+  private thermos() {
+    if (this.map.indoor) { this.out.push({ t: 'say', text: 'Save the Termokande for a bench outdoors.' }); return; }
+    const periods: DayPeriod[] = ['morning', 'day', 'evening', 'night'];
+    this.run(function* (api) {
+      const c: number = yield api.ask('You pour a cup from the Termokande.\nSit until...', ['Morning', 'Day', 'Evening', 'Night', 'Not now'], 4);
+      if (c > 3) return;
+      api.fade(1, 20); api.setTime(periods[c]); api.fade(0, 20);
+      api.say(`The coffee steams. The city goes by.\nIt's ${periods[c] === 'day' ? 'midday' : periods[c]} now.`);
+    }, this.map.pack);
+  }
+
+  /** Titan Herb: effort values on every stat, up to the usual 252 per stat. */
+  private giveVitamin(m: Mon, item: string) {
+    const keys = Object.keys(m.evs) as (keyof Mon['evs'])[];
+    if (keys.every(k => m.evs[k] >= 252)) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
+    const before = maxHp(m);
+    for (const k of keys) m.evs[k] = Math.min(252, m.evs[k] + ITEMS[item].evs!);
+    if (m.hp > 0) m.hp += maxHp(m) - before;
+    this.state.bag[item]--;
+    this.out.push({ t: 'sfx', name: 'select' }, { t: 'say', text: `${monName(m)} feels sturdier all over!` });
   }
 
   private giveExpCandy(m: Mon, item: string) {
@@ -833,6 +870,7 @@ export class Game {
       setTime: period => { if (PERIOD_START[period] <= s.clock) s.day = (s.day ?? 0) + 1; s.clock = PERIOD_START[period]; },
       get day() { return s.day ?? 0; },
       hasCaught: species => !!s.dex.caught[species],
+      hatched: () => s.hatched,
       get clock() { return Math.floor(s.clock); },
       setClock: minutes => { s.clock = ((Math.floor(minutes) % 1440) + 1440) % 1440; },
       givePokemon: (species, level) => {

@@ -3,7 +3,7 @@
 // stairs), then the Tower roof: Ørsted and Lukas, co-Champions, against you and Maja. Then fireworks over Tivoli,
 // the new statue on Langelinie ("...Okay. Not tiny."), and a ferry horn: Maja has heard singing under Bornholm.
 import type { FoeSpec, NpcDef, Script, ScriptApi } from '@hafnia/core';
-import { grown, type MapScripts, type Step } from './lib';
+import { grown, sign, talk, trainer, type MapScripts, type Step } from './lib';
 import { lukasStarter, majaStarter } from './starters';
 
 // ---------- The chapter starts: the dark night ----------
@@ -131,12 +131,123 @@ const hallDoor = (m: Member): Script => function* (s) {
   s.warp(m.next, 5, m.next === 'towerroof' ? 5 : 7, 'up');
 };
 
+// ---------- The hall puzzles ----------
+// Each hall's gap in row 4 is held shut until its puzzle is solved (flag e4p<member>). Beating the member also
+// counts, so saves from before the puzzles existed walk straight through.
+
+const solved = (m: string) => (f: (n: string) => any) => !!f(`e4p${m}`) || !!f(`e4${m}`);
+const open = (s: ScriptApi, m: string, gate: string, line: string) => {
+  s.setFlag(`e4p${m}`, true);
+  s.sfx('door');
+  s.say(line);
+  s.npc(gate).hide();
+  s.checkpoint();
+};
+
+/** Valdemar's stables: saddle the three horses eldest first; a wrong one and the saddles slip off. */
+const HORSES = [
+  { id: 'gnist', name: 'Gnist', species: 'ponyta', kind: 'Ponyta', x: 2, y: 5 },
+  { id: 'stjerne', name: 'Stjerne', species: 'rapidash', kind: 'Rapidash', x: 8, y: 5 },
+  { id: 'brun', name: 'Brun', species: 'mudbray', kind: 'Mudbray', x: 8, y: 7 }
+];
+const horse = (i: number): Script => function* (s) {
+  const h = HORSES[i];
+  if (solved('valdemar')(n => s.flag(n))) { s.cry(h.species); s.say(`${h.name} nickers. Saddled and ready to ride.`); return; }
+  const done = (s.flag('e4saddle') as number | undefined) ?? 0;
+  if (i < done) { s.say(`${h.name} is already saddled.`); return; }
+  const c: number = yield s.ask(`${h.name} the ${h.kind} flicks an ear at you.`, ['Saddle', 'Leave'], 1);
+  if (c !== 0) return;
+  s.cry(h.species);
+  if (i !== done) {
+    s.setFlag('e4saddle', 0);
+    s.say(`${h.name} shies away! The other horses stamp,\nand every saddle slides off into the straw.`);
+    s.say('An old groom\'s voice: "Eldest first. They know their order\nbetter than you do."');
+    return;
+  }
+  s.setFlag('e4saddle', done + 1);
+  s.say(`${h.name} stands still for the saddle.`);
+  if (done + 1 === HORSES.length) open(s, 'valdemar', 'stablegate', 'All three horses saddled. The stable gate swings open.');
+};
+
+/** Clara's hall: four lamps on one wick-line; lighting or snuffing one flips its neighbours too. Light them all. */
+const LAMPS = [2, 4, 6, 8];
+const lampBits = (f: (n: string) => any) => (f('e4lamps') as number | undefined) ?? 0b0101;
+const lamp = (i: number): Script => function* (s) {
+  if (solved('clara')(n => s.flag(n))) { s.say('The lamp burns steady. The Admiral\'s hall is ready.'); return; }
+  const c: number = yield s.ask('A brass ship\'s lamp on a shared wick-line.', ['Turn the wick', 'Leave'], 1);
+  if (c !== 0) return;
+  let bits = lampBits(n => s.flag(n));
+  for (const j of [i - 1, i, i + 1]) if (j >= 0 && j < LAMPS.length) bits ^= 1 << j;
+  s.setFlag('e4lamps', bits);
+  s.sfx('select');
+  if (bits === 0b1111) open(s, 'clara', 'admiralgate', 'All four lamps blaze. A cannon port grinds aside.');
+};
+const lampNpcs = (): NpcDef[] => LAMPS.flatMap((x, i) => [
+  { id: `e4lamp${i}`, sprite: 'obj:lanternout', x, y: 6, dir: 'down', object: true, when: f => !solved('clara')(f) && !(lampBits(f) & (1 << i)), talk: lamp(i) },
+  { id: `e4lamplit${i}`, sprite: 'obj:lantern', x, y: 6, dir: 'down', object: true, when: f => solved('clara')(f) || !!(lampBits(f) & (1 << i)), talk: lamp(i) }
+] as NpcDef[]);
+
+/** Nikolai's Great Hall: his Lampent asks three questions about your journey. One wrong answer and it starts over. */
+const QUIZ: { q: string; options: string[]; right: number }[] = [
+  { q: 'Who keeps Superkilen\'s squares loud?', options: ['Tariq', 'Kasper', 'Tycho'], right: 0 },
+  { q: 'Who captains the Black Fleet?', options: ['Clara', 'Freja', 'Margrethe'], right: 1 },
+  { q: 'What answered you in the storm on CopenHill?', options: ['Kronvakt', 'Krønikon', 'Langelira'], right: 2 }
+];
+const quiz: Script = function* (s) {
+  s.cry('lampent');
+  s.say('Nikolai\'s Lampent bobs in the gap, its flame flickering.\nIt wants to know what you remember.');
+  for (const q of QUIZ) {
+    const c: number = yield s.ask(`Lampent: ${q.q}`, q.options);
+    if (c !== q.right) { s.say('The flame shrinks to a sulky blue spark.\nLampent turns its back on you.'); return; }
+    s.say('The flame flares bright.');
+  }
+  open(s, 'nikolai', 'quizgate', 'Lampent drifts aside, purring like a candle.\nThe way to Nikolai is open.');
+};
+
+/** Freja's stairs: two of her crew stand watch; beat both and the Bosun lets you up. */
+const bosun: Script = function* (s) {
+  if (!s.flag('tr.e4crew1') || !s.flag('tr.e4crew2')) {
+    s.say('Fleet Bosun: The Captain sees nobody my crew hasn\'t tested.\nBoth of them. Off you go.');
+    return;
+  }
+  s.say('Fleet Bosun: Both down? Ha. Then you\'ve earned the stairs.\nMind the Captain. She bites.');
+  open(s, 'freja', 'bosungate', 'The Bosun steps aside.');
+};
+
+const PUZZLES: Record<string, NpcDef[]> = {
+  valdemar: [
+    { id: 'stablegate', sprite: 'obj:barrier', x: 5, y: 4, dir: 'down', object: true, when: f => !solved('valdemar')(f),
+      talk: talk('A stable gate, bolted from the far side.') },
+    ...HORSES.map((h, i): NpcDef => ({ id: `horse${h.id}`, sprite: `chars/${h.species}`, x: h.x, y: h.y, dir: 'down', talk: horse(i) })),
+    sign('stableboard', 1, 6, 'obj:sign', 'ROYAL STABLES. Gnist, foaled 2004. Brun, foaled 2019.\nStjerne, foaled 2011. The eldest is always saddled first.')
+  ],
+  clara: [
+    { id: 'admiralgate', sprite: 'obj:barrier', x: 5, y: 4, dir: 'down', object: true, when: f => !solved('clara')(f),
+      talk: talk('A cannon port, shut tight. A brass plate below it:\n"Light every lamp and the Admiral will receive you."') },
+    ...lampNpcs(),
+    sign('lamporders', 1, 7, 'obj:sign', 'STANDING ORDERS: The lamps share one wick-line.\nTurn one and its neighbours turn with it.')
+  ],
+  nikolai: [
+    { id: 'quizgate', sprite: 'chars/lampent', x: 5, y: 4, dir: 'down', when: f => !solved('nikolai')(f), talk: quiz }
+  ],
+  freja: [
+    { id: 'bosungate', sprite: 'chars/sailor', x: 5, y: 4, dir: 'down', when: f => !solved('freja')(f), talk: bosun },
+    trainer({ id: 'e4crew1', x: 2, y: 6, dir: 'right', sprite: 'chars/deckhand', sight: 3, cls: 'Deckhand', name: 'Rasmus',
+      foes: [{ species: 'overqwil', level: 55 }, { species: 'sharpedo', level: 56 }],
+      intro: ['Deckhand Rasmus: The Captain\'s busy being an Elite.\nYou\'ll be busy with me.'], lose: ['Deckhand Rasmus: Right. One more of us to go.'] }),
+    trainer({ id: 'e4crew2', x: 8, y: 6, dir: 'left', sprite: 'chars/deckhand', sight: 3, cls: 'Deckhand', name: 'Sanna',
+      foes: [{ species: 'toxapex', level: 55 }, { species: 'pelipper', level: 56 }],
+      intro: ['Deckhand Sanna: Freja pardoned us all. We owe her\none good watch. Here it is!'], lose: ['Deckhand Sanna: Fine. Tell the Bosun.'] })
+  ]
+};
+
 const hall = (m: Member): MapScripts => ({
   npcs: [
     // Freja is away at Trekroner with the Fleet while the lighthouse is rebuilt (post-game P5).
     { id: m.id, sprite: `chars/${m.sprite}`, x: 5, y: 2, dir: 'down', talk: memberTalk(m),
       ...(m.id === 'freja' ? { when: f => !f('pg5') || !!f('pg5done') } : {}) } as NpcDef,
-    { id: `${m.id}door`, sprite: 'obj:stairs', x: 5, y: 0, dir: 'down', object: true, talk: hallDoor(m) }
+    { id: `${m.id}door`, sprite: 'obj:stairs', x: 5, y: 0, dir: 'down', object: true, talk: hallDoor(m) },
+    ...PUZZLES[m.id]
   ]
 });
 

@@ -15,6 +15,9 @@ import { DRAGOR_SCRIPTS } from './dragor';
 import { KALVEBOD_SCRIPTS } from './kalvebod';
 import { ROSKILDE_SCRIPTS, roskildeGate } from './roskilde';
 import { TIVOLI_SCRIPTS, tivoliDoor } from './tivoli';
+import { TROLL_NPCS } from './trolls';
+import { SIDE_NPCS } from './sidequests';
+import { ERRAND_NPCS } from './errands';
 import { FREETOWN } from './freetown';
 import { HOME, centerNpcs, intro } from './home';
 import { LAKES } from './lakes';
@@ -158,6 +161,13 @@ SCRIPTS.route2.exitGuards = { up: frederiksbergGate };
 SCRIPTS.vesterbro = { ...SCRIPTS.vesterbro, doors: { ...SCRIPTS.vesterbro.doors, bakery: function* (s) { s.warp('bakery', 5, 4, 'up'); } } };
 // Kanelsnegl Morning's letterboxes sit on maps from earlier chapters.
 for (const m of MAILBOXES) SCRIPTS[m.map] = { ...SCRIPTS[m.map], npcs: [...(SCRIPTS[m.map].npcs ?? []), mailboxNpc(m)] };
+// The Six Forgotten Trolls and the side quests (sidequests.ts, errands.ts) live on maps from all over the story.
+for (const [id, npcs] of Object.entries(SIDE_NPCS)) {
+  const ids = new Set(npcs.map(n => n.id));
+  SCRIPTS[id] = { ...SCRIPTS[id], npcs: [...(SCRIPTS[id]?.npcs ?? []).filter(n => !ids.has(n.id)), ...npcs] };
+}
+for (const [id, npcs] of Object.entries(TROLL_NPCS)) SCRIPTS[id] = { ...SCRIPTS[id], npcs: [...(SCRIPTS[id]?.npcs ?? []), ...npcs] };
+for (const [id, npcs] of Object.entries(ERRAND_NPCS)) SCRIPTS[id] = { ...SCRIPTS[id], npcs: [...(SCRIPTS[id]?.npcs ?? []), ...npcs] };
 
 const maps: Record<string, MapDef> = {};
 for (const [id, m] of Object.entries(MAPS)) {

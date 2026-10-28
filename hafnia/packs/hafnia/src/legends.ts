@@ -23,6 +23,12 @@ export const SIM_DATA: Record<string, Record<string, unknown>> = {
       baseStats: { hp: 105, atk: 130, def: 130, spa: 65, spd: 100, spe: 70 },
       abilities: { 0: 'Steadfast' }, heightm: 3.4, weightkg: 520, color: 'Brown', eggGroups: ['Undiscovered']
     },
+    // A gentle troll of reclaimed timber; six named Titans sleep on Hafnia's outskirts.
+    troldtrae: {
+      num: -2005, name: 'Troldtrae', types: ['Grass', 'Rock'],
+      baseStats: { hp: 110, atk: 105, def: 110, spa: 60, spd: 85, spe: 45 },
+      abilities: { 0: 'Sturdy', 1: 'Grassy Surge' }, heightm: 4.8, weightkg: 380, color: 'Gray', eggGroups: ['Undiscovered']
+    },
     // The Baltic Wyrm asleep in Bornholm's granite; the siphon pulled from it too. (Showdown ids are ASCII, so no ø.)
     kronikon: {
       num: -2004, name: 'Kronikon', types: ['Dragon', 'Rock'], gender: 'N',
@@ -71,6 +77,12 @@ export const SPECIES_EXTRA: Record<string, SpeciesExtra> = {
     dex: 'It sleeps coiled in Bornholm\'s granite and hums the island\'s chronicle. The stone remembers everything it sings.',
     moves: [[1, 'rockthrow'], [1, 'dragonbreath'], [10, 'ancientpower'], [20, 'dragonpulse'], [30, 'stealthrock'], [40, 'powergem'],
       [50, 'granitesong'], [60, 'earthpower'], [70, 'dracometeor'], [80, 'calmmind']]
+  },
+  troldtrae: {
+    key: 'TROLDTRAE', name: 'Troldtræ', catchRate: 45, baseExp: 250, growth: 'Slow', category: 'Timber Troll',
+    dex: 'Built itself from fallen trees and old planks. It sleeps for years in the woods and wakes when children laugh nearby.',
+    moves: [[1, 'tackle'], [1, 'absorb'], [8, 'rockthrow'], [16, 'leechseed'], [24, 'rockslide'], [32, 'woodhammer'],
+      [40, 'ingrain'], [48, 'stoneedge'], [56, 'hornleech'], [64, 'headsmash']]
   },
   rotomreactor: {
     key: 'ROTOM_REACTOR', catchRate: 0, baseExp: 250, growth: 'Medium', category: 'Plasma',

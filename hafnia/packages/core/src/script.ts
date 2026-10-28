@@ -28,6 +28,8 @@ export interface BattleOptions {
   tutorial?: boolean;
   /** Resonance Rift (post-game): the wild Pokémon is Echo-warped, +1 to every stat. */
   echo?: boolean;
+  /** A Troldtræ Titan: a boss that gets +1 to every stat and swats balls away. */
+  titan?: boolean;
   /** The concert (post-game P5): the player's Coil starts full and refills after each use, and the foe can't be
    *  knocked out until Copper, Current and Harmony have all been used. */
   concert?: boolean;
@@ -95,6 +97,8 @@ export interface ScriptApi {
   readonly day: number;
   /** Whether the Pokédex has this species as caught. */
   hasCaught(species: string): boolean;
+  /** Eggs hatched so far (Ørsted's Hatchery Log). */
+  hatched(): number;
   setClock(minutes: number): void;
   givePokemon(species: string, level: number): Mon;
   giveItem(item: string, qty?: number): void;
