@@ -1,6 +1,6 @@
 // Hafnia's own Pokémon, which Showdown doesn't know: their battle data goes into the simulator's dex (simData),
 // and catch rate, EXP, level-up moves and Pokédex text into the PBS table (speciesExtra). Sprites are in
-// pack.json "pokemon" (placeholder recolours until the real art is drawn).
+// pack.json "pokemon" (stand-in art made from Gemini sheets until the real art is drawn).
 import type { SpeciesExtra } from '@hafnia/core';
 
 export const SIM_DATA: Record<string, Record<string, unknown>> = {
