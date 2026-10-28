@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Blyn</title>
+<meta name="description" content="Spil og værktøjer lavet af Mark.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #f4f1ea; --card: #ffffff; --ink: #1d1f24; --muted: #5f646d; --line: #ddd6c8;
+  --accent: #c8743a; --accent-ink: #ffffff; --soon: #8a7f6c;
+  --head: "Space Grotesk", system-ui, sans-serif; --body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #14161b; --card: #1d2027; --ink: #eef0f3; --muted: #9aa1ad; --line: #2c3039; --accent: #e08a4c; --accent-ink: #14161b; --soon: #8d8676; }
+}
+:root[data-theme="dark"] { --bg: #14161b; --card: #1d2027; --ink: #eef0f3; --muted: #9aa1ad; --line: #2c3039; --accent: #e08a4c; --accent-ink: #14161b; --soon: #8d8676; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); line-height: 1.5; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 48px 16px 40px; }
+header h1 { font-family: var(--head); font-weight: 700; font-size: clamp(44px, 9vw, 72px); letter-spacing: -0.03em; line-height: 1; margin: 0; }
+header h1 span { color: var(--accent); }
+header p { color: var(--muted); font-size: 18px; margin: 12px 0 40px; max-width: 50ch; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; list-style: none; margin: 0; padding: 0; }
+@media (max-width: 860px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 540px) { .grid { grid-template-columns: 1fr; } }
+.card { display: flex; flex-direction: column; height: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; color: inherit; text-decoration: none; }
+a.card { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+a.card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,.12); border-color: var(--accent); }
+a.card:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.thumb { aspect-ratio: 4 / 3; background: var(--line); display: grid; place-items: center; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: block; }
+.thumb .glyph { font-family: var(--head); font-size: 40px; color: var(--soon); opacity: .6; }
+.body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.body h2 { font-family: var(--head); font-size: 21px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+.body p { margin: 0; color: var(--muted); font-size: 15px; flex: 1; }
+.pill { align-self: flex-start; margin-top: 10px; font-family: var(--head); font-size: 13px; font-weight: 500; padding: 4px 12px; border-radius: 999px; }
+.pill.go { background: var(--accent); color: var(--accent-ink); }
+.pill.soon { border: 1px dashed var(--soon); color: var(--soon); }
+.card.empty { background: transparent; border-style: dashed; }
+.card.empty .thumb { background: transparent; aspect-ratio: 16 / 9; }
+footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <h1>blyn<span>.</span></h1>
+    <p>Spil og værktøjer, som Mark har lavet. Vælg en boks for at se mere og starte.</p>
+  </header>
+
+  <ul class="grid">
+    <li>
+      <a class="card" href="./copper-current/">
+        <div class="thumb"><img src="./img/copper-current.png" alt="Nyhavn i Copper & Current" width="844" height="633"></div>
+        <div class="body">
+          <h2>Copper &amp; Current</h2>
+          <p>Et Pokémon-fanspil i København. Privat demo for inviterede venner.</p>
+          <span class="pill go">Spil · kræver kode</span>
+        </div>
+      </a>
+    </li>
+    <li>
+      <div class="card">
+        <div class="thumb"><span class="glyph">?</span></div>
+        <div class="body">
+          <h2>Nyt spil</h2>
+          <p>Mit næste spil.</p>
+          <span class="pill soon">Kommer snart</span>
+        </div>
+      </div>
+    </li>
+    <li>
+      <div class="card">
+        <div class="thumb"><span class="glyph">?</span></div>
+        <div class="body">
+          <h2>Nyt værktøj</h2>
+          <p>Et værktøj, jeg har bygget.</p>
+          <span class="pill soon">Kommer snart</span>
+        </div>
+      </div>
+    </li>
+    <li><div class="card empty"><div class="thumb"><span class="glyph">+</span></div><div class="body"><h2>Ledig plads</h2><p>&nbsp;</p></div></div></li>
+    <li><div class="card empty"><div class="thumb"><span class="glyph">+</span></div><div class="body"><h2>Ledig plads</h2><p>&nbsp;</p></div></div></li>
+    <li><div class="card empty"><div class="thumb"><span class="glyph">+</span></div><div class="body"><h2>Ledig plads</h2><p>&nbsp;</p></div></div></li>
+  </ul>
+
+  <footer>© Mark · blyn.dk</footer>
+</main>
+</body>
+</html>

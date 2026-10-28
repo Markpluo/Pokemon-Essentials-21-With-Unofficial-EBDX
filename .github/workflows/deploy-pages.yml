@@ -1,13 +1,13 @@
-# Builds Copper & Current (hafnia/) and deploys it to Cloudflare Pages (project "copper-current")
-# on every push to main, or by hand from the Actions tab. The invite gate (apps/client/functions)
-# goes up with it. Needs the repo secrets CLOUDFLARE_API_TOKEN (Account > Cloudflare Pages > Edit)
-# and CLOUDFLARE_ACCOUNT_ID; without them the deploy step is skipped.
+# Builds blyn.dk (the blyn/ portal plus Copper & Current from hafnia/ at /copper-current/) and
+# deploys it to Cloudflare Pages (project "blyn") on every push to main, or by hand from the Actions
+# tab. The invite gate (blyn/functions) goes up with it. Needs the repo secrets CLOUDFLARE_API_TOKEN
+# (Account > Cloudflare Pages > Edit) and CLOUDFLARE_ACCOUNT_ID; without them the deploy step is skipped.
 name: deploy-pages
 
 on:
   push:
     branches: [main]
-    paths: ['hafnia/**', 'Graphics/**', 'Audio/**', '.github/workflows/deploy-pages.yml']
+    paths: ['blyn/**', 'hafnia/**', 'Graphics/**', 'Audio/**', '.github/workflows/deploy-pages.yml']
   workflow_dispatch:
 
 concurrency:
@@ -32,9 +32,10 @@ jobs:
           cache-dependency-path: hafnia/package-lock.json
       - run: npm ci
       - run: npm run build
+      - run: node ../blyn/build.mjs
       - name: Deploy to Cloudflare Pages
         if: env.CLOUDFLARE_API_TOKEN != ''
-        working-directory: hafnia/apps/client
+        working-directory: blyn
         run: |
-          npx --yes wrangler@4 pages project create copper-current --production-branch main || true
-          npx --yes wrangler@4 pages deploy dist --project-name copper-current --branch main
+          npx --yes wrangler@4 pages project create blyn --production-branch main || true
+          npx --yes wrangler@4 pages deploy dist --project-name blyn --branch main

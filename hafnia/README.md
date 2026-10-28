@@ -26,7 +26,7 @@ animation preview: left/right picks an animation, A plays it, B swaps which side
 `apps/client/index.html` is the homepage (what the game is, screenshots, credits, privacy, and the
 invite-code form); the game itself is `play.html`. In `npm run dev` the form just opens the game.
 
-Deployed on Cloudflare Pages, the invite gate is real: `apps/client/functions/` holds two Pages
+Deployed on Cloudflare Pages (on blyn.dk at `/copper-current/`, see `blyn/`), the invite gate is real: `apps/client/functions/` holds two Pages
 Functions. `_middleware.js` sends anyone without a valid invite cookie from `/play` back to the
 homepage and refuses the game's `/assets/` and `/game-assets/` files; `api/invite.js` checks the code
 and sets a signed cookie for 60 days. Every response is marked `noindex`, and `robots.txt` disallows
@@ -45,10 +45,7 @@ Cloudflare Pages settings:
 
 To hand out or revoke codes, edit `INVITE_CODES` and redeploy. Without both env vars the gate stays shut.
 
-`.github/workflows/deploy-pages.yml` builds and deploys to the Pages project `copper-current` on every
-push to `main` (or by hand from the Actions tab). It needs the repo secrets `CLOUDFLARE_API_TOKEN`
-(permission Account > Cloudflare Pages > Edit) and `CLOUDFLARE_ACCOUNT_ID`; without them it only builds.
-The custom domain (blyn.dk) is added under the Pages project's Custom domains.
+`.github/workflows/deploy-pages.yml` deploys the game as part of blyn.dk (`blyn/README.md`).
 
 ## Battle animations
 
