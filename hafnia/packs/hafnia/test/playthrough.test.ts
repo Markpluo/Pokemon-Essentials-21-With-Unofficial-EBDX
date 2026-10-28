@@ -18,6 +18,8 @@ class Driver {
   sing = false;
   private sung = new Set<string>();
   private wild = false;
+  private useless = new Set<number>();
+  private lastMove: number | null = null;
   constructor(public game: Game, first: ServerEvent[]) { this.take(first); }
 
   /** Sends an intent, then answers every prompt and battle request that follows (always the first option). */
@@ -29,8 +31,14 @@ class Driver {
       if (n > 3000) throw new Error(`stuck answering: ${this.where()} ${JSON.stringify(evs.slice(-6)).slice(0, 1500)}`);
       this.log.push(...evs);
       for (const e of evs) if (e.t === 'error') throw new Error(e.message);
-      for (const e of evs) if (e.t === 'battleEnd') this.battles.push(e.result);
-      for (const e of evs) if (e.t === 'battleStart') this.wild = e.battle.kind === 'wild';
+      for (const e of evs) if (e.t === 'battleEnd') {
+        this.battles.push(e.result);
+        // Trainers hold most roads, so a route is a chain of battles: patch the team up after a win, like a player with Potions.
+        if (e.result === 'win' && !this.wild) this.game.state.party.forEach(healMon);
+      }
+      for (const e of evs) if (e.t === 'battleStart') { this.wild = e.battle.kind === 'wild'; this.useless.clear(); }
+      // A move that does little or nothing to this foe (resisted, an immunity, Sap Sipper) isn't picked again this battle.
+      for (const e of evs) if (e.t === 'battle' && e.ev.b === 'text' && /Sap Sipper|Water Absorb|Volt Absorb|Flash Fire|doesn't affect the opposing|not very effective/.test(e.ev.text) && this.lastMove !== null) this.useless.add(this.lastMove);
       const last = [...evs].reverse().find(e => ['prompt', 'pickSpecies', 'battleRequest', 'askName', 'pickLook'].includes(e.t));
       if (!last) return;
       evs = this.game.handle(this.reply(last));
@@ -48,11 +56,16 @@ class Driver {
       return { t: 'battle', action: { kind: 'switch', uid: next.uid } };
     }
     if (this.ball && this.wild) return { t: 'battle', action: { kind: 'ball', item: this.ball } };
+    // Paralysis or sleep on a lone Pokémon decides long trainer chains by luck: cure it like a player would.
+    const active = r.party.find(p => p.uid === r.activeUid);
+    if (!this.wild && active && (active.status === 'par' || active.status === 'slp') && (r.bag.fullheal ?? 0) > 0) return { t: 'battle', action: { kind: 'item', item: 'fullheal', uid: active.uid } };
     // Strongest usable move, like a sensible player.
-    const best = r.moves.map((m, i) => ({ m, i })).filter(x => !x.m.disabled && x.m.pp !== 0)
+    const usable = r.moves.map((m, i) => ({ m, i })).filter(x => !x.m.disabled && x.m.pp !== 0);
+    const best = (usable.some(x => !this.useless.has(x.i)) ? usable.filter(x => !this.useless.has(x.i)) : usable)
       .sort((a, b) => Number(b.m.type !== 'normal') - Number(a.m.type !== 'normal'))[0];
     const mode = this.sing ? (['copper', 'current', 'harmony'] as const).find(m => r.coil?.[m] === null && !this.sung.has(m)) : undefined;
     if (mode) this.sung.add(mode);
+    this.lastMove = best?.i ?? 0;
     return { t: 'battle', action: { kind: 'move', index: best?.i ?? 0, ...(mode ? { mode } : {}) } };
   }
 
@@ -192,6 +205,7 @@ describe('Hafnia demo', () => {
     expect(d.s.bag.bike).toBe(1);
     const lead = d.s.party[0];
     lead.level = 60; lead.exp = 60 ** 3 + 10; healMon(lead);
+    d.s.bag.fullheal = 99;                                     // cures paralysis in battle (see reply)
 
     d.walkTo(8, 10); at('garden');
     d.exit('up', 13, 0); at('route1');
@@ -223,7 +237,7 @@ describe('Hafnia demo', () => {
     toNorrebro();
     d.talkTo(6, 13);
     expect(flag('muralQuest')).toBe(true);
-    d.talkTo(3, 9); d.talkTo(16, 9); d.talkTo(19, 15); d.talkTo(2, 5); d.talkTo(25, 6);
+    d.talkTo(3, 9); d.talkTo(16, 9); d.talkTo(18, 14); d.talkTo(2, 5); d.talkTo(25, 6);
     expect(['paintGreen', 'paintGold', 'paintSilver', 'paintPurple'].map(flag)).toEqual([true, true, true, true]);
     d.talkTo(6, 13);
     expect(flag('mural')).toBe(true);
@@ -269,7 +283,7 @@ describe('Hafnia demo', () => {
     expect(flag('mirror1'), d.where()).toBe(true);
     d.talkTo(1, 5);
     d.talkTo(8, 1);
-    expect(d.s.badges).toEqual(['hafnia:spray', 'hafnia:lily']);
+    expect(d.s.badges, d.where()).toEqual(['hafnia:spray', 'hafnia:lily']);
 
     // 2.8: back to the bridge at dusk
     d.walkTo(8, 9); at('stadsgraven');
@@ -464,6 +478,7 @@ describe('Hafnia demo', () => {
     d.talkTo(10, 10); at('towerin');                           // the staff stairs
 
     // Chapter 7: Langelinie, Strandvejen, Ingrid, Sif and the sub-station, Bakken and Pierrot
+    d.s.party[0].moves = [{ id: 'heatwave', pp: 10 }, ...d.s.party[0].moves];   // the sub-station engineers' Steel types
     expect(flag('ch7'), d.where()).toBe(true);
     d.s.party.forEach(healMon);                                // a stop at the Pokémon Center
     d.walkTo(4, 4); at('indreby');
@@ -787,6 +802,7 @@ describe('Hafnia demo', () => {
     expect(d.said.join('\n')).toMatch(/investors just pulled out/);
     d.s.party.splice(0, 6, ...[1, 2, 3, 4, 5, 6].map(i => makeMon('bronzong', 100, new Rng(20 + i), { moves: ['irondefense'] })));
     d.s.bag.ultraball = 99; d.ball = 'ultraball';
+    d.game.rng.state = 1;                                   // a catch is luck: fix it, so more battles earlier don't change it
     d.talkTo(11, 1);                                            // the Baltic Wyrm
     d.ball = null;
     expect([...d.s.party, ...d.s.box].some(m => m.species === 'kronikon'), d.where()).toBe(true);

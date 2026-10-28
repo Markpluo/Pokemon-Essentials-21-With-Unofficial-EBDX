@@ -21,16 +21,16 @@ const INDREBY: MapScripts = {
       s.say('c2.torv.stall.1');
       if (!s.flag('recipe1')) { s.say('c2.torv.stall.2'); s.setFlag('recipe1', true); s.me('me_item'); s.say(`${s.player.name} got a recipe card!`); }
     } },
-    trainer({ id: 'viggo', x: 16, y: 10, dir: 'down', sprite: 'chars/juggler', sight: 1, cls: 'Busker', name: 'Viggo',
+    trainer({ id: 'viggo', x: 16, y: 11, dir: 'left', sprite: 'chars/juggler', sight: 3, cls: 'Busker', name: 'Viggo',
       foes: [{ species: 'kricketot', level: 13 }, { species: 'jigglypuff', level: 14 }], intro: ['c2.busker.intro'], lose: ['c2.busker.lose'], after: ['c2.busker.line'],
       reward: s => { s.giveItem('tmround'); s.me('me_item'); s.say(`${s.player.name} got TM Round!`); } }),
-    trainer({ id: 'gerd', x: 7, y: 10, dir: 'right', sprite: 'chars/tourist', sight: 2, cls: 'Tourist', name: 'Gerd',
+    trainer({ id: 'gerd', x: 8, y: 10, dir: 'right', sprite: 'chars/tourist', sight: 7, cls: 'Tourist', name: 'Gerd',
       foes: [{ species: 'vulpix', level: 14 }], intro: ['c2.tourist.intro'], lose: ['c2.tourist.lose'] }),
-    trainer({ id: 'frederik', x: 26, y: 6, dir: 'down', sprite: 'chars/guard', sight: 2, cls: 'Royal Guard', name: 'Frederik',
+    trainer({ id: 'frederik', x: 25, y: 6, dir: 'down', sprite: 'chars/guard', sight: 5, cls: 'Royal Guard', name: 'Frederik',
       foes: [{ species: 'klink', level: 15 }, { species: 'lillipup', level: 15 }], intro: ['c2.guard.intro'], lose: ['c2.guard.lose'] }),
-    trainer({ id: 'anders', x: 19, y: 7, dir: 'left', sprite: 'chars/student', sight: 2, cls: 'Student', name: 'Anders',
+    trainer({ id: 'anders', x: 19, y: 5, dir: 'right', sprite: 'chars/student', sight: 2, cls: 'Student', name: 'Anders',
       foes: [{ species: 'natu', level: 14 }, { species: 'ralts', level: 14 }], intro: ['c2.student.intro'], lose: ['c2.student.lose'] }),
-    trainer({ id: 'nanna', x: 12, y: 9, dir: 'down', sprite: 'chars/rocker', sight: 2, cls: 'Raver', name: 'Nanna', period: ['night'],
+    trainer({ id: 'nanna', x: 12, y: 11, dir: 'right', sprite: 'chars/rocker', sight: 3, cls: 'Raver', name: 'Nanna', period: ['night'],
       foes: [{ species: 'pawmi', level: 15 }, { species: 'joltik', level: 15 }],
       intro: ['Raver Nanna: Strøget at night is one long dance floor.\nKeep up!'], lose: ['Nanna: Okay, I\'m sitting this one out.'] }),
     itemBall('item.ib1', 28, 11, 'superpotion', 1, 'a Super Potion')
@@ -104,16 +104,16 @@ const NYHAVN: MapScripts = {
     { id: 'dha', sprite: 'chars/deckhand', x: 0, y: 0, dir: 'left', hidden: true },
     { id: 'dhb', sprite: 'chars/deckhand', x: 0, y: 0, dir: 'left', hidden: true },
     { id: 'bodil', sprite: 'chars/sailor', x: 22, y: 11, dir: 'up', talk: bodil('drydock') },
-    trainer({ id: 'henning', x: 17, y: 4, dir: 'down', sprite: 'chars/sailor', sight: 1, cls: 'Sailor', name: 'Henning',
+    trainer({ id: 'henning', x: 17, y: 4, dir: 'up', sprite: 'chars/sailor', sight: 1, cls: 'Sailor', name: 'Henning',
       foes: [{ species: 'wingull', level: 14 }, { species: 'mankey', level: 15 }],
       intro: ['Sailor Henning: You look like you could use some sea air.\nAnd a battle!'], lose: ['Henning: Blown off course.'], after: ['c2.ny.sailor.line'] }),
-    trainer({ id: 'hanspeter', x: 12, y: 10, dir: 'up', sprite: 'chars/tourist', sight: 1, cls: 'Tourist', name: 'Hans-Peter',
+    trainer({ id: 'hanspeter', x: 12, y: 10, dir: 'up', sprite: 'chars/tourist', sight: 2, cls: 'Tourist', name: 'Hans-Peter',
       foes: [{ species: 'eevee', level: 15 }], intro: ['Tourist Hans-Peter: Gerd says you\'re good. Gerd says\na lot of things. Let\'s see!'],
       lose: ['Hans-Peter: Gerd was right. Don\'t tell Gerd.'], after: ['c2.ny.tourist.line'] }),
-    trainer({ id: 'line', x: 23, y: 6, dir: 'left', sprite: 'chars/swimmer', sight: 1, cls: 'Swimmer', name: 'Line',
+    trainer({ id: 'line', x: 22, y: 6, dir: 'down', sprite: 'chars/swimmer', sight: 4, cls: 'Swimmer', name: 'Line',
       foes: [{ species: 'finizen', level: 15 }], intro: ['Harbour Swimmer Line: I swim here every morning.\nToday it nearly froze my toes off! Battle to warm up?'],
       lose: ['Line: Brr. Still cold. Still worth it.'] }),
-    trainer({ id: 'nydeck', x: 4, y: 4, dir: 'right', sprite: 'chars/deckhand', sight: 3, cls: 'Deckhand', name: 'Ulf', when: f => !!f('nyAttack'),
+    trainer({ id: 'nydeck', x: 4, y: 8, dir: 'down', sprite: 'chars/deckhand', sight: 2, cls: 'Deckhand', name: 'Ulf', when: f => !!f('nyAttack'),
       foes: [{ species: 'mareanie', level: 15 }, { species: 'carvanha', level: 15 }],
       intro: ['Deckhand: You again! The Captain said to\nleave you be. I didn\'t hear her.'], lose: ['Deckhand: I\'ll hear her next time.'] })
   ],
@@ -161,13 +161,13 @@ const DRYDOCK: MapScripts = {
   onEnter: function* (s) { if (!s.flag('dockSign')) { s.setFlag('dockSign', true); s.say('c2.dock.sign'); } },
   npcs: [
     { id: 'bodil2', sprite: 'chars/sailor', x: 1, y: 2, dir: 'right', talk: bodil('nyhavn') },
-    trainer({ id: 'dd1', x: 8, y: 2, dir: 'down', sprite: 'chars/deckhand', sight: 2, cls: 'Deckhand', name: 'Rasmus',
+    trainer({ id: 'dd1', x: 8, y: 2, dir: 'left', sprite: 'chars/deckhand', sight: 4, cls: 'Deckhand', name: 'Rasmus',
       foes: [{ species: 'shellos', level: 15 }, { species: 'croagunk', level: 15 }], intro: ['c2.dock.deck.intro'], lose: ['c2.dock.deck.lose'] }),
-    trainer({ id: 'dd2', x: 6, y: 6, dir: 'right', sprite: 'chars/deckhand', sight: 3, cls: 'Deckhand', name: 'Kirsten',
+    trainer({ id: 'dd2', x: 6, y: 6, dir: 'right', sprite: 'chars/deckhand', sight: 5, cls: 'Deckhand', name: 'Kirsten',
       foes: [{ species: 'carvanha', level: 16 }], intro: ['Deckhand: The Captain\'s busy. Go home, kid.'], lose: ['c2.dock.deck.lose'] }),
-    trainer({ id: 'dd3', x: 16, y: 5, dir: 'down', sprite: 'chars/deckhand', sight: 2, cls: 'Deckhand', name: 'Bjarne',
+    trainer({ id: 'dd3', x: 16, y: 6, dir: 'left', sprite: 'chars/deckhand', sight: 3, cls: 'Deckhand', name: 'Bjarne',
       foes: [{ species: 'stunky', level: 16 }, { species: 'mareanie', level: 16 }], intro: ['c2.dock.deck.intro'], lose: ['Deckhand: Fine. FINE. The crane\'s broken anyway.'] }),
-    trainer({ id: 'dd4', x: 19, y: 8, dir: 'down', sprite: 'chars/deckhand', sight: 1, cls: 'Deckhand', name: 'Tove', battle: { ai: 2 },
+    trainer({ id: 'dd4', x: 19, y: 7, dir: 'right', sprite: 'chars/deckhand', sight: 1, cls: 'Deckhand', name: 'Tove', battle: { ai: 2 },
       foes: [{ species: 'croagunk', level: 17 }, { species: 'carvanha', level: 17 }],
       intro: ['Deckhand: Nobody touches the crane. Nobody!'], lose: ['Deckhand: ...Somebody touched the crane.'] }),
     { id: 'crane', sprite: 'obj:crane', x: 20, y: 9, dir: 'down', object: true, talk: function* (s) {
@@ -183,7 +183,7 @@ const DRYDOCK: MapScripts = {
     } },
     { id: 'container', sprite: 'obj:container', x: 21, y: 7, dir: 'down', object: true, when: f => !f('crane'),
       talk: talk('A shipping container blocks the gap.\nThe crane console might move it.') },
-    { id: 'ivar', sprite: 'chars/ivar', x: 24, y: 6, dir: 'left', trainer: { sight: 3, flag: 'ivar' }, talk: function* (s) {
+    { id: 'ivar', sprite: 'chars/ivar', x: 24, y: 7, dir: 'left', trainer: { sight: 2, flag: 'ivar' }, talk: function* (s) {
       if (s.flag('ivar')) { s.say('Ivar: Mind how you go. And mind that nail.'); return; }
       s.say('c2.ivar.1'); s.say('c2.ivar.2');
       const r = yield s.battle({ kind: 'trainer', ai: 2, bg: 'city', trainer: { name: 'Ivar', title: 'Bosun', sprite: 'tr/ivar' }, prize: 80, foes: [

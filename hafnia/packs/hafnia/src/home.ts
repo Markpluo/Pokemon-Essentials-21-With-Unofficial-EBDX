@@ -202,22 +202,22 @@ const NORREBRO_NPCS: NpcDef[] = [
   { id: 'courier', sprite: 'chars/courier', x: 16, y: 9, dir: 'down', when: f => !!f('ch1'),
     talk: paintGiver('paintSilver', 'c1.paint.silver', 'silver paint') },
   { id: 'toxel', sprite: 'chars/toxel', x: 25, y: 6, dir: 'left', object: true, when: f => !!f('ch1'), talk: toxel },
-  trainer({ id: 'yusuf', x: 19, y: 15, dir: 'left', sprite: 'chars/skater', sight: 3, cls: 'Skater', name: 'Yusuf',
+  trainer({ id: 'yusuf', x: 18, y: 14, dir: 'right', sprite: 'chars/skater', sight: 2, cls: 'Skater', name: 'Yusuf',
     when: f => !!f('starter'), foes: [{ species: 'stunky', level: 7 }],
     intro: ['Skater Yusuf: Red Square\'s ours. You skate or you sit.'], lose: ['Yusuf: Sat down. Hard.'],
     after: ['Yusuf: Tariq painted half of Superkilen.\nThe other half was us. Mostly the floor.'],
     // Beaten before Tariq asked for paint? He hands it over when you talk to him again.
     reward: yusufGold, again: yusufGold }),
-  trainer({ id: 'laura', x: 22, y: 17, dir: 'up', sprite: 'chars/painter', sight: 2, cls: 'Muralist', name: 'Laura',
+  trainer({ id: 'laura', x: 20, y: 17, dir: 'up', sprite: 'chars/painter', sight: 3, cls: 'Muralist', name: 'Laura',
     when: f => !!f('starter'), foes: [{ species: 'smeargle', level: 8 }],
     intro: ['Muralist Laura: Smeargle and I sign every wall\nwe paint. Want to be on one?'], lose: ['Laura: Okay, you can sign this one.'] }),
-  trainer({ id: 'jonas', x: 15, y: 11, dir: 'left', sprite: 'chars/biker', sight: 2, cls: 'Cyclist', name: 'Jonas',
+  trainer({ id: 'jonas', x: 16, y: 11, dir: 'up', sprite: 'chars/biker', sight: 3, cls: 'Cyclist', name: 'Jonas',
     when: f => !!f('starter'), foes: [{ species: 'starly', level: 8 }, { species: 'pidgey', level: 9 }],
     intro: ['Cyclist Jonas: Nørrebrogade has more bikes\nthan cars. And more battles than both!'], lose: ['Jonas: Flat tyre. Flat everything.'] }),
   trainer({ id: 'kim', x: 24, y: 8, dir: 'left', sprite: 'chars/rocker', sight: 3, cls: 'Raver', name: 'Kim', period: ['night'],
     when: f => !!f('starter'), foes: [{ species: 'pawmi', level: 9 }],
     intro: ['Raver Kim: The party\'s in a courtyard somewhere.\nI forgot which one. Battle me while I think!'], lose: ['Kim: That bass drop was you, wasn\'t it.'] }),
-  trainer({ id: 'asta', x: 5, y: 18, dir: 'up', sprite: 'chars/channeler', sight: 3, cls: 'Ghost Hunter', name: 'Asta', period: ['night'],
+  trainer({ id: 'asta', x: 13, y: 18, dir: 'left', sprite: 'chars/channeler', sight: 1, cls: 'Ghost Hunter', name: 'Asta', period: ['night'],
     when: f => !!f('starter'), foes: [{ species: 'greavard', level: 9 }],
     intro: ['Ghost Hunter Asta: Assistens Cemetery is that way.\nBut the ghosts come here for the street food.'], lose: ['Asta: Boo. That was me being sad.'] }),
   itemBall('item.nb1', 2, 5, 'oranberry', 2, 'Oran Berries')
@@ -274,9 +274,9 @@ const GYM1_NPCS: NpcDef[] = [
   ...SWITCHES.map(w => ({ id: w.id, sprite: `obj:switch-${w.colour}`, x: w.x, y: 5, dir: 'down' as const, object: true, talk: switchTalk(w.colour) })),
   ...[6, 7, 8].map((x, i) => ({ id: `vent${i + 1}`, sprite: 'obj:vent', x, y: 4, dir: 'down' as const, object: true, when: (f: (n: string) => any) => !f('vents'),
     talk: talk('A smog vent. It puffs purple fumes.') })),
-  trainer({ id: 'gymskater', x: 11, y: 9, dir: 'left', sprite: 'chars/skater', sight: 3, cls: 'Skater', name: 'Mikkel',
+  trainer({ id: 'gymskater', x: 11, y: 12, dir: 'left', sprite: 'chars/skater', sight: 4, cls: 'Skater', name: 'Mikkel',
     foes: [{ species: 'grimer', level: 11 }], intro: ['c1.gym.skater.intro'], lose: ['c1.gym.skater.lose'] }),
-  trainer({ id: 'gymmuralist', x: 3, y: 7, dir: 'right', sprite: 'chars/painter', sight: 3, cls: 'Muralist', name: 'Sanne',
+  trainer({ id: 'gymmuralist', x: 3, y: 3, dir: 'right', sprite: 'chars/painter', sight: 5, cls: 'Muralist', name: 'Sanne',
     foes: [{ species: 'smeargle', level: 11 }, { species: 'stunky', level: 12 }], intro: ['c1.gym.muralist.intro'], lose: ['c1.gym.muralist.lose'] })
 ];
 

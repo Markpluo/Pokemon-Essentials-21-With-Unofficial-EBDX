@@ -153,7 +153,7 @@ const ASSISTENS: MapScripts = {
       intro: ['c4.as.picnic.intro'], lose: ['c4.as.picnic.lose'] }),
     trainer({ id: 'asGhost1', x: 5, y: 11, dir: 'right', sprite: 'chars/channeler', sight: 3, cls: 'Ghost Hunter', name: 'Malthe', period: ['night'],
       foes: [{ species: 'greavard', level: 24 }, { species: 'gastly', level: 25 }], intro: ['c4.as.ghost1.intro'], lose: ['c4.as.ghost1.lose'] }),
-    trainer({ id: 'asGhost2', x: 21, y: 13, dir: 'down', sprite: 'chars/channeler', sight: 2, cls: 'Ghost Hunter', name: 'Vigga', period: ['night'],
+    trainer({ id: 'asGhost2', x: 21, y: 21, dir: 'left', sprite: 'chars/channeler', sight: 6, cls: 'Ghost Hunter', name: 'Vigga', period: ['night'],
       foes: [{ species: 'misdreavus', level: 25 }, { species: 'litwick', level: 25 }], intro: ['c4.as.ghost2.intro'], lose: ['c4.as.ghost2.lose'] }),
     itemBall('item.as1', 25, 3, 'greatball', 3, 'Great Balls'),
     itemBall('item.as2', 2, 16, 'superpotion', 2, 'Super Potions')
@@ -276,10 +276,10 @@ const GYM4: MapScripts = {
     sign('rhyme1', 8, 14, 'obj:monument', 'c4.rhyme.1', 'c4.rhyme.1b'),
     sign('rhyme2', 3, 10, 'obj:monument', 'c4.rhyme.2', 'c4.rhyme.2b'),
     sign('rhyme3', 11, 6, 'obj:monument', 'c4.rhyme.3', 'c4.rhyme.3b'),
-    trainer({ id: 'g4medium1', x: 9, y: 10, dir: 'left', sprite: 'chars/channeler', sight: 4, cls: 'Medium', name: 'Edith',
+    trainer({ id: 'g4medium1', x: 7, y: 10, dir: 'up', sprite: 'chars/channeler', sight: 2, cls: 'Medium', name: 'Edith',
       foes: [{ species: 'gastly', level: 25 }, { species: 'phantump', level: 25 }],
       intro: ['c4.gym.medium1.intro'], lose: ['c4.gym.medium1.lose'] }),
-    trainer({ id: 'g4medium2', x: 4, y: 6, dir: 'right', sprite: 'chars/channeler', sight: 4, cls: 'Medium', name: 'Holger',
+    trainer({ id: 'g4medium2', x: 2, y: 6, dir: 'up', sprite: 'chars/channeler', sight: 2, cls: 'Medium', name: 'Holger',
       foes: [{ species: 'misdreavus', level: 26 }, { species: 'greavard', level: 26 }],
       intro: ['c4.gym.medium2.intro'], lose: ['c4.gym.medium2.lose'] })
   ],

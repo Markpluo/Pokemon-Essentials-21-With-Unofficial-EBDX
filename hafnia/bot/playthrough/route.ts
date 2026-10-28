@@ -125,7 +125,7 @@ export function chapter1(p: P) {
     p.talkTo(25, 6);
   });
   goal(p, 'gold paint', () => !!p.flag('paintGold'), () => {
-    goto(p, 'norrebro'); p.talkTo(19, 15);
+    goto(p, 'norrebro'); p.talkTo(...p.npcPos('yusuf'));
     if (!p.flag('paintGold') && p.flag('tr.yusuf')) throw new Error('BLOCKER: Yusuf was beaten before the mural quest, so the gold paint can never be found');
   });
   goal(p, 'finish the mural', () => !!p.flag('mural'), () => { goto(p, 'norrebro'); p.talkTo(6, 13); });

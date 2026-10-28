@@ -121,7 +121,7 @@ const SHIPYARDS: MapScripts = {
     { id: 'craneW', sprite: 'obj:crane', x: 14, y: 9, dir: 'down', object: true, talk: crane([1, 9], true) },
     trainer({ id: 'sy1', x: 9, y: 4, dir: 'down', sprite: 'chars/acem', sight: 3, cls: 'Ace Trainer', name: 'Mikkel',
       foes: [{ species: 'machamp', level: 45 }, { species: 'steelix', level: 45 }], intro: ['c10.sy.t1.intro'], lose: ['c10.sy.t1.lose'] }),
-    trainer({ id: 'sy2', x: 4, y: 10, dir: 'right', sprite: 'chars/acef', sight: 4, cls: 'Ace Trainer', name: 'Sofie',
+    trainer({ id: 'sy2', x: 1, y: 10, dir: 'up', sprite: 'chars/acef', sight: 5, cls: 'Ace Trainer', name: 'Sofie',
       battle: { trainer: { name: 'Sofie', title: 'Ace Trainer', sprite: 'tr/acef' } },
       foes: [{ species: 'pelipper', level: 45 }, { species: 'kingdra', level: 46 }], intro: ['c10.sy.t2.intro'], lose: ['c10.sy.t2.lose'] }),
     trainer({ id: 'sy3', x: 10, y: 14, dir: 'up', sprite: 'chars/engineer', sight: 3, cls: 'Shipwright', name: 'Holger',
@@ -136,10 +136,10 @@ const EASTQUAY: MapScripts = {
     { id: 'brix10', sprite: 'chars/scientist', x: 5, y: 9, dir: 'left', hidden: true },
     { id: 'craneE', sprite: 'obj:crane', x: 1, y: 10, dir: 'down', object: true, talk: crane([14, 10], false) },
     { id: 'greatcrane', sprite: 'obj:crane', x: 9, y: 1, dir: 'down', object: true, talk: greatCrane },
-    trainer({ id: 'sy4', x: 5, y: 13, dir: 'left', sprite: 'chars/acef', sight: 3, cls: 'Ace Trainer', name: 'Nanna',
+    trainer({ id: 'sy4', x: 13, y: 13, dir: 'down', sprite: 'chars/acef', sight: 3, cls: 'Ace Trainer', name: 'Nanna',
       battle: { trainer: { name: 'Nanna', title: 'Ace Trainer', sprite: 'tr/acef' } },
       foes: [{ species: 'luxray', level: 46 }, { species: 'gyarados', level: 46 }], intro: ['c10.sy.t4.intro'], lose: ['c10.sy.t4.lose'] }),
-    trainer({ id: 'sy5', x: 11, y: 5, dir: 'down', sprite: 'chars/acem', sight: 3, cls: 'Ace Trainer', name: 'Emil',
+    trainer({ id: 'sy5', x: 12, y: 11, dir: 'down', sprite: 'chars/acem', sight: 6, cls: 'Ace Trainer', name: 'Emil',
       foes: [{ species: 'haxorus', level: 46 }, { species: 'excadrill', level: 46 }], intro: ['c10.sy.t5.intro'], lose: ['c10.sy.t5.lose'] }),
     itemBall('item.sy3', 13, 9, 'ultraball', 3, 'Ultra Balls'),
     itemBall('item.sy4', 2, 16, 'fullheal', 2, 'Full Heals')
@@ -235,8 +235,8 @@ const turbine = (id: string): Script => function* (s) {
   }
 };
 
-const technician = (i: number, x: number, y: number, dir: NpcDef['dir'], name: string, foes: { species: string; level: number }[]): NpcDef => trainer({
-  id: `g8tech${i}`, x, y, dir, sprite: 'chars/engineer', sight: 3, cls: 'Grid Technician', name,
+const technician = (i: number, x: number, y: number, dir: NpcDef['dir'], sight: number, name: string, foes: { species: string; level: number }[]): NpcDef => trainer({
+  id: `g8tech${i}`, x, y, dir, sprite: 'chars/engineer', sight, cls: 'Grid Technician', name,
   foes, intro: [`c10.g8.t${i}.intro`], lose: [`c10.g8.t${i}.lose`]
 });
 
@@ -278,9 +278,9 @@ const GYM8: MapScripts = {
     ...[8, 9, 10].map((x, i): NpcDef => ({ id: `liftgate${i}`, sprite: 'obj:grate', x, y: 4, dir: 'down', object: true,
       when: f => !f('liftOn'), talk: talk('c10.g8.gate') })),
     sign('g8board', 9, 10, 'obj:schematic', 'c10.g8.board'),
-    technician(1, 2, 11, 'right', 'Rikke', [{ species: 'heliolisk', level: 46 }, { species: 'magneton', level: 46 }]),
-    technician(2, 16, 11, 'left', 'Jesper', [{ species: 'zebstrika', level: 46 }, { species: 'galvantula', level: 46 }]),
-    technician(3, 16, 6, 'left', 'Mette', [{ species: 'kilowattrel', level: 46 }, { species: 'luxray', level: 47 }]),
+    technician(1, 2, 13, 'right', 7, 'Rikke', [{ species: 'heliolisk', level: 46 }, { species: 'magneton', level: 46 }]),
+    technician(2, 13, 13, 'left', 4, 'Jesper', [{ species: 'zebstrika', level: 46 }, { species: 'galvantula', level: 46 }]),
+    technician(3, 15, 3, 'left', 7, 'Mette', [{ species: 'kilowattrel', level: 46 }, { species: 'luxray', level: 47 }]),
     { id: 'g8guide', sprite: 'chars/oldman', x: 15, y: 13, dir: 'left', talk: function* (s) {
       if (s.flag('turbine')) { s.say('c10.g8.guide.after'); return; }
       s.say('c10.g8.guide.1'); s.say('c10.g8.guide.2');
