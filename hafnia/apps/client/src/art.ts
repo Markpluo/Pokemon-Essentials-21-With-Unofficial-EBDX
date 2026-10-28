@@ -692,6 +692,94 @@ export function drawBuildingArt(g: G2, kind: string, w: number, h: number) {
     }
     return;
   }
+  if (kind === 'rangerHut') {
+    // The Kalvebod rangers' hut: tarred planks, a turf roof and a lookout flag.
+    g.fillStyle = '#5b8a4a'; g.beginPath(); g.moveTo(0, 30); g.lineTo(W / 2, 4); g.lineTo(W, 30); g.fill();
+    g.fillStyle = '#4a7a3c'; for (let x = 6; x < W; x += 10) g.fillRect(x, 26 - Math.abs(W / 2 - x) * 0.4, 3, 3);
+    g.fillStyle = '#5a3a26'; g.fillRect(4, 28, W - 8, H - 28);
+    g.fillStyle = '#4a2e1e'; for (let x = 8; x < W - 4; x += 8) g.fillRect(x, 28, 1, H - 28);
+    g.fillStyle = '#f2e6c4'; g.fillRect(W - 40, 44, 20, 16); g.fillStyle = '#5a3a26'; g.fillRect(W - 31, 44, 2, 16);
+    g.fillStyle = '#3b2a22'; g.fillRect(36, H - 30, 22, 30);
+    g.fillStyle = '#6b4526'; g.fillRect(W - 12, 0, 2, 20); g.fillStyle = '#4fae5b'; g.fillRect(W - 10, 1, 10, 7);
+    return;
+  }
+  if (kind === 'cathedral') {
+    // Roskilde Domkirke: red brick, a long copper roof and the twin green spires over the west front.
+    g.fillStyle = '#4f7a6a'; g.fillRect(0, 50, W, 16);
+    g.fillStyle = '#a5462f'; g.fillRect(0, 64, W, H - 64);
+    g.fillStyle = 'rgba(60,20,12,0.3)'; for (let y = 68; y < H; y += 6) g.fillRect(0, y, W, 1);
+    for (const x of [W / 2 - 46, W / 2 + 22]) {
+      g.fillStyle = '#a5462f'; g.fillRect(x, 26, 24, H - 26);
+      g.fillStyle = '#4f7a6a'; g.beginPath(); g.moveTo(x - 2, 28); g.lineTo(x + 12, 0); g.lineTo(x + 26, 28); g.fill();
+      g.fillStyle = '#e8c35a'; g.fillRect(x + 11, 0, 2, 4);
+      g.fillStyle = '#2a2430'; g.fillRect(x + 8, 40, 8, 14);
+    }
+    for (let x = 16; x < W - 16; x += 28) if (Math.abs(x + 6 - W / 2) > 50) { g.fillStyle = '#3a3448'; g.fillRect(x, 80, 12, 26); g.beginPath(); g.arc(x + 6, 80, 6, Math.PI, 0); g.fill(); }
+    g.fillStyle = '#f2e6c4'; g.beginPath(); g.arc(W / 2, 74, 9, 0, 7); g.fill(); g.fillStyle = '#c9302c'; g.beginPath(); g.arc(W / 2, 74, 6, 0, 7); g.fill();
+    g.fillStyle = '#2a1c16'; g.beginPath(); g.moveTo(W / 2 - 12, H); g.lineTo(W / 2 - 12, H - 20); g.arc(W / 2, H - 20, 12, Math.PI, 0); g.lineTo(W / 2 + 12, H); g.fill();
+    return;
+  }
+  if (kind === 'vikingMuseum') {
+    // The Viking Ship Museum: a low concrete hall with a glass wall to the fjord and a longship on the sign.
+    g.fillStyle = '#b8b5ae'; g.fillRect(0, 10, W, H - 10);
+    g.fillStyle = '#8f8a7c'; g.fillRect(0, 10, W, 6);
+    g.fillStyle = '#7fb6d6'; g.fillRect(W - 80, 22, 70, 50); g.fillStyle = '#b8b5ae'; for (let x = W - 80; x < W - 10; x += 14) g.fillRect(x, 22, 2, 50);
+    g.fillStyle = '#6b4526'; g.beginPath(); g.moveTo(12, 40); g.quadraticCurveTo(50, 60, 88, 40); g.lineTo(80, 50); g.quadraticCurveTo(50, 64, 20, 50); g.fill();
+    g.fillStyle = '#c9302c'; g.fillRect(48, 22, 2, 22); g.fillStyle = '#f2efe6'; g.fillRect(50, 22, 16, 14); g.fillStyle = '#c9302c'; for (let y = 24; y < 36; y += 4) g.fillRect(50, y, 16, 2);
+    g.fillStyle = '#3b3f4a'; g.fillRect(W / 2 - 12, H - 28, 24, 28);
+    return;
+  }
+  if (kind === 'tivoliGate') {
+    // Tivoli's main gate: a Moorish arch with onion domes, the name in lights over the opening.
+    g.fillStyle = '#f2e6c8'; g.fillRect(0, 22, W, H - 22);
+    for (const x of [10, W - 26]) { g.fillStyle = '#f2e6c8'; g.fillRect(x, 10, 16, 20); g.fillStyle = '#c9302c'; g.beginPath(); g.moveTo(x - 2, 12); g.quadraticCurveTo(x + 8, -6, x + 18, 12); g.fill(); g.fillStyle = '#e8c35a'; g.fillRect(x + 7, 0, 2, 4); }
+    g.fillStyle = '#c9302c'; g.fillRect(0, 34, W, 6);
+    g.fillStyle = '#2a1c16'; g.beginPath(); g.moveTo(W / 2 - 16, H); g.lineTo(W / 2 - 16, H - 26); g.quadraticCurveTo(W / 2, H - 50, W / 2 + 16, H - 26); g.lineTo(W / 2 + 16, H); g.fill();
+    g.fillStyle = '#ffd36b'; g.font = 'bold 9px sans-serif'; g.fillText('TIVOLI', W / 2 - 18, 31);
+    for (let x = 4; x < W; x += 8) { g.fillStyle = x % 16 ? '#ffd36b' : '#fff3cc'; g.fillRect(x, 42, 3, 3); }
+    return;
+  }
+  if (kind === 'daemonen') {
+    // Dæmonen: the coaster's blue steel loops behind its station tower, a dragon on the sign.
+    g.strokeStyle = '#3a6fa8'; g.lineWidth = 4;
+    g.beginPath(); g.arc(W / 2 - 18, 40, 26, 0, 7); g.stroke(); g.beginPath(); g.arc(W / 2 + 26, 50, 20, 0, 7); g.stroke();
+    g.strokeStyle = '#26323a'; g.lineWidth = 2; for (const x of [W / 2 - 18, W / 2 + 26]) { g.beginPath(); g.moveTo(x, 66); g.lineTo(x, H - 30); g.stroke(); }
+    g.fillStyle = '#26272c'; g.fillRect(16, H - 64, W - 32, 64);
+    g.fillStyle = '#c9302c'; g.fillRect(16, H - 64, W - 32, 8);
+    g.fillStyle = '#e8c35a'; g.font = 'bold 9px sans-serif'; g.fillText('DÆMONEN', 34, H - 44);
+    g.fillStyle = '#d9473a'; g.beginPath(); g.moveTo(W - 40, H - 52); g.lineTo(W - 26, H - 58); g.lineTo(W - 30, H - 46); g.fill();
+    g.fillStyle = '#3b3f4a'; g.fillRect(W / 2 - 12, H - 30, 24, 30);
+    return;
+  }
+  if (kind === 'concertHall') {
+    // Tivoli's Concert Hall: a pale front, a green copper roof and tall lit windows.
+    g.fillStyle = '#4f7a6a'; g.beginPath(); g.moveTo(0, 30); g.lineTo(20, 8); g.lineTo(W - 20, 8); g.lineTo(W, 30); g.fill();
+    g.fillStyle = '#e8e2d6'; g.fillRect(0, 28, W, H - 28);
+    for (let x = 14; x < W - 14; x += 26) if (Math.abs(x + 6 - W / 2) > 20) { g.fillStyle = '#fff3cc'; g.fillRect(x, 44, 12, 34); g.beginPath(); g.arc(x + 6, 44, 6, Math.PI, 0); g.fill(); }
+    g.fillStyle = '#c9302c'; g.fillRect(W / 2 - 40, 32, 80, 8); g.fillStyle = '#fff'; g.font = 'bold 7px sans-serif'; g.fillText('KONCERTSAL', W / 2 - 22, 39);
+    g.fillStyle = '#3b2a22'; g.fillRect(W / 2 - 12, H - 30, 24, 30);
+    return;
+  }
+  if (kind === 'pantomime') {
+    // The Pantomime Theatre: a Chinese-style pavilion whose stage curtain is a painted peacock tail.
+    g.fillStyle = '#c9302c'; g.beginPath(); g.moveTo(0, 26); g.quadraticCurveTo(W / 2, -6, W, 26); g.fill();
+    g.fillStyle = '#e8c35a'; g.fillRect(0, 24, W, 4);
+    g.fillStyle = '#2f6f4a'; g.fillRect(6, 28, W - 12, H - 28);
+    for (let i = 0; i < 9; i++) { const a = Math.PI + (i + 0.5) * Math.PI / 9; g.fillStyle = i % 2 ? '#3a8fc4' : '#4fae5b'; g.beginPath(); g.moveTo(W / 2, 92); g.lineTo(W / 2 + Math.cos(a) * 54, 92 + Math.sin(a) * 54); g.lineTo(W / 2 + Math.cos(a + 0.3) * 54, 92 + Math.sin(a + 0.3) * 54); g.fill(); }
+    for (let i = 0; i < 6; i++) { g.fillStyle = '#e8c35a'; g.beginPath(); g.arc(W / 2 + Math.cos(Math.PI + (i + 0.5) * Math.PI / 6) * 40, 92 + Math.sin(Math.PI + (i + 0.5) * Math.PI / 6) * 40, 3, 0, 7); g.fill(); }
+    g.fillStyle = '#26172a'; g.fillRect(W / 2 - 12, H - 30, 24, 30);
+    return;
+  }
+  if (kind === 'rutschebanen') {
+    // Rutschebanen: the painted rock mountain of Tivoli's 1914 wooden coaster, a train cresting the top.
+    g.fillStyle = '#8f8a7c'; g.beginPath(); g.moveTo(0, H); g.lineTo(30, 30); g.lineTo(70, 46); g.lineTo(120, 6); g.lineTo(170, 40); g.lineTo(W, H); g.fill();
+    g.fillStyle = '#a8a294'; g.beginPath(); g.moveTo(120, 6); g.lineTo(170, 40); g.lineTo(140, 60); g.fill();
+    g.fillStyle = '#e8eef2'; g.beginPath(); g.moveTo(110, 14); g.lineTo(120, 6); g.lineTo(132, 14); g.fill();
+    g.strokeStyle = '#6b4526'; g.lineWidth = 3; g.beginPath(); g.moveTo(10, H - 20); g.lineTo(60, 50); g.lineTo(118, 16); g.lineTo(200, H - 30); g.stroke();
+    g.fillStyle = '#c9302c'; g.fillRect(100, 18, 12, 6); g.fillRect(114, 14, 12, 6);
+    g.fillStyle = '#4e7a55'; for (const x of [20, 80, 150, 200]) { g.beginPath(); g.arc(x, H - 8, 10, 0, 7); g.fill(); }
+    return;
+  }
   if (kind === 'houseboat') {
     g.fillStyle = '#3a6fa8'; g.beginPath(); g.moveTo(0, 54); g.lineTo(W, 54); g.lineTo(W - 16, H); g.lineTo(16, H); g.fill();
     g.fillStyle = '#f2efe6'; g.fillRect(0, 52, W, 6);

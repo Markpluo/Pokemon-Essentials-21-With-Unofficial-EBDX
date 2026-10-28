@@ -650,7 +650,7 @@ export class BattleSession {
   private awardExp(fainted: SimPokemon) {
     const foe = this.monOf(fainted)!;
     const b = speciesExtra(foe.species).baseExp, L = foe.level;
-    const trainer = this.opts.kind === 'trainer' ? 1.5 : 1;
+    const trainer = (this.opts.kind === 'trainer' ? 1.5 : 1) * (this.host.bag.expcharm ? 1.5 : 1);
     const active = this.sim.p1.active[0];
     const team = this.sim.p1.pokemon.filter(p => !p.fainted && p.hp > 0 && this.monOf(p)!.level < 100);
     team.sort((x, y) => Number(y === active) - Number(x === active));

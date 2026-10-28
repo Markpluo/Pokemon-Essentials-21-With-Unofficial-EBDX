@@ -248,7 +248,15 @@
     "lanturn",
     "relicanth",
     "mantine",
-    "overqwil"
+    "overqwil",
+    "tauros",
+    "flamigo",
+    "girafarig",
+    "chewtle",
+    "wiglett",
+    "orthworm",
+    "rufflet",
+    "silicobra"
   ],
   "pokemon": {
     "LANGELIRA": { "front": "pack:assets/pokemon/front/LANGELIRA.png", "back": "pack:assets/pokemon/back/LANGELIRA.png", "icons": "pack:assets/pokemon/icons/LANGELIRA.png", "cry": "Audio/SE/Cries/PRIMARINA.ogg" },
@@ -417,7 +425,10 @@
     "chars/nikolai": "Graphics/Characters/trainer_ELITEFOUR_Lance.png",
     "tr/nikolai": "Graphics/Trainers/ELITEFOUR_Lance.png",
     "tr/prof": "Graphics/Trainers/PROFESSOR.png",
-    "tr/astrid": "Graphics/Trainers/ELITEFOUR_Lorelei.png"
+    "tr/astrid": "Graphics/Trainers/ELITEFOUR_Lorelei.png",
+    "chars/tauros": "Graphics/Characters/Followers/TAUROS.png",
+    "chars/orthworm": "Graphics/Characters/Followers/ORTHWORM.png",
+    "chars/lapras": "Graphics/Characters/Followers/LAPRAS.png"
   },
   "audio": {
     "title": "Audio/BGM/Title.ogg",

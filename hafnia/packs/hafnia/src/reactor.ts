@@ -178,6 +178,12 @@ function* lindholm(s: ScriptApi): Step {
 function* song(s: ScriptApi): Step {
   s.say('c12.song.1');
   for (const k of ['mum', 'tourists', 'tariq', 'soren', 'kasper']) { s.fade(1, 10); s.fade(0, 10); s.say(`c12.song.${k}`); }
+  if (s.flag('dragorMelody')) {
+    // The Last Singers side quest: Dragør's elders carry the long verses nobody else remembers.
+    s.fade(1, 10); s.fade(0, 10);
+    s.say('In Dragør, five old voices on the quay take up\nthe long verses only they remember.');
+    s.say('Karen\'s old Lapras sings the last line with them,\nlow and huge. The Ring trembles.');
+  }
   s.say('c12.song.city');
   s.fade(1, 24); s.fade(0, 24);
   s.say('c12.song.2'); s.say('c12.song.3');

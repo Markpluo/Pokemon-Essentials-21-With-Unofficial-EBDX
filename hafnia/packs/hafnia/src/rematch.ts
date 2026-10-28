@@ -3,7 +3,7 @@
 import type { FoeSpec, ScriptApi } from '@hafnia/core';
 import type { Step } from './lib';
 
-interface Rematch { name: string; sprite: string; bg: string; hello: string; lose: string; done: string; foes: FoeSpec[] }
+interface Rematch { name: string; title?: string; sprite: string; bg: string; hello: string; lose: string; done: string; foes: FoeSpec[] }
 
 const team = (list: [string, number][]): FoeSpec[] =>
   list.map(([species, level], i) => ({ species, level, ...(i === list.length - 1 ? { item: 'sitrusberry' } : {}) }));
@@ -36,6 +36,31 @@ const LEADERS: Record<string, Rematch> = {
 };
 
 /** The Champion's rematch with a Gym Leader, once per in-game day. */
+// The Elite Four take their rematches at Tivoli's Battle Gardens (tivoli.ts); Nikolai runs Dæmonen's Tower Challenge.
+const ELITE: Record<string, Rematch> = {
+  valdemar: { name: 'Valdemar', title: 'Elite Four', sprite: 'valdemar', bg: 'indoor1', hello: 'Valdemar: The hall\'s acoustics are excellent. Let us hear\nhow the earth sounds.',
+    lose: 'Valdemar: Bravo. I shall applaud standing up.', done: 'Valdemar: One concert a day. The orchestra has unions.',
+    foes: team([['hippowdon', 68], ['gigalith', 68], ['rhyperior', 69], ['krookodile', 69], ['mudsdale', 70]]) },
+  clara: { name: 'Clara', title: 'Elite Four', sprite: 'clara', bg: 'city', hello: 'Clara: The lake boats are mine for the winter.\nAll aboard for a rematch?',
+    lose: 'Clara: Capsized! Lovely. Tomorrow, same pier.', done: 'Clara: The boats are moored for tonight. Tomorrow!',
+    foes: team([['pelipper', 68], ['swanna', 68], ['barraskewda', 69], ['lapras', 69], ['kingdra', 70]]) },
+  freja: { name: 'Freja', title: 'Elite Four', sprite: 'freja', bg: 'indoor1', hello: 'Freja: Even pirates like the pantomime. Pierrot lets me\nuse the stage after the show.',
+    lose: 'Freja: Ha! The crowd liked that. So did I.', done: 'Freja: Curtain\'s down for today, sailor.',
+    foes: team([['skuntank', 68], ['dhelmise', 68], ['sharpedo', 69], ['qwilfishhisui', 69], ['dragalge', 70]]) }
+};
+
+export function* eliteRematch(s: ScriptApi, key: keyof typeof ELITE): Step {
+  const L = ELITE[key], flag = `rematch.${key}`;
+  if (s.flag(flag) === s.day) { s.say(L.done); return; }
+  s.say(L.hello);
+  const c: number = yield s.ask(`${L.name}: A rematch? Full team, no holding back.`, ['Yes', 'Not today'], 1);
+  if (c !== 0) return;
+  const r = yield s.battle({ kind: 'trainer', leader: true, ai: 3, bg: L.bg, trainer: { name: L.name, title: L.title ?? 'Elite Four', sprite: `tr/${L.sprite}` }, foes: L.foes });
+  if (r !== 'win') return;
+  s.setFlag(flag, s.day);
+  s.say(L.lose);
+}
+
 export function* rematch(s: ScriptApi, key: keyof typeof LEADERS): Step {
   const L = LEADERS[key], flag = `rematch.${key}`;
   if (s.flag(flag) === s.day) { s.say(L.done); return; }

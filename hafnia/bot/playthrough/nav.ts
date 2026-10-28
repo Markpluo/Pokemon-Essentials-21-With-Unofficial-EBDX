@@ -15,7 +15,7 @@ const DOORS: Record<string, Record<string, string>> = {
   nyhavn: { cafe: 'cafein' },
   christianshavn: { pc: 'pcchristianshavn' },
   stadsgraven: { gym: 'gym2' },
-  vesterbro: { cafe: 'cafevb', pc: 'pcvesterbro', bakery: 'bakery' },
+  vesterbro: { cafe: 'cafevb', pc: 'pcvesterbro', bakery: 'bakery', tivoli: 'tivoli' },
   kodbyen: { kitchen: 'kitchen', gym: 'gym3' },
   frederiksberg: { pc: 'pcfrederiksberg', cisterns: 'cisterns' },
   osterbro: { kastellet: 'kastellet', pc: 'pcosterbro' },
@@ -26,7 +26,11 @@ const DOORS: Record<string, Record<string, string>> = {
   copenhill: { plant: 'gym8', pc: 'pccopenhill' },
   helsingor: { kronborg: 'casemates', pc: 'pchelsingor' },
   ronne: { pc: 'pcronne' },
-  hammershus: { gate: 'hammerdeep' }
+  hammershus: { gate: 'hammerdeep' },
+  kalvebod: { hut: 'rangerhut' },
+  dragor: { safehouse: 'safehouse' },
+  roskilde: { pc: 'pcroskilde', cathedral: 'domkirke', museum: 'museum' },
+  tivoli: { daemonen: 'daemonentower', concert: 'concerthall', pantomime: 'pantomimehall' }
 };
 /** Things you talk to that move you. */
 /** The player whose story flags gate hops (`needs`); set by goto. */
@@ -38,7 +42,9 @@ const TALK: Record<string, { to: string; x: number; y: number; pick?: string; ne
   assistens: [{ to: 'stormdrain', x: 24, y: 20 }],
   stormdrain: [{ to: 'assistens', x: 1, y: 1 }],
   cisterns: [{ to: 'frederiksberg', x: 1, y: 1 }],
-  islandsbrygge: [{ to: 'dragor', x: 2, y: 11 }],
+  islandsbrygge: [{ to: 'dragor', x: 2, y: 11 }, { to: 'kalvebod', x: 20, y: 12, needs: 'frost' }],
+  kalvebod: [{ to: 'islandsbrygge', x: 18, y: 2 }],
+  domkirke: [{ to: 'crypt', x: 6, y: 1 }],
   dragor: [{ to: 'islandsbrygge', x: 20, y: 8 }, { to: 'oresund', x: 19, y: 16, needs: 'pg1done' }, { to: 'ronne', x: 20, y: 5, pick: 'Bornholm', needs: 'pg1done' }],
   ronne: [{ to: 'dragor', x: 4, y: 10, pick: 'Dragør' }],
   osterbro: [{ to: 'dyrehaven', x: 27, y: 4 }, { to: 'helsingor', x: 27, y: 4, pick: 'Helsingør', needs: 'pg1done' }],

@@ -46,7 +46,7 @@ export const TR: Record<string, string> = {
   Deckhand: 'tr/deckhand', Gardener: 'tr/gardener', Christianite: 'tr/picnicker', 'Grid Enforcer': 'tr/enforcer',
   Picnicker: 'tr/picnicker', Medium: 'tr/channeler', Bosun: 'tr/ivar', Cadet: 'tr/guard', Explorer: 'tr/camper', 'Survey Drone': 'tr/scientist', Captain: 'tr/freja', Rival: 'tr/lukas', Leader: 'tr/tariq',
   'Vanguard Scientist': 'tr/scientist', Commander: 'tr/kaas', 'Vanguard Lawyer': 'tr/lawyer', Merchant: 'tr/gentleman',
-  'Ace Trainer': 'tr/acem', Shipwright: 'tr/engineer', 'Grid Technician': 'tr/engineer'
+  'Ace Trainer': 'tr/acem', Ranger: 'tr/ranger', Elder: 'tr/fisher', 'Viking Reenactor': 'tr/biker', Shipwright: 'tr/engineer', 'Grid Technician': 'tr/engineer'
 };
 
 export interface TrainerSpec {

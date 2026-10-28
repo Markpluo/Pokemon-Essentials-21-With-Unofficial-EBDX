@@ -93,6 +93,8 @@ export interface ScriptApi {
   readonly clock: number;
   /** In-game days passed since the start (for once-a-day events). */
   readonly day: number;
+  /** Whether the Pokédex has this species as caught. */
+  hasCaught(species: string): boolean;
   setClock(minutes: number): void;
   givePokemon(species: string, level: number): Mon;
   giveItem(item: string, qty?: number): void;

@@ -379,13 +379,23 @@ export class Game {
     const table = this.period === 'night' && m.encountersNight ? m.encountersNight : m.encounters;
     if (this.tile(m, s.x, s.y) === (m.encounterTile ?? GRASS_TILE) && table?.length && this.partyAlive() && this.rng.chance(this.content.rules.encounterRate)) {
       const sp = this.rollTable(table);
-      const [lo, hi] = m.levels ?? [2, 4];
+      const [lo, hi] = this.wildLevels(m, m.levels ?? [2, 4]);
       const level = lo + this.rng.int(hi - lo + 1);
       const lead = s.party.find(p => p.hp > 0);
       if (s.repel > 0 && lead && level < lead.level) return;
       const bg = m.battleBg;
       this.run(function* (api) { return yield api.battle({ kind: 'wild', foes: [{ species: sp, level }], bg }); }, m.pack);
     }
+  }
+
+  /** A map with `scaleLevels` (an optional side area you can visit at any point) matches its wild Pokémon to
+   *  the current level cap: from `scaleLevels` below the cap up to two below it. */
+  private wildLevels(m: MapDef, fixed: [number, number]): [number, number] {
+    if (!m.scaleLevels) return fixed;
+    const caps = this.content.rules.levelCaps;
+    const step = this.state.badges.length + (this.content.rules.capFlags ?? []).filter(f => this.state.flags[f]).length;
+    const cap = caps[step] ?? caps[caps.length - 1] + 6;
+    return [cap - m.scaleLevels, cap - 2];
   }
 
   private rollTable(table: [number, string][]) {
@@ -407,7 +417,7 @@ export class Game {
     const ev = this.eventAt(m, fx, fy, 'interact');
     if (ev) { this.run(ev.run, m.pack); return; }
     const t = this.tile(m, fx, fy);
-    if (t && WATER_TILES.has(t) && m.fishing?.length && s.bag.oldrod) { this.fish(m.fishing, m.fishLevels ?? [5, 10], m.battleBg, m.pack); return; }
+    if (t && WATER_TILES.has(t) && m.fishing?.length && s.bag.oldrod) { this.fish(m.fishing, this.wildLevels(m, m.fishLevels ?? [5, 10]), m.battleBg, m.pack); return; }
     this.tickWorld(); // pressing A at nothing waits a moment
   }
 
@@ -822,6 +832,7 @@ export class Game {
       get period() { return g.period; },
       setTime: period => { if (PERIOD_START[period] <= s.clock) s.day = (s.day ?? 0) + 1; s.clock = PERIOD_START[period]; },
       get day() { return s.day ?? 0; },
+      hasCaught: species => !!s.dex.caught[species],
       get clock() { return Math.floor(s.clock); },
       setClock: minutes => { s.clock = ((Math.floor(minutes) % 1440) + 1440) % 1440; },
       givePokemon: (species, level) => {

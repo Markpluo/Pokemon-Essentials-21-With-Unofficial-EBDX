@@ -4,6 +4,7 @@ import type { NpcDef, Script, ScriptApi } from '@hafnia/core';
 import { centerNpcs } from './home';
 import { ferry } from './dragor';
 import { findItem, grown, itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
+import { skiff } from './kalvebod';
 import { rematch } from './rematch';
 import { majaStarter } from './starters';
 
@@ -342,8 +343,14 @@ const ISLANDSBRYGGE: MapScripts = {
       s.say('c3.got.buckthorn');
     } },
     sign('wildssign', 13, 19, 'obj:sign', 'c3.ib.wilds'),
-    { id: 'ranger', sprite: 'chars/ranger', x: 20, y: 12, dir: 'left', talk: talk('c3.ib.ranger') },
+    { id: 'ranger', sprite: 'chars/ranger', x: 20, y: 12, dir: 'left', talk: skiff('kalvebod') },
     { id: 'skipper', sprite: 'chars/sailor', x: 2, y: 11, dir: 'right', talk: ferry('dragor') },
+    // The Last Singers: Elder Ingeborg's net float washed up here.
+    { id: 'netfloat', sprite: 'obj:buoy', x: 2, y: 17, dir: 'down', object: true, when: f => f('sing.ingeborg') === 1 && !f('netfloatTaken'), talk: function* (s) {
+      s.setFlag('netfloatTaken', true);
+      s.giveItem('netfloat'); s.me('me_item');
+      s.say(`${s.player.name} found a red and white glass net float!`);
+    } },
     itemBall('item.ib3', 21, 19, 'revive', 1, 'a Revive'),
     itemBall('item.ib2', 3, 18, 'netball', 2, 'Net Balls')
   ]

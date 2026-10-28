@@ -79,10 +79,17 @@ const SLOTSHOLMEN: MapScripts = {
 const margrethe: Script = function* (s) {
   if (s.flag('spire')) { s.say('c9.mar.after'); return; }
   if (s.flag('vaultOpen')) { s.say('c9.mar.go'); return; }
-  s.say('c9.mar.1'); s.say('c9.mar.2'); s.say('c9.mar.3');
-  if (!s.hasItem('ledgercopy')) { s.say('c9.mar.noledger'); return; }
-  const c: number = yield s.ask('c9.mar.ask', ['Show Andersen\'s ledger', 'Leave'], 1);
-  if (c !== 0) { s.say('c9.mar.leave'); return; }
+  if (s.hasItem('roskildepage') && s.hasItem('ledgercopy')) {
+    // The Roskilde Saga: the crypt's page carries the royal archivists' seal, and Margrethe trusts you at once.
+    s.say('Margrethe: Børsen is closed for restoration...\nIs that the royal crypt seal? On a page of Andersen?');
+    s.say('Margrethe: Only a king\'s archivist could have hidden that\nin Roskilde. You went down into the crypt for it?');
+    s.say('Margrethe: Then I don\'t need a reason. Show me the rest.');
+  } else {
+    s.say('c9.mar.1'); s.say('c9.mar.2'); s.say('c9.mar.3');
+    if (!s.hasItem('ledgercopy')) { s.say('c9.mar.noledger'); return; }
+    const c: number = yield s.ask('c9.mar.ask', ['Show Andersen\'s ledger', 'Leave'], 1);
+    if (c !== 0) { s.say('c9.mar.leave'); return; }
+  }
   s.say('c9.mar.read.1'); s.wait(30); s.say('c9.mar.read.2'); s.say('c9.mar.read.3'); s.say('c9.mar.read.4');
   s.setFlag('vaultOpen', true);
   s.say('c9.mar.read.5');
