@@ -10,8 +10,10 @@ test('holding a direction walks smoothly @walk', async ({ bot }) => {
   // Route 1's trainers already beaten, so nobody steps out to battle mid-stride.
   await bot.loadSave(tweak(afterStarter(), { noEncounters: true, flags: Object.fromEntries(['mads', 'emil', 'sofie', 'bent', 'ole', 'ida'].map(id => [`tr.${id}`, true])) }));
   await bot.warp('route1');
-  await bot.walkTo(3, 21);                                  // open ground to the right and below (the pram lady stands on row 20)
-  for (const [dir, key] of [['right', 'ArrowRight'], ['down', 'ArrowDown']] as const) {
+  // Each walk starts on a long clear run: row 21 to the right (the pram lady and her pram are on row 20),
+  // column 9 down to the bottom of the map (the Vanguard terminal stands at 13,25).
+  for (const [dir, key, x, y] of [['right', 'ArrowRight', 2, 21], ['down', 'ArrowDown', 9, 20]] as const) {
+    await bot.walkTo(x, y);
     // Record what each rendered frame shows while the key is held.
     await bot.page.evaluate(() => {
       const w = window as any; w.__walk = [];
