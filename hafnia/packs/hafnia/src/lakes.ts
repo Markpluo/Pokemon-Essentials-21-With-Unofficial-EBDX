@@ -124,8 +124,8 @@ const trainerWhen = (f: (n: string) => any) => !!f('starter');
 const ROUTE1: MapScripts = {
   npcs: [
     sign('r1sign', 9, 2, 'obj:sign', 'p.r1.sign'),
-    { id: 'mads0', sprite: 'chars/biker', x: 11, y: 19, dir: 'left', when: f => !f('starter'), talk: talk('p.r1.mads.1', 'p.r1.mads.2') },
-    trainer({ id: 'mads', x: 11, y: 19, dir: 'left', sprite: 'chars/biker', sight: 7, cls: 'Cyclist', name: 'Mads', when: trainerWhen,
+    { id: 'mads0', sprite: 'chars/biker', x: 4, y: 19, dir: 'right', when: f => !f('starter'), talk: talk('p.r1.mads.1', 'p.r1.mads.2') },
+    trainer({ id: 'mads', x: 4, y: 19, dir: 'right', sprite: 'chars/biker', sight: 7, cls: 'Cyclist', name: 'Mads', when: trainerWhen,
       foes: [{ species: 'lillipup', level: 5 }, { species: 'pidgey', level: 6 }], intro: ['r1.mads.challenge'], lose: ['r1.mads.lose'], after: ['r1.mads.after'] }),
     trainer({ id: 'emil', x: 12, y: 2, dir: 'left', sprite: 'chars/jogger', sight: 2, cls: 'Jogger', name: 'Emil', when: trainerWhen, period: ['morning'],
       foes: [{ species: 'lillipup', level: 4 }], intro: ['r1.jogger.intro'], lose: ['r1.jogger.lose'], after: ['r1.jogger.line'] }),

@@ -50,7 +50,7 @@ test('post-game P2: Kystbanen to Helsingør, the Oath Trials and Kronvakt @story
   test.setTimeout(420_000);
   await bot.loadSave(tweak(afterStarter('charmander'), {
     map: 'osterbro', x: 26, y: 5, dir: 'up', party: TEAM, badges: BADGES, noEncounters: true,
-    flags: { ch12done: true, ch13done: true, pg1: true, pg1palm: true, pg1harmony: true, pg1rift: true, pg1done: true, dyrehavenSeen: true }
+    flags: { ch12done: true, ch13done: true, pg1: true, pg1palm: true, pg1harmony: true, pg1rift: true, pg1done: true, dyrehavenSeen: true, 'tr.hgSailor': true, 'tr.hgAce': true }
   }));
   bot.answers.push({ when: /Where to/, pick: 'Helsingør' });
   await bot.talkTo(27, 4);                                  // Kystbanen runs to Helsingør again

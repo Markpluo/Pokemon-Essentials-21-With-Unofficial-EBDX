@@ -9,7 +9,7 @@ test('copenhill: Lukas on the crane, the turbine relays, Astrid @gym', async ({ 
     map: 'eastquay', x: 9, y: 2, dir: 'up',
     party: [{ species: 'garchomp', level: 70, moves: ['crunch', 'dragonclaw', 'firefang', 'stoneedge'] }, { species: 'charizard', level: 62, moves: ['flamethrower', 'airslash', 'dragonclaw', 'slash'] }],
     badges: ['spray', 'lily', 'frost', 'lantern', 'orrery', 'harlequin', 'spire'], noEncounters: true, bag: { shutdownseq: 1 },
-    flags: { ch9done: true, ch10: true, c10arrive: true, c10brix: true }
+    flags: { ch9done: true, ch10: true, c10arrive: true, c10brix: true, 'tr.sy4': true, 'tr.sy5': true }   // the quay's trainers are behind us
   }));
   await bot.shot('gym8-eastquay');
   bot.answers.push({ when: /Battle Lukas/, pick: 'Ready' }, { when: /Switch the turbine/, pick: 'Start' }, { when: /Battle Astrid/, pick: 'Yes' });
