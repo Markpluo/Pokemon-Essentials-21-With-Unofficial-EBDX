@@ -182,9 +182,9 @@ const HELSINGOR: MapScripts = {
     { id: 'hgtrain', sprite: 'obj:train', x: 1, y: 6, dir: 'down', object: true, when: f => !f('ch12done'), talk: talk('c11.hg.train') },
     { id: 'hgfreja', sprite: 'chars/freja', x: 14, y: 8, dir: 'up', when: f => !f('kronvakt'), talk: talk('c11.hg.freja') },
     sign('hgsign', 9, 8, 'obj:sign', 'c11.hg.sign'),
-    trainer({ id: 'hgSailor', x: 18, y: 10, dir: 'left', sprite: 'chars/sailor', sight: 3, cls: 'Sailor', name: 'Aksel',
+    trainer({ id: 'hgSailor', x: 18, y: 7, dir: 'left', sprite: 'chars/sailor', sight: 3, cls: 'Sailor', name: 'Aksel',
       foes: [{ species: 'kingler', level: 49 }, { species: 'gyarados', level: 50 }], intro: ['c11.hg.sailor.intro'], lose: ['c11.hg.sailor.lose'] }),
-    trainer({ id: 'hgAce', x: 8, y: 3, dir: 'down', sprite: 'chars/acef', sight: 3, cls: 'Ace Trainer', name: 'Ida',
+    trainer({ id: 'hgAce', x: 11, y: 7, dir: 'right', sprite: 'chars/acef', sight: 4, cls: 'Ace Trainer', name: 'Ida',
       battle: { trainer: { name: 'Ida', title: 'Ace Trainer', sprite: 'tr/acef' } },
       foes: [{ species: 'lapras', level: 50 }, { species: 'skarmory', level: 49 }], intro: ['c11.hg.ace.intro'], lose: ['c11.hg.ace.lose'] }),
     itemBall('item.hg1', 20, 14, 'hyperpotion', 2, 'Hyper Potions')
@@ -244,7 +244,7 @@ const CASEMATES: MapScripts = {
     { id: 'kaas11', sprite: 'chars/kaas', x: 16, y: 3, dir: 'down', hidden: true },
     { id: 'maja11c', sprite: 'chars/maja', x: 13, y: 5, dir: 'right', hidden: true },
     { id: 'freja11c', sprite: 'chars/freja', x: 15, y: 3, dir: 'up', hidden: true },
-    trainer({ id: 'cmEnf1', x: 9, y: 8, dir: 'left', sprite: 'chars/enforcer', sight: 3, cls: 'Grid Enforcer', name: 'Gorm',
+    trainer({ id: 'cmEnf1', x: 9, y: 8, dir: 'up', sprite: 'chars/enforcer', sight: 3, cls: 'Grid Enforcer', name: 'Gorm',
       foes: [{ species: 'magnezone', level: 50 }, { species: 'hariyama', level: 50 }], intro: ['c11.cm.enf1.intro'], lose: ['c11.cm.enf1.lose'] }),
     itemBall('item.cm1', 1, 5, 'revive', 1, 'a Revive')
   ],

@@ -335,7 +335,7 @@ export const ORESUND_SCRIPTS: MapScripts = {
       { species: 'corviknight', level: 64, moves: ['bravebird', 'bodypress', 'ironhead', 'roost'] },
       { species: 'pelipper', level: 63, moves: ['hurricane', 'scald', 'uturn', 'roost'] },
       { species: 'bombirdier', level: 64, moves: ['knockoff', 'bravebird', 'rockslide', 'suckerpunch'] }]),
-    bridgeTrainer('br4', 38, 6, 'Cyclist', 'Mads', 'chars/biker', [
+    bridgeTrainer('br4', 33, 6, 'Cyclist', 'Mads', 'chars/biker', [
       { species: 'stoutland', level: 64, moves: ['bodyslam', 'crunch', 'wildcharge', 'playrough'] },
       { species: 'noivern', level: 65, moves: ['hurricane', 'dragonpulse', 'flamethrower', 'uturn'] }]),
     // Bjørk stands on the ramp until you have her permit, then steps aside.
@@ -532,13 +532,13 @@ export const ROUTE14_SCRIPTS: MapScripts = {
     { id: 'smoker', sprite: 'chars/chef', x: 21, y: 8, dir: 'down', talk: smokehouse },
     sign('r14sign', 2, 8, 'obj:sign', 'pg4.r14.sign'),
     sign('cliffsign', 37, 8, 'obj:sign', 'pg4.r14.cliffs'),
-    trainer({ id: 'bh1', x: 12, y: 8, dir: 'down', sprite: 'chars/acem', sight: 3, cls: 'Ace Trainer', name: 'Rasmus',
+    trainer({ id: 'bh1', x: 12, y: 7, dir: 'left', sprite: 'chars/acem', sight: 6, cls: 'Ace Trainer', name: 'Rasmus',
       foes: [{ species: 'lycanroc', level: 67, moves: ['stoneedge', 'closecombat', 'crunch', 'accelerock'] }, { species: 'copperajah', level: 68, moves: ['heavyslam', 'playrough', 'superpower', 'rockslide'] }],
       intro: ['pg4.bh1.intro'], lose: ['pg4.bh1.lose'] }),
-    trainer({ id: 'bh2', x: 25, y: 10, dir: 'up', sprite: 'chars/fisher', sight: 3, cls: 'Fisher', name: 'Holger',
+    trainer({ id: 'bh2', x: 27, y: 10, dir: 'up', sprite: 'chars/fisher', sight: 3, cls: 'Fisher', name: 'Holger',
       foes: [{ species: 'barraskewda', level: 67, moves: ['liquidation', 'closecombat', 'psychicfangs', 'aquajet'] }, { species: 'gyarados', level: 68, moves: ['waterfall', 'crunch', 'icefang', 'dragondance'] }],
       intro: ['pg4.bh2.intro'], lose: ['pg4.bh2.lose'] }),
-    trainer({ id: 'bh3', x: 33, y: 8, dir: 'down', sprite: 'chars/painter', sight: 3, cls: 'Glassblower', name: 'Ida',
+    trainer({ id: 'bh3', x: 33, y: 7, dir: 'left', sprite: 'chars/painter', sight: 6, cls: 'Glassblower', name: 'Ida',
       foes: [{ species: 'volcarona', level: 68, moves: ['fierydance', 'bugbuzz', 'gigadrain', 'quiverdance'] }, { species: 'garganacl', level: 68, moves: ['saltcure', 'stoneedge', 'bodypress', 'recover'] }],
       intro: ['pg4.bh3.intro'], lose: ['pg4.bh3.lose'] }),
     itemBall('item.r14a', 22, 5, 'ultraball', 5, 'Ultra Balls'),

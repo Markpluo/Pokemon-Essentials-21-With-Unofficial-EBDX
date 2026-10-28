@@ -27,7 +27,7 @@ function at(map: string, x: number, y: number, flags: Record<string, unknown>, b
 
 describe('fixes from the playthrough', () => {
   it('Yusuf still hands over the gold paint if he was beaten before Tariq asked for paint', () => {
-    const g = at('norrebro', 20, 15, { 'tr.yusuf': true, muralQuest: true, ch1: true });
+    const g = at('norrebro', 19, 14, { 'tr.yusuf': true, muralQuest: true, ch1: true });
     g.talk('left');
     expect(g.flag('paintGold')).toBe(true);
     expect(g.said.some(t => /got the gold paint/.test(t))).toBe(true);

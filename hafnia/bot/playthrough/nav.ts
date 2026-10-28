@@ -35,7 +35,7 @@ const DOORS: Record<string, Record<string, string>> = {
 /** Things you talk to that move you. */
 /** The player whose story flags gate hops (`needs`); set by goto. */
 let current: Player | null = null;
-const TALK: Record<string, { to: string; x: number; y: number; pick?: string; needs?: string; not?: string }[]> = {
+export const TALK: Record<string, { to: string; x: number; y: number; pick?: string; needs?: string; not?: string }[]> = {
   garden: [{ to: 'tunnels', x: 23, y: 10 }],
   nyhavn: [{ to: 'drydock', x: 22, y: 11 }],
   drydock: [{ to: 'nyhavn', x: 1, y: 2 }],
@@ -67,7 +67,7 @@ const TALK: Record<string, { to: string; x: number; y: number; pick?: string; ne
   towerstairs: [{ to: 'towerroof', x: 5, y: 0 }]
 };
 /** Tiles you step on that move you (step events, not warps). */
-const STEP: Record<string, { to: string; x: number; y: number }[]> = {
+export const STEP: Record<string, { to: string; x: number; y: number }[]> = {
   towerin: [{ to: 'rundetarn', x: 6, y: 2 }],
   leaguehall: [{ to: 'stables', x: 6, y: 0 }]
 };

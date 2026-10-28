@@ -27,11 +27,11 @@ const ROUTE2: MapScripts = {
   npcs: [
     sign('r2sign', 26, 2, 'obj:sign', 'c3.r2.sign'),
     sign('r2overpass', 24, 6, 'obj:sign', 'c3.r2.overpass'),
-    trainer({ id: 'r2cyclist', x: 13, y: 3, dir: 'right', sprite: 'chars/biker', sight: 4, cls: 'Cyclist', name: 'Emil',
+    trainer({ id: 'r2cyclist', x: 16, y: 1, dir: 'right', sprite: 'chars/biker', sight: 7, cls: 'Cyclist', name: 'Emil',
       foes: [{ species: 'starly', level: 18 }, { species: 'wattrel', level: 19 }], intro: ['c3.r2.cyclist.intro'], lose: ['c3.r2.cyclist.lose'] }),
-    trainer({ id: 'r2jogger', x: 4, y: 8, dir: 'up', sprite: 'chars/jogger', sight: 4, cls: 'Jogger', name: 'Ida',
+    trainer({ id: 'r2jogger', x: 3, y: 12, dir: 'right', sprite: 'chars/jogger', sight: 2, cls: 'Jogger', name: 'Ida',
       foes: [{ species: 'lillipup', level: 18 }, { species: 'skwovet', level: 19 }], intro: ['c3.r2.jogger.intro'], lose: ['c3.r2.jogger.lose'] }),
-    trainer({ id: 'r2student', x: 10, y: 11, dir: 'left', sprite: 'chars/student', sight: 3, cls: 'Student', name: 'Noah',
+    trainer({ id: 'r2student', x: 10, y: 12, dir: 'left', sprite: 'chars/student', sight: 6, cls: 'Student', name: 'Noah',
       foes: [{ species: 'combee', level: 18 }, { species: 'shroodle', level: 18 }, { species: 'nickit', level: 19 }],
       intro: ['c3.r2.student.intro'], lose: ['c3.r2.student.lose'] }),
     { id: 'r2picker', sprite: 'chars/oldwoman', x: 9, y: 2, dir: 'down', talk: function* (s) {
@@ -326,9 +326,9 @@ const ISLANDSBRYGGE: MapScripts = {
   },
   npcs: [
     { id: 'lifeguard', sprite: 'chars/lifeguard', x: 11, y: 4, dir: 'left', talk: talk('c3.ib.guard', 'c3.ib.guard.2') },
-    trainer({ id: 'ibswim1', x: 5, y: 3, dir: 'left', sprite: 'chars/swimmer', sight: 2, cls: 'Swimmer', name: 'Lone',
+    trainer({ id: 'ibswim1', x: 2, y: 3, dir: 'down', sprite: 'chars/swimmer', sight: 6, cls: 'Swimmer', name: 'Lone',
       foes: [{ species: 'finizen', level: 20 }, { species: 'shellos', level: 20 }], intro: ['c3.ib.swim1.intro'], lose: ['c3.ib.swim1.lose'] }),
-    trainer({ id: 'ibswim2', x: 10, y: 7, dir: 'up', sprite: 'chars/swimmer', sight: 3, cls: 'Swimmer', name: 'Torben',
+    trainer({ id: 'ibswim2', x: 2, y: 7, dir: 'down', sprite: 'chars/swimmer', sight: 2, cls: 'Swimmer', name: 'Torben',
       foes: [{ species: 'tentacool', level: 20 }, { species: 'spheal', level: 21 }], intro: ['c3.ib.swim2.intro'], lose: ['c3.ib.swim2.lose'] }),
     { id: 'ladder', sprite: 'obj:ladder', x: 7, y: 3, dir: 'down', object: true, talk: function* (s) {
       if (s.hasItem('mussels') || s.flag('dinnerDone')) { s.say('Mussels cling to the ladder. You have plenty.'); return; }

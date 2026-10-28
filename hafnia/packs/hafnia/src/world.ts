@@ -244,7 +244,7 @@ function route1(): MapData {
       'TTggggg...==.gggg.TT',
       'TTggggg...==......TT',
       'TTggggg...==..f...TT',
-      'TT........==......TT',
+      'TTTT......==TTTTTTTT',
       'TT..f.....==......TT',
       'TT........==.gggg.TT',
       'TTgggg....==.gggg.TT',

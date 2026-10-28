@@ -63,11 +63,11 @@ const SLOTSHOLMEN: MapScripts = {
     { id: 'slvan', sprite: 'obj:container', x: 16, y: 7, dir: 'down', object: true, talk: talk('c9.sl.van') },
     { id: 'slcrowd', sprite: 'chars/oldwoman', x: 9, y: 9, dir: 'right', talk: talk('c9.sl.crowd') },
     { id: 'slguard', sprite: 'chars/guard', x: 3, y: 7, dir: 'down', talk: talk('c9.sl.guard') },
-    trainer({ id: 'slLawyer1', x: 21, y: 7, dir: 'left', sprite: 'chars/lawyer', sight: 4, cls: 'Vanguard Lawyer', name: 'Henriksen',
+    trainer({ id: 'slLawyer1', x: 21, y: 6, dir: 'left', sprite: 'chars/lawyer', sight: 2, cls: 'Vanguard Lawyer', name: 'Henriksen',
       foes: [{ species: 'klang', level: 40 }, { species: 'bronzor', level: 41 }], intro: ['c9.sl.law1.intro'], lose: ['c9.sl.law1.lose'] }),
-    trainer({ id: 'slLawyer2', x: 8, y: 12, dir: 'right', sprite: 'chars/lawyer', sight: 3, cls: 'Vanguard Lawyer', name: 'Lund',
+    trainer({ id: 'slLawyer2', x: 6, y: 12, dir: 'up', sprite: 'chars/lawyer', sight: 6, cls: 'Vanguard Lawyer', name: 'Lund',
       foes: [{ species: 'pawniard', level: 41 }, { species: 'magneton', level: 41 }], intro: ['c9.sl.law2.intro'], lose: ['c9.sl.law2.lose'] }),
-    trainer({ id: 'slGuard', x: 4, y: 10, dir: 'right', sprite: 'chars/guard', sight: 3, cls: 'Royal Guard', name: 'Anders',
+    trainer({ id: 'slGuard', x: 6, y: 10, dir: 'up', sprite: 'chars/guard', sight: 4, cls: 'Royal Guard', name: 'Anders',
       foes: [{ species: 'corvisquire', level: 41 }, { species: 'skarmory', level: 42 }], intro: ['c9.sl.rg.intro'], lose: ['c9.sl.rg.lose'] }),
     itemBall('item.sl1', 1, 16, 'hyperpotion', 2, 'Hyper Potions'),
     itemBall('item.sl2', 24, 2, 'ultraball', 3, 'Ultra Balls')
@@ -127,9 +127,9 @@ const BORSEN: MapScripts = {
     sign('bsboard', 10, 1, 'obj:poster', 'c9.bs.board'),
     { id: 'bsclerk', sprite: 'chars/archivist', x: 2, y: 4, dir: 'right', talk: clerk },
     { id: 'bsmover', sprite: 'chars/deckhand', x: 14, y: 4, dir: 'left', talk: talk('c9.bs.mover') },
-    trainer({ id: 'bsLawyer1', x: 6, y: 6, dir: 'right', sprite: 'chars/lawyer', sight: 3, cls: 'Vanguard Lawyer', name: 'Petersen',
+    trainer({ id: 'bsLawyer1', x: 6, y: 8, dir: 'right', sprite: 'chars/lawyer', sight: 2, cls: 'Vanguard Lawyer', name: 'Petersen',
       foes: [{ species: 'bisharp', level: 41 }, { species: 'klang', level: 41 }], intro: ['c9.bs.law1.intro'], lose: ['c9.bs.law1.lose'] }),
-    trainer({ id: 'bsLawyer2', x: 11, y: 6, dir: 'left', sprite: 'chars/lawyer', sight: 3, cls: 'Vanguard Lawyer', name: 'Gram',
+    trainer({ id: 'bsLawyer2', x: 11, y: 8, dir: 'left', sprite: 'chars/lawyer', sight: 3, cls: 'Vanguard Lawyer', name: 'Gram',
       foes: [{ species: 'magneton', level: 41 }, { species: 'corvisquire', level: 41 }, { species: 'bronzor', level: 42 }], intro: ['c9.bs.law2.intro'], lose: ['c9.bs.law2.lose'] })
   ]
 };
