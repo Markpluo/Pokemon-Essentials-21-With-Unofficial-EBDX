@@ -218,5 +218,50 @@
   "battle_lumen": {
     "bpm": 150,
     "prompt": "Sleek tech corporation villain battle theme, glossy cold synthwave, aggressive arps, ominous bass, video game boss battle"
+  },
+  "victory_wild": {
+    "bpm": 120,
+    "seconds": 40,
+    "prompt": "Short cheerful victory theme after winning a wild battle, bright brass and strings, bouncy and happy, video game victory music"
+  },
+  "victory_trainer": {
+    "bpm": 124,
+    "seconds": 40,
+    "prompt": "Triumphant victory theme after beating a trainer, upbeat brass fanfare melody, snare drums, celebratory, video game victory music"
+  },
+  "victory_leader": {
+    "bpm": 116,
+    "seconds": 45,
+    "prompt": "Grand victory theme after defeating a gym leader, heroic orchestral fanfare, proud brass and timpani, emotional and triumphant, video game"
+  },
+  "me_badge": {
+    "bpm": 110,
+    "seconds": 5,
+    "jingle": true,
+    "prompt": "Short triumphant brass fanfare jingle, receiving a gym badge, bright and proud, video game jingle"
+  },
+  "me_heal": {
+    "bpm": 90,
+    "seconds": 3.5,
+    "jingle": true,
+    "prompt": "Short gentle healing chime jingle, soft bells and harp arpeggio, restorative, video game jingle"
+  },
+  "me_item": {
+    "bpm": 120,
+    "seconds": 3,
+    "jingle": true,
+    "prompt": "Short happy item get jingle, bright xylophone and brass stab, cheerful, video game jingle"
+  },
+  "me_catch": {
+    "bpm": 120,
+    "seconds": 4.5,
+    "jingle": true,
+    "prompt": "Short exciting success jingle after catching a creature, upbeat brass and glockenspiel, celebratory, video game jingle"
+  },
+  "me_get": {
+    "bpm": 112,
+    "seconds": 5,
+    "jingle": true,
+    "prompt": "Short warm fanfare jingle, receiving a new companion creature, strings and horn, joyful, video game jingle"
   }
 }

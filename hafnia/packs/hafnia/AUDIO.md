@@ -12,7 +12,7 @@ Which map uses which key is in `src/music.ts` (`MAP_MUSIC`); battle music by tra
   Each track is ~77 s, crossfaded end-to-start so it loops. Change a prompt and re-run that key to
   get a new take. Output carries Google's SynthID watermark.
 - **Sound effects and area sounds** are synthesised from code: `node tools/make-sfx.mjs` (free to use).
-- **Jingles and battle sounds** (`me_*`, `victory_*`, hits, ball shakes...) are still the Essentials
+- **Menu and battle sound effects** (cursor, hits, ball shakes, doors...) are still the Essentials
   files; replace them before anything public.
 
 ## Music
@@ -77,7 +77,15 @@ Which map uses which key is in `src/music.ts` (`MAP_MUSIC`); battle music by tra
 | `battle_elite` | Elite Four | Elite Four battle theme, epic orchestral rock, choir stabs, heroic and intense, video game elite battle music |
 | `battle_champion` | the Champion | Champion final battle theme, grand orchestra with electric guitar and choir, triumphant and climactic, video game champion battle |
 | `battle_lumen` | Lumen Nord | Sleek tech corporation villain battle theme, glossy cold synthwave, aggressive arps, ominous bass, video game boss battle |
-| `victory_*` | after a win | Essentials OGG |
+| `victory_wild` / `victory_trainer` / `victory_leader` | after a win | Lyria (see prompts.json) |
+
+## Jingles (Lyria, one-shots that fade out)
+| Key | When |
+|---|---|
+| `me_badge` | getting a badge |
+| `me_heal` | healing at a Pokémon Center or at home |
+| `me_item` | finding or getting an item |
+| `me_catch` / `me_get` | catching a Pokémon / getting a new one |
 
 ## Area sounds (quiet loops under the music, on the Sound volume)
 

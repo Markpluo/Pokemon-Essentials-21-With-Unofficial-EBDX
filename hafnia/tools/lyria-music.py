@@ -1,7 +1,9 @@
 # Generates the game's music with Google's Lyria RealTime model (free, instrumental) from the
 # prompts in packs/hafnia/assets/audio/lyria/prompts.json. Each track is streamed for a while,
 # the warm-up is dropped, and the end is crossfaded into the start so it loops without a seam.
-# Writes packs/hafnia/assets/audio/lyria/<key>.ogg; pack.json "audio" points the keys at them.
+# A prompt with "seconds" sets the length; "jingle": true makes a one-shot that fades out instead of
+# looping (badge, heal, item...). Writes packs/hafnia/assets/audio/lyria/<key>.ogg; pack.json
+# "audio" points the keys at them.
 # Needs: pip install google-genai numpy, ffmpeg, and GEMINI_API_KEY in the environment.
 # Usage: python3 tools/lyria-music.py [key ...]   (no keys = every track that has no file yet)
 import asyncio, json, os, subprocess, sys
@@ -16,7 +18,8 @@ RATE, WARMUP, LENGTH, FADE, PARALLEL = 48000, 4, 80, 3, 4
 client = genai.Client(api_key=os.environ['GEMINI_API_KEY'], http_options={'api_version': 'v1alpha'})
 
 async def record(key, spec):
-    want = (WARMUP + LENGTH) * RATE * 4
+    length = spec.get('seconds', LENGTH)
+    want = int((WARMUP + length) * RATE) * 4
     pcm = bytearray()
     async with client.aio.live.music.connect(model='models/lyria-realtime-exp') as s:
         await s.set_weighted_prompts(prompts=[types.WeightedPrompt(text=spec['prompt'], weight=1.0)])
@@ -28,10 +31,14 @@ async def record(key, spec):
                 for c in m.server_content.audio_chunks: pcm += c.data
                 if len(pcm) >= want: break
     a = np.frombuffer(bytes(pcm[:want]), dtype='<i2').reshape(-1, 2).astype(np.float32)[WARMUP * RATE:]
-    n = FADE * RATE
-    body, tail = a[:-n].copy(), a[-n:]
-    t = np.linspace(0, 1, n)[:, None]
-    body[:n] = body[:n] * t + tail * (1 - t)
+    if spec.get('jingle'):
+        body, n = a.copy(), int(min(1.0, length / 3) * RATE)
+        body[-n:] *= np.linspace(1, 0, n)[:, None]
+    else:
+        n = FADE * RATE
+        body, tail = a[:-n].copy(), a[-n:]
+        t = np.linspace(0, 1, n)[:, None]
+        body[:n] = body[:n] * t + tail * (1 - t)
     raw = os.path.join(DIR, f'_{key}.pcm')
     body.clip(-32768, 32767).astype('<i2').tofile(raw)
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-f', 's16le', '-ar', str(RATE), '-ac', '2', '-i', raw,
