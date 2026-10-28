@@ -106,15 +106,25 @@ const Sound = {
     const el = new Audio(audioUrl(name)); el.volume = vol ?? this.vol.se; el.play().catch(() => {});
   },
   cry(key: string) { this.se('cries/' + key, 0.6 * this.vol.se / 0.7); },
-  me(name: string): Promise<void> { // jingle: pause bgm, resolve when done (max 6s)
+  meEl: null as HTMLAudioElement | null,
+  /** Jingle: pauses the bgm and resolves when it ends (max 6s). A or B ends the wait early while the
+   *  jingle plays on; a newer jingle cuts an older one off. */
+  me(name: string): Promise<void> {
     return new Promise(res => {
-      if (this.muted || !this.unlocked) { setTimeout(res, 600); return; }
+      if (this.muted || !this.unlocked) { setTimeout(res, 300); return; }
+      this.meEl?.pause();
       this.bgmEl?.pause();
       const el = new Audio(audioUrl(name)); el.volume = this.vol.me;
+      this.meEl = el;
       let finished = false;
-      const end = () => { if (finished) return; finished = true; if (this.bgmEl && !this.muted) this.bgmEl.play().catch(() => {}); res(); };
+      const end = () => {
+        if (finished) return; finished = true;
+        if (this.meEl === el) { this.meEl = null; if (this.bgmEl && !this.muted) this.bgmEl.play().catch(() => {}); }
+        res();
+      };
       el.onended = end; el.onerror = end; setTimeout(end, 6000);
       el.play().catch(end);
+      void (async () => { await wait(8); while (!finished) { if (just('A') || just('B')) { res(); return; } await nextFrame(); } })();
     });
   },
   unlock() {
@@ -223,7 +233,7 @@ async function playEvents(evs: ServerEvent[]) {
       }
       case 'pickSpecies': return send({ t: 'answer', index: await pickSpecies(e.species) });
       case 'sfx': Sound.se(e.name); break;
-      case 'me': await Sound.me(e.name); break;
+      case 'me': if (e.wait === false) void Sound.me(e.name); else await Sound.me(e.name); break;
       case 'bgm': Sound.bgm(e.name); break;
       case 'cry': Sound.cry(e.key); break;
       case 'face': actor(e.actor) && (actor(e.actor)!.dir = e.dir); break;
@@ -1389,6 +1399,8 @@ interface BattleState {
 }
 interface GridState { x: number; y: number; w: number; h: number; items: { label: string; type?: string; sub?: string; dim?: boolean; on?: string }[]; cols: number; idx: number; key: string }
 let B: BattleState | null = null;
+/** The ally's box glows gold for a moment when it levels up. */
+let lvFlashUntil = 0;
 const SPOTS: Spot[] = ['foe2', 'foe', 'ally2', 'ally']; // back to front, the order they are drawn in
 const spotOf = (side: BattleSide, slot?: number): Spot => (slot ? `${side}2` as Spot : side);
 const sideOfSpot = (s: Spot): BattleSide => (s.startsWith('ally') ? 'ally' : 'foe');
@@ -1454,7 +1466,9 @@ function databox(m: BattleMonView, x: number, y: number, showNums: boolean, disp
   ctx.fillStyle = '#fbf7ee'; roundRect(x + 3, y + 3, 224, (showNums ? 70 : 54) - 6, 8); ctx.fill();
   text(m.name, x + 14, y + 23, 18, '#26324a');
   if (m.gender) text(m.gender === 'M' ? '♂' : '♀', x + 14 + Math.min(120, m.name.length * 10) + 6, y + 23, 16, m.gender === 'M' ? '#3a7bd5' : '#d9473a');
-  text('Lv' + m.level, x + 216, y + 23, 16, '#26324a', 'right');
+  const lvUp = G.t < lvFlashUntil && m === B?.spots.ally.mon;
+  if (lvUp) { ctx.strokeStyle = `rgba(242,195,59,${0.5 + 0.5 * Math.sin(G.t / 3)})`; ctx.lineWidth = 3; roundRect(x + 1, y + 1, 228, (showNums ? 70 : 54) - 2, 9); ctx.stroke(); }
+  text('Lv' + m.level, x + 216, y + 23, 16, lvUp ? '#c98a00' : '#26324a', 'right');
   text('HP', x + 14, y + 42, 12, '#d9473a');
   hpBar(x + 36, y + 33, 180, disp, m.maxhp);
   if (m.status) statusChip(m.status, x + 150, y + 6);
@@ -1733,10 +1747,20 @@ async function battleEvent(e: BattleEvent) {
       break;
     }
     case 'exp': {
+      // Fills in about a third of a second (per level gained), and at once while A or B is held.
       const a = b.spots.ally.mon; if (!a) break;
-      const from = a.exp ?? e.exp;
+      const fill = async (to: number) => {
+        const from = a.exp ?? to;
+        for (let i = 1; i <= 10 && !(input.held.A || input.held.B); i++) { a.exp = from + (to - from) * i / 10; await nextFrame(); }
+        a.exp = to;
+      };
+      if (e.level > a.level && a.expHi !== undefined) {
+        await fill(a.expHi);
+        lvFlashUntil = G.t + 45;
+        a.exp = e.expLo;
+      }
       a.level = e.level; a.maxhp = e.maxhp; a.hp = e.hp; a.expLo = e.expLo; a.expHi = e.expHi;
-      for (let i = 1; i <= 20; i++) { a.exp = from + (e.exp - from) * i / 20; await nextFrame(); }
+      await fill(e.exp);
       b.spots.ally.hp = e.hp;
       break;
     }
