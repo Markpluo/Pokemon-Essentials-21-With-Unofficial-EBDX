@@ -10,7 +10,7 @@ test('holding a direction walks smoothly @walk', async ({ bot }) => {
   // Route 1's trainers already beaten, so nobody steps out to battle mid-stride.
   await bot.loadSave(tweak(afterStarter(), { noEncounters: true, flags: Object.fromEntries(['mads', 'emil', 'sofie', 'bent', 'ole', 'ida'].map(id => [`tr.${id}`, true])) }));
   await bot.warp('route1');
-  await bot.walkTo(3, 20);                                  // open ground to the right and below (Mads's hedge is just above)
+  await bot.walkTo(3, 21);                                  // open ground to the right and below (the pram lady stands on row 20)
   for (const [dir, key] of [['right', 'ArrowRight'], ['down', 'ArrowDown']] as const) {
     // Record what each rendered frame shows while the key is held.
     await bot.page.evaluate(() => {

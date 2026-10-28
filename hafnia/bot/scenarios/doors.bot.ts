@@ -3,6 +3,7 @@
 // door for now; those must at least say something.
 import { test, expect } from '../lib/bot';
 import { afterStarter, tweak } from '../lib/saves';
+import { world } from '../lib/world';
 import { MAPS, STAMPS } from '@hafnia/pack-hafnia/world';
 
 const doors = Object.entries(MAPS).filter(([, m]) => !m.indoor)
@@ -10,8 +11,11 @@ const doors = Object.entries(MAPS).filter(([, m]) => !m.indoor)
 
 test('every door leads inside, or says why it is locked @doors', async ({ bot }) => {
   test.setTimeout(480_000);
-  // a strong team, so trainers met on the way can't send the player home
-  await bot.loadSave(tweak(afterStarter(), { noEncounters: true, party: [{ species: 'sprigatito', level: 60 }] }));
+  // Every trainer already beaten (most of them hold the path now, and a battle per door would take
+  // longer than the test), and a strong team in case anyone still steps out.
+  const { content } = await world();
+  const beaten = Object.fromEntries([...content.maps.values()].flatMap(m => m.npcs.flatMap(n => (n.trainer ? [[n.trainer.flag, true]] : []))));
+  await bot.loadSave(tweak(afterStarter(), { noEncounters: true, party: [{ species: 'sprigatito', level: 60 }], flags: beaten }));
   const out: string[] = [];
   for (const [map, building] of doors) {
     await bot.warp(map);
