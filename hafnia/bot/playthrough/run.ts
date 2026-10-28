@@ -16,7 +16,8 @@ const CHAPTERS: [string, (p: Player) => void][] = [
 
 /** Side areas, each from a saved chapter (see route.ts). */
 const SIDE: [string, string, (p: Player) => void][] = [
-  ['kalvebod', 'ch3', R.sideKalvebod], ['singers', 'ch3', R.sideSingers], ['roskilde', 'ch8', R.sideRoskilde], ['tivoli', 'pg5', R.sideTivoli], ['trolls', 'pg5', R.sideTrolls], ['small', 'ch3', R.sideSmall]
+  ['kalvebod', 'ch3', R.sideKalvebod], ['singers', 'ch3', R.sideSingers], ['roskilde', 'ch8', R.sideRoskilde], ['tivoli', 'pg5', R.sideTivoli], ['trolls', 'pg5', R.sideTrolls], ['small', 'ch3', R.sideSmall],
+  ['pram', 'ch1', R.sidePram], ['lene', 'ch2', R.sideLene], ['errands', 'pg5', R.sideErrands]
 ];
 
 async function side(content: Content, only: string | null) {
