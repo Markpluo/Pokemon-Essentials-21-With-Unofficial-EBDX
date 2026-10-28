@@ -143,7 +143,7 @@ export type ServerEvent =
   | { t: 'pickLook'; text: string; options: { look: Look; sprite: string; label: string }[] }
   | { t: 'pickSpecies'; species: { species: string; key: string; name: string; types: string[]; blurb: string }[] }
   | { t: 'sfx'; name: string }
-  | { t: 'me'; name: string }
+  | { t: 'me'; name: string; /** false: play the jingle over what follows instead of waiting for it (level-ups). */ wait?: boolean }
   | { t: 'bgm'; name: string | null }
   | { t: 'cry'; key: string }
   | { t: 'face'; actor: string; dir: Dir }

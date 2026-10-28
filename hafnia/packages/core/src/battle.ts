@@ -670,7 +670,7 @@ export class BattleSession {
         this.leveled.add(m.uid);
         this.syncLevel(p, m);
         if (p === active) this.expEvent(p, m);
-        this.host.emit({ t: 'me', name: 'me_item' });
+        this.host.emit({ t: 'me', name: 'me_item', wait: false });
         this.ev({ b: 'text', text: `${p.name} grew to Lv. ${step.level}!` });
         for (const id of step.learned) this.ev({ b: 'text', text: `${p.name} learned ${Dex.moves.get(id).name}!` });
         if (step.learned.length) this.rebuildMoves(p, m);
