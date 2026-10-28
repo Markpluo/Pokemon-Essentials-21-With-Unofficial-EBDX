@@ -45,6 +45,11 @@ Cloudflare Pages settings:
 
 To hand out or revoke codes, edit `INVITE_CODES` and redeploy. Without both env vars the gate stays shut.
 
+`.github/workflows/deploy-pages.yml` builds and deploys to the Pages project `copper-current` on every
+push to `main` (or by hand from the Actions tab). It needs the repo secrets `CLOUDFLARE_API_TOKEN`
+(permission Account > Cloudflare Pages > Edit) and `CLOUDFLARE_ACCOUNT_ID`; without them it only builds.
+The custom domain (blyn.dk) is added under the Pages project's Custom domains.
+
 ## Battle animations
 
 Moves animate from data, not code (`/mnt/project-files/design/battle-animations.md`). A move plays its
