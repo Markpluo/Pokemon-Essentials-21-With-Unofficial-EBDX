@@ -140,7 +140,7 @@ const ROUTE1: MapScripts = {
     { id: 'maja2', sprite: 'chars/maja', x: 12, y: 27, dir: 'left', trainer: { sight: 3, flag: 'beatMaja' },
       when: f => !!f('beatLukas') && !f('beatMaja'), talk: majaBattle },
     { id: 'sensor', sprite: 'chars/deckhand', x: 8, y: 14, dir: 'left', talk: talk('r1.sensor') },
-    { id: 'terminal', sprite: 'obj:terminal', x: 13, y: 25, dir: 'down', object: true, talk: terminal },
+    { id: 'terminal', sprite: 'obj:vgterminal', x: 13, y: 25, dir: 'down', object: true, talk: terminal },
     { id: 'barrier', sprite: 'obj:barrier', x: 14, y: 26, dir: 'down', object: true, when: f => !f('barrier'), talk: terminal },
     itemBall('item1', 16, 12, 'potion', 2, 'Potions'),
     itemBall('item2', 3, 26, 'pokeball', 3, 'Poké Balls'),

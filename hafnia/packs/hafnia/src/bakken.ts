@@ -280,7 +280,7 @@ const terminal: Script = function* (s) {
 
 const SUBSTATION: MapScripts = {
   npcs: [
-    { id: 'terminal', sprite: 'obj:terminal', x: 7, y: 1, dir: 'down', object: true, talk: terminal },
+    { id: 'terminal', sprite: 'obj:vgterminal', x: 7, y: 1, dir: 'down', object: true, talk: terminal },
     trainer({ id: 'subEng1', x: 3, y: 4, dir: 'right', sprite: 'chars/engineer', sight: 4, cls: 'Engineer', name: 'Kristoffer',
       foes: [{ species: 'magneton', level: 34 }, { species: 'klang', level: 35 }], intro: ['c7.sub.eng1.intro'], lose: ['c7.sub.eng1.lose'] }),
     trainer({ id: 'subEng2', x: 11, y: 2, dir: 'left', sprite: 'chars/engineer', sight: 4, cls: 'Engineer', name: 'Lise',
@@ -343,7 +343,7 @@ const MIRRORS = [2, 5, 8, 12, 15, 18];
 const TRUE_MIRROR = 12;
 
 const mirror = (x: number, i: number): NpcDef => ({
-  id: `mirror${i}`, sprite: 'obj:mirror', x, y: 11, dir: 'down', object: true, talk: function* (s) {
+  id: `mirror${i}`, sprite: 'obj:hallmirror', x, y: 11, dir: 'down', object: true, talk: function* (s) {
     if (s.flag('mirrorDone')) { s.say('c7.mirror.done'); return; }
     s.say(`c7.mirror.${i + 1}`);
     const c: number = yield s.ask('c7.mirror.ask', ['Step through', 'Look away'], 1);
@@ -445,7 +445,7 @@ const GYM6: MapScripts = {
       s.say('c7.g6.guide.1'); s.say('c7.g6.guide.2');
     } },
     ...MIRRORS.map((x, i) => mirror(x, i)),
-    { id: 'mirrorgate', sprite: 'obj:mirror', x: 10, y: 10, dir: 'down', object: true, when: f => !f('mirrorDone'), talk: talk('c7.mirror.gate') },
+    { id: 'mirrorgate', sprite: 'obj:hallmirror', x: 10, y: 10, dir: 'down', object: true, when: f => !f('mirrorDone'), talk: talk('c7.mirror.gate') },
     ...CARTS.map(cart),
     sign('g6cardP1', 11, 9, 'obj:card', 'c7.g6.card.p1'),
     sign('g6cardP2', 2, 1, 'obj:card', 'c7.g6.card.p2'),

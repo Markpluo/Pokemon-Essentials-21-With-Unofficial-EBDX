@@ -184,7 +184,7 @@ export class BattleSession {
 
   private toSet(m: Mon, player: boolean) {
     return {
-      uid: m.uid, name: monName(m), species: speciesName(m.species), level: m.level, gender: m.gender,
+      uid: m.uid, name: monName(m), species: Dex.species.get(m.species).name, level: m.level, gender: m.gender,
       shiny: m.shiny, ability: m.ability, nature: m.nature, item: m.item ?? '', ivs: m.ivs, evs: m.evs,
       moves: [...m.moves.map(mv => mv.id), ...(player ? [WAIT] : [])]
     };
@@ -613,7 +613,7 @@ export class BattleSession {
       const base = (title: string) => this.opts.prize ?? rules.prizeBase[title] ?? rules.prizeDefault;
       const prize = this.foes[this.foes.length - 1].level * base(t.title) + (m ? this.foes2[this.foes2.length - 1].level * base(m.second.title) : 0);
       this.host.giveMoney(prize);
-      this.ev({ b: 'text', text: `You got ${prize} kr. for winning!` });
+      if (prize > 0) this.ev({ b: 'text', text: `You got ${prize} kr. for winning!` });
     } else if (result === 'win') this.host.emit({ t: 'bgm', name: 'victory_wild' });
     else if (result === 'lose') {
       if (this.opts.soft) this.ev({ b: 'text', text: 'You lost the battle...' });
