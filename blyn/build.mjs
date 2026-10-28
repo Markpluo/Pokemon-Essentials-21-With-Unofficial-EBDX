@@ -13,7 +13,7 @@ rmSync(dist, { recursive: true, force: true });
 cpSync(join(here, 'public'), dist, { recursive: true });
 for (const [dir, src] of Object.entries(projects)) {
   if (!existsSync(src)) throw new Error(`${src} is missing: build ${dir} first`);
-  // Headers and robots.txt only count at the site root, which the portal provides.
+  // robots.txt and Cloudflare _headers only count at the site root, which the portal provides.
   cpSync(src, join(dist, dir), { recursive: true, filter: f => !/[\\/](_headers|robots\.txt)$/.test(f) });
 }
 console.log(`blyn/dist ready (${Object.keys(projects).join(', ')})`);

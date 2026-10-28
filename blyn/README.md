@@ -4,16 +4,17 @@ Mark's portal: a front page with six boxes, one per game or tool, each in its ow
 
 | Path | What it is |
 |---|---|
-| `public/` | The portal page, its images, `robots.txt` and `_headers` (everything noindex for now) |
-| `functions/` | Cloudflare Pages Functions: the invite gate for `/copper-current/` and its `/copper-current/api/invite` |
+| `public/` | The portal page, its images and `robots.txt` |
+| `middleware.js` | Vercel Routing Middleware: the invite gate for `/copper-current/` and its `/copper-current/api/invite` |
+| `vercel.json` | Vercel build (from the whole repo, Root Directory `blyn`), clean URLs, noindex headers |
 | `build.mjs` | Copies `public/` to `dist/` and each project's build into `dist/<project>/` |
 
 Copper & Current lives at `/copper-current/` (built from `hafnia/`). Its invite codes come from the
-Pages env vars `INVITE_CODES` and `INVITE_SECRET` (see `hafnia/README.md`).
+Vercel env vars `INVITE_CODES` and `INVITE_SECRET` (see `hafnia/README.md`).
 
 To add a project: give it a folder in `projects` in `build.mjs` (or copy static files into
 `public/<name>/`), and turn one of the placeholder boxes in `public/index.html` into a link.
 
-`.github/workflows/deploy-pages.yml` builds everything and deploys `dist/` to the Pages project
-`blyn` on every push to `main`. It also copies the repo secrets `INVITE_CODES`/`INVITE_SECRET` to
-the project and attaches blyn.dk and www.blyn.dk as custom domains.
+Hosted on Vercel (project `blyn`, Git integration, Root Directory `blyn`): every push to `main`
+deploys blyn.dk. The site that used to be on blyn.dk (Vercel project `eventspace`) lives on
+event.blyn.dk.
