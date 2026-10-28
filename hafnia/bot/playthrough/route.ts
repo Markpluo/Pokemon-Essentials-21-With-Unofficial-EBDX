@@ -522,7 +522,7 @@ export function sideKalvebod(p: P) {
   if ((p.s.bag.pokeball ?? 0) + (p.s.bag.greatball ?? 0) < 15) { goto(p, 'pcvesterbro'); p.buy([['Great Ball', 10], ['Great Ball', 10]]); }
   for (const sp of KALVEBOD_WILD) p.wanted.add(sp);
   const caught = () => KALVEBOD_WILD.filter(sp => p.s.dex.caught[sp]).length;
-  for (let round = 0; round < 8 && caught() < 10; round++) {
+  for (let round = 0; round < 14 && caught() < 10; round++) {
     heal(p);
     goto(p, round % 2 ? 'kalvebodrange' : 'kalvebod');
     p.grind(() => caught() >= 10 || p.hurt() || (p.s.bag.greatball ?? 0) + (p.s.bag.pokeball ?? 0) < 2, 40);
