@@ -1,6 +1,8 @@
 // Hand-drawn placeholder art for the demo maps: city, indoor and tunnel tiles the Essentials
 // tilesets don't have in a usable form, story objects (switches, valves, lily pads...) and a few
 // buildings. Everything is plain canvas drawing, so Mark's own art can replace it piece by piece.
+import { THEMES, plainFurniture, themedFloor, themedWall } from './interiors';
+
 type G2 = CanvasRenderingContext2D;
 type TileAt = (x: number, y: number) => string | null;
 
@@ -24,15 +26,42 @@ function floor(g: G2, dx: number, dy: number, x: number, y: number) {
   }
 }
 
+function mat(g: G2, dx: number, dy: number) {
+  g.fillStyle = '#9b3b33'; g.fillRect(dx + 2, dy + 8, 28, 18);
+  g.fillStyle = '#c9574b'; g.fillRect(dx + 4, dy + 10, 24, 14);
+}
+
+/** Vesterbro's red-brick courtyard blocks: brick courses, white-framed sash windows, a cornice along the top. */
+function brickFacade(g: G2, x: number, y: number, dx: number, dy: number, tileAt: TileAt) {
+  const above = tileAt(x, y - 1), below = tileAt(x, y + 1);
+  g.fillStyle = (hash(Math.floor(x / 4), 3) & 1) ? '#a5462f' : '#9b4030'; g.fillRect(dx, dy, 32, 32);
+  g.fillStyle = 'rgba(60,20,12,0.35)';
+  for (let j = 0; j < 8; j++) { g.fillRect(dx, dy + j * 4 + 3, 32, 1); for (let i = (j % 2) * 4; i < 32; i += 8) g.fillRect(dx + i, dy + j * 4, 1, 3); }
+  if (above !== 'H') { g.fillStyle = '#5a5e66'; g.fillRect(dx, dy, 32, 6); g.fillStyle = '#e8e2d6'; g.fillRect(dx, dy + 6, 32, 2); }
+  else if (litWindow(x, y, tileAt) !== null) { g.fillStyle = '#f2efe6'; g.fillRect(dx + 9, dy + 5, 14, 20); g.fillStyle = '#3a4a5e'; g.fillRect(dx + 11, dy + 7, 10, 16); g.fillStyle = '#f2efe6'; g.fillRect(dx + 11, dy + 14, 10, 2); }
+  if (below !== null && below !== 'H') { g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(dx, dy + 28, 32, 4); }
+}
+
+/** Which house-front tiles have a window (and so can light up at night): not the roof row. Returns the window
+ *  rect inside the tile, or null. */
+export function litWindow(x: number, y: number, tileAt: TileAt, theme?: string): [number, number, number, number] | null {
+  if (tileAt(x, y) !== 'H' || tileAt(x, y - 1) !== 'H') return null;
+  return theme === 'brick' ? [11, 7, 10, 16] : [8, 6, 10, 14];
+}
+
 /** Draws one of the hand-drawn tiles. Returns false for tiles the caller draws from the tileset. */
-export function drawTile(g: G2, t: string, x: number, y: number, dx: number, dy: number, tileAt: TileAt, time: number): boolean {
+export function drawTile(g: G2, t: string, x: number, y: number, dx: number, dy: number, tileAt: TileAt, time: number, theme?: string): boolean {
+  const th = theme ? THEMES[theme] : undefined;
+  if (th) {
+    if (t === '_') { themedFloor(g, th, dx, dy, x, y); return true; }
+    if (t === 'K') { themedFloor(g, th, dx, dy, x, y); return true; }   // the furniture itself is drawn with the decor
+    if (t === 'm') { themedFloor(g, th, dx, dy, x, y); mat(g, dx, dy); return true; }
+    if (t === 'w') { themedWall(g, th, dx, dy, x, y, tileAt(x, y + 1)); return true; }
+  }
+  if (t === 'H' && theme === 'brick') { brickFacade(g, x, y, dx, dy, tileAt); return true; }
   switch (t) {
     case '_': floor(g, dx, dy, x, y); return true;
-    case 'm':
-      floor(g, dx, dy, x, y);
-      g.fillStyle = '#9b3b33'; g.fillRect(dx + 2, dy + 8, 28, 18);
-      g.fillStyle = '#c9574b'; g.fillRect(dx + 4, dy + 10, 24, 14);
-      return true;
+    case 'm': floor(g, dx, dy, x, y); mat(g, dx, dy); return true;
     case 'w': {
       const below = tileAt(x, y + 1);
       if (below !== null && below !== 'w') {
@@ -211,6 +240,13 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
     case 'tv': box(3, 8, 26, 18, '#26272c'); box(5, 10, 22, 14, (time >> 4) % 2 ? '#5f8fc4' : '#6f9fd4'); box(12, 26, 8, 4, '#26272c'); break;
     case 'bed': box(2, 2, 28, 28, '#6b4526'); box(4, 4, 24, 8, '#f2efe6'); box(4, 12, 24, 16, '#3a7bd5'); box(4, 12, 24, 2, '#5f8fc4'); break;
     case 'pc': box(4, 8, 24, 22, '#c9ccd2'); box(7, 11, 18, 11, (time >> 5) % 2 ? '#4fd17a' : '#3fb86a'); break;
+    case 'busstop': // a yellow Movia stop sign on its pole, the night-bus N and a little timetable case
+      box(15, -6, 3, 38, '#4a4e54'); box(13, 29, 7, 3, '#3b3f4a');
+      box(6, -12, 21, 16, '#26272c'); box(7, -11, 19, 14, '#f2c33b');
+      box(9, -9, 6, 10, '#1d2b45'); box(11, -7, 1, 6, '#f2c33b'); box(12, -6, 1, 1, '#f2c33b'); box(13, -5, 1, 4, '#f2c33b'); // N
+      box(17, -8, 7, 2, '#26272c'); box(17, -4, 7, 1, '#26272c'); box(17, -1, 5, 1, '#26272c');
+      box(19, 8, 9, 12, '#e8e6e0'); box(20, 9, 7, 10, '#c9d2e3'); box(21, 11, 5, 1, '#55617a'); box(21, 14, 4, 1, '#55617a');
+      break;
     case 'poster': box(6, 2, 20, 26, '#f2efe6'); box(8, 4, 16, 10, '#1d6fb8'); box(8, 16, 16, 2, '#1d6fb8'); box(8, 20, 12, 2, '#1d6fb8'); break;
     case 'vent': {
       box(4, 8, 24, 22, '#3b3f4a'); for (let i = 0; i < 4; i++) box(6, 11 + i * 5, 20, 2, '#26272c');
@@ -284,6 +320,15 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
       g.fillStyle = `rgba(160,200,255,${0.25 + 0.2 * Math.sin(time / 15)})`; g.beginPath(); g.arc(dx + 16, dy + 4, 5, 0, 7); g.fill(); break;
     case 'monument': box(6, 2, 20, 26, '#b9b4a6'); box(8, 4, 16, 22, '#cfcabb'); box(4, 26, 24, 5, '#8f8a7c');
       for (let i = 0; i < 4; i++) box(10, 8 + i * 4, 12 - (i % 2) * 3, 1, '#8f8a7c'); break;
+    case 'blackice':  // a wall of black ice across the ski slope
+      box(1, 6, 30, 25, '#24384a'); box(3, 8, 26, 21, '#35546e'); box(5, 10, 8, 4, '#6f97b8'); box(17, 16, 6, 3, '#5a83a6');
+      g.fillStyle = 'rgba(220,240,255,0.55)'; g.fillRect(dx + 7, dy + 11, 3, 1); g.fillRect(dx + 19, dy + 17, 2, 1); break;
+    case 'knight':   // Holger Danske asleep on his throne, sword across his knees
+      box(3, 2, 26, 29, '#5c5850'); box(5, 4, 22, 25, '#6e6a61');
+      box(12, 4, 8, 8, '#9d9789'); box(13, 7, 6, 2, '#4a463f');
+      box(9, 12, 14, 12, '#a39d8f'); box(11, 14, 10, 2, '#8a8477');
+      box(10, 24, 5, 6, '#8f897c'); box(17, 24, 5, 6, '#8f897c');
+      box(4, 20, 24, 2, '#c4c0b6'); box(26, 19, 3, 4, '#7a6a3c'); break;
     case 'andersen': box(4, 2, 24, 26, '#6f6a60'); box(6, 4, 20, 22, '#8a8478'); box(2, 26, 28, 5, '#545049');
       g.fillStyle = '#d8c89a'; g.font = '6px monospace'; g.fillText('H.C.A.', dx + 7, dy + 14); break;
     case 'lantern': case 'lanternout': {
@@ -356,6 +401,21 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
     case 'starchart': box(14, 18, 4, 14, '#6b4526'); box(3, 3, 26, 18, '#1b2340');
       g.fillStyle = '#f2e6b8'; for (const [x, y] of [[7, 7], [10, 9], [13, 8], [16, 11], [21, 6], [24, 9], [19, 15], [9, 16]]) g.fillRect(dx + x, dy + y, 2, 2);
       g.strokeStyle = 'rgba(242,230,184,0.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(dx + 8, dy + 8); g.lineTo(dx + 11, dy + 10); g.lineTo(dx + 14, dy + 9); g.lineTo(dx + 17, dy + 12); g.stroke(); break;
+    case 'pram': {   // a Danish barnevogn: navy hood, white blanket, big spoked wheels
+      box(6, 8, 18, 12, '#2c3f6b'); box(4, 6, 10, 10, '#22335a'); box(14, 12, 12, 4, '#f2efe6'); box(24, 6, 2, 8, '#8a8f99'); box(22, 5, 6, 2, '#8a8f99');
+      g.fillStyle = '#26272c'; g.beginPath(); g.arc(dx + 9, dy + 25, 5, 0, 7); g.arc(dx + 23, dy + 25, 5, 0, 7); g.fill();
+      g.fillStyle = '#c9ccd3'; g.beginPath(); g.arc(dx + 9, dy + 25, 2, 0, 7); g.arc(dx + 23, dy + 25, 2, 0, 7); g.fill();
+      break;
+    }
+    case 'bonfire': case 'bonfireout': {   // a Sankt Hans pile of logs, with a straw witch on top until it is lit
+      box(4, 24, 24, 4, '#5a3a22'); box(7, 18, 18, 7, '#6b4526'); box(10, 12, 12, 7, '#7a5232');
+      if (kind === 'bonfireout') { box(14, 4, 4, 9, '#c9a64a'); box(12, 6, 8, 2, '#c9a64a'); box(14, 2, 4, 3, '#2b2b30'); break; }
+      const f = Math.sin(time / 5);
+      g.fillStyle = `rgba(255,170,60,${0.2 + 0.06 * f})`; g.beginPath(); g.arc(dx + 16, dy + 14, 16, 0, 7); g.fill();
+      g.fillStyle = '#ff7a2a'; g.beginPath(); g.moveTo(dx + 6, dy + 22); g.lineTo(dx + 16, dy + 1 + f * 2); g.lineTo(dx + 26, dy + 22); g.fill();
+      g.fillStyle = '#ffd36b'; g.beginPath(); g.moveTo(dx + 10, dy + 22); g.lineTo(dx + 16, dy + 8 - f * 2); g.lineTo(dx + 22, dy + 22); g.fill();
+      break;
+    }
     case 'telescope':
       box(10, 26, 12, 4, '#3b3f4a'); box(14, 16, 4, 10, '#565b66');
       g.save(); g.translate(dx + 16, dy + 16); g.rotate(-0.6); g.fillStyle = '#b87333'; g.fillRect(-14, -4, 28, 8); g.fillStyle = '#d9a066'; g.fillRect(-14, -4, 28, 2); g.fillStyle = '#26272c'; g.fillRect(12, -5, 4, 10); g.restore();
@@ -376,6 +436,16 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
       g.fillStyle = '#5f9580'; g.beginPath(); g.arc(dx + 17, dy + 9, 4, 0, 7); g.fill();
       if ((time >> 4) % 6 === 0) { g.fillStyle = 'rgba(159,216,255,0.7)'; g.beginPath(); g.arc(dx + 16, dy + 17, 2, 0, 7); g.fill(); }
       break;
+    case 'echo': {
+      // A Sound Echo (post-game): a pocket of frozen song, rings of light that pulse outward.
+      for (let i = 0; i < 3; i++) {
+        const r = ((time / 2 + i * 8) % 24) / 24;
+        g.strokeStyle = `rgba(${i === 1 ? '242,214,140' : '159,216,255'},${0.8 * (1 - r)})`; g.lineWidth = 1.5;
+        g.beginPath(); g.ellipse(dx + 16, dy + 20, 3 + r * 12, 2 + r * 6, 0, 0, 7); g.stroke();
+      }
+      g.fillStyle = `rgba(242,230,184,${0.7 + 0.3 * Math.sin(time / 6)})`; g.beginPath(); g.arc(dx + 16, dy + 14 + Math.sin(time / 10) * 2, 3, 0, 7); g.fill();
+      break;
+    }
     case 'train':
       box(0, 6, 32, 20, '#b8323a'); box(2, 9, 28, 7, '#dfe8f0'); box(0, 26, 32, 3, '#26272c');
       for (let i = 3; i < 30; i += 9) box(i, 10, 6, 5, '#5f8fc4');
@@ -387,11 +457,11 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
       g.fillStyle = '#c9574b'; g.beginPath(); g.moveTo(0, -5); g.lineTo(4, 0); g.lineTo(0, 5); g.lineTo(-4, 0); g.fill();
       g.restore(); break;
     }
-    case 'mirror':
+    case 'hallmirror':
       box(4, 1, 24, 30, '#c9a24a'); box(6, 3, 20, 26, '#b8d4e8');
       g.fillStyle = 'rgba(255,255,255,0.45)'; g.beginPath(); g.moveTo(dx + 8, dy + 26); g.lineTo(dx + 18, dy + 5); g.lineTo(dx + 22, dy + 5); g.lineTo(dx + 12, dy + 26); g.fill();
       break;
-    case 'terminal':
+    case 'vgterminal':
       box(4, 4, 24, 26, '#3b3f4a'); box(7, 7, 18, 11, (time >> 4) % 2 ? '#1d6fb8' : '#2a7fcc');
       g.fillStyle = '#fff'; g.font = 'bold 6px sans-serif'; g.fillText('VG', dx + 12, dy + 15);
       for (let i = 0; i < 3; i++) box(8 + i * 6, 21, 4, 4, ['#c9574b', '#e8c35a', '#4fae5b'][i]); break;
@@ -426,6 +496,18 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
 }
 
 // ---------- buildings ----------
+
+const brickWindows = (gate: boolean) => [0, 1].flatMap(r => [0, 1, 2, 3].filter(c => !(r === 1 && (c === 1 || (gate && c === 2))))
+  .map(c => [10 + c * 30, 24 + r * 30, 10, 16] as [number, number, number, number]));
+/** Window panes of the hand-drawn buildings, in pixels from the stamp's top-left, that light up at night. */
+export const BUILDING_WINDOWS: Record<string, [number, number, number, number][]> = {
+  brickBlock: brickWindows(false), brickGate: brickWindows(true),
+  cafe: [[14, 36, 14, 18], [86, 36, 14, 18], [104, 36, 14, 18]],
+  coldStores: [[14, 68, 16, 8], [46, 68, 16, 8], [162, 68, 16, 8], [194, 68, 16, 8]],
+  roundTower: [[22, 40, 12, 18], [94, 40, 12, 18], [22, 80, 12, 18], [94, 80, 12, 18]],
+  borsen: [[40, 60, 14, 20], [90, 60, 14, 20], [200, 60, 14, 20], [250, 60, 14, 20]],
+  houseboat: [[36, 24, 16, 14], [140, 24, 16, 14]]
+};
 
 /** Draws a hand-drawn building into a canvas of its stamp size (w×h tiles). */
 export function drawBuildingArt(g: G2, kind: string, w: number, h: number) {
@@ -517,6 +599,32 @@ export function drawBuildingArt(g: G2, kind: string, w: number, h: number) {
     g.fillStyle = '#3b2a22'; g.fillRect(W / 2 - 12, H - 30, 24, 30);
     return;
   }
+  if (kind === 'copenhill') {
+    // Amager Bakke: the aluminium-clad plant, its roof a green ski slope rising to the right, and the smokestack.
+    g.fillStyle = '#8f8a7c'; g.fillRect(0, 30, W, H - 30);
+    g.fillStyle = '#a8a294'; for (let x = 0; x < W; x += 12) g.fillRect(x, 30, 6, H - 30);
+    g.fillStyle = '#4e9a55'; g.beginPath(); g.moveTo(0, 46); g.lineTo(W - 70, 8); g.lineTo(W - 70, 30); g.lineTo(0, 64); g.fill();
+    g.fillStyle = '#e8eef2'; for (let i = 0; i < 4; i++) { const x = 30 + i * 70; g.fillRect(x, 46 - x * 38 / (W - 70) + 4, 22, 3); }
+    g.fillStyle = '#6c7076'; g.fillRect(W - 60, 0, 20, 34);
+    g.fillStyle = 'rgba(230,230,235,0.7)'; g.beginPath(); g.arc(W - 50, -2, 10, 0, 7); g.fill();
+    for (let x = 20; x < W - 20; x += 44) { g.fillStyle = '#3b4a5a'; g.fillRect(x, 92, 22, 30); }
+    g.fillStyle = '#1d6fb8'; g.fillRect(W / 2 - 40, 72, 80, 12); g.fillStyle = '#fff'; g.font = 'bold 8px sans-serif'; g.fillText('TURBINE HALL', W / 2 - 34, 81);
+    g.fillStyle = '#26323a'; g.fillRect(W / 2 - 12, H - 30, 24, 30);
+    return;
+  }
+  if (kind === 'kronborg') {
+    // Kronborg: pale sandstone walls, a copper-green roof, three green spires and the casemates gate.
+    g.fillStyle = '#d6c7a1'; g.fillRect(0, 50, W, H - 50);
+    g.fillStyle = '#c4b48c'; for (let y = 58; y < H; y += 10) g.fillRect(0, y, W, 1);
+    g.fillStyle = '#4f7a6a'; g.fillRect(0, 38, W, 14);
+    for (const [x, h] of [[30, 38], [W / 2, 50], [W - 30, 38]] as const) {
+      g.fillStyle = '#d6c7a1'; g.fillRect(x - 10, 50 - h + 10, 20, h);
+      g.fillStyle = '#4f7a6a'; g.beginPath(); g.moveTo(x - 12, 50 - h + 12); g.lineTo(x, 50 - h - 14); g.lineTo(x + 12, 50 - h + 12); g.fill();
+    }
+    for (let x = 18; x < W - 18; x += 30) { g.fillStyle = '#3b4a5a'; g.fillRect(x, 70, 12, 18); }
+    g.fillStyle = '#2a1c16'; g.beginPath(); g.moveTo(W / 2 - 14, H); g.lineTo(W / 2 - 14, H - 22); g.arc(W / 2, H - 22, 14, Math.PI, 0); g.lineTo(W / 2 + 14, H); g.fill();
+    return;
+  }
   if (kind === 'palace') {
     // Christiansborg: pale granite, rows of windows, a green copper roof and the tower.
     g.fillStyle = '#d8d2c4'; g.fillRect(0, 40, W, H - 40);
@@ -554,6 +662,137 @@ export function drawBuildingArt(g: G2, kind: string, w: number, h: number) {
     g.fillStyle = '#6c7076'; g.fillRect(W / 2 - 1, 26, 2, H - 26);
     g.fillStyle = '#1d6fb8'; g.fillRect(W / 2 - 40, 14, 30, 10); g.fillStyle = '#fff'; g.font = 'bold 7px sans-serif'; g.fillText('VANGUARD', W / 2 - 39, 22);
     g.fillStyle = '#d9473a'; g.fillRect(W / 2 + 22, 40, 6, 8);
+    return;
+  }
+  if (kind === 'coldStores') {
+    // Gym 3: one of Kødbyen's white-tiled cold stores. Flat roof with a frosted cooling unit, the steel loading
+    // bay with its canopy, a frost-blue band and the gym's snowflake sign.
+    g.fillStyle = '#5a5e66'; g.fillRect(0, 14, W, 8);
+    g.fillStyle = '#8a8d93'; g.fillRect(W - 70, 0, 50, 16); g.fillStyle = '#c9ccd2'; for (let x = W - 66; x < W - 24; x += 6) g.fillRect(x, 3, 3, 10);
+    g.fillStyle = '#f4f4f0'; g.fillRect(0, 22, W, H - 22);
+    g.fillStyle = '#d8d8d2'; for (let y = 30; y < H; y += 8) g.fillRect(0, y, W, 1); for (let x = 0; x < W; x += 8) g.fillRect(x, 22, 1, H - 22);
+    g.fillStyle = '#8fc3df'; g.fillRect(0, 52, W, 6);
+    for (const x of [12, 44, 160, 192]) { g.fillStyle = '#3a4a5e'; g.fillRect(x, 66, 20, 22); g.fillStyle = '#b5d8ec'; g.fillRect(x + 2, 68, 16, 8); }
+    g.fillStyle = '#6c7076'; g.fillRect(84, 88, 56, 6);                          // the canopy over the loading bay
+    g.fillStyle = '#9aa0a6'; g.fillRect(88, 94, 48, H - 94);
+    g.fillStyle = '#7d828a'; for (let y = 98; y < H; y += 6) g.fillRect(88, y, 48, 1);
+    g.fillStyle = '#3b3f4a'; g.fillRect(100, H - 30, 24, 30);                   // the door (tile 3,4)
+    g.fillStyle = '#1d4f8a'; g.fillRect(70, 26, 84, 20);
+    g.fillStyle = '#f2efe6'; g.font = 'bold 9px sans-serif'; g.fillText('COLD STORES', 80, 40);
+    g.strokeStyle = '#cfe8f5'; g.lineWidth = 2;
+    for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; g.beginPath(); g.moveTo(58 + Math.cos(a) * 7, 36 + Math.sin(a) * 7); g.lineTo(58 - Math.cos(a) * 7, 36 - Math.sin(a) * 7); g.stroke(); }
+    return;
+  }
+  if (kind === 'brickBlock' || kind === 'brickGate') {
+    // A Vesterbro block: four storeys of red brick, white sash windows, a slate roof, and either a stairwell
+    // door or the arched gateway into the courtyard (iron gate, a tree behind it).
+    g.fillStyle = '#4a4e54'; g.beginPath(); g.moveTo(0, 14); g.lineTo(8, 0); g.lineTo(W - 8, 0); g.lineTo(W, 14); g.fill();
+    g.fillStyle = '#a5462f'; g.fillRect(0, 14, W, H - 14);
+    g.fillStyle = 'rgba(60,20,12,0.35)';
+    for (let y = 16; y < H; y += 4) { g.fillRect(0, y + 3, W, 1); for (let x = (y / 4) % 2 * 4; x < W; x += 8) g.fillRect(x, y, 1, 3); }
+    g.fillStyle = '#e8e2d6'; g.fillRect(0, 14, W, 3);
+    for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) {
+      if (r === 1 && (c === 1 || (kind === 'brickGate' && c === 2))) continue;
+      const x = 8 + c * 30, y = 22 + r * 30;
+      g.fillStyle = '#f2efe6'; g.fillRect(x, y, 14, 20); g.fillStyle = '#3a4a5e'; g.fillRect(x + 2, y + 2, 10, 16); g.fillStyle = '#f2efe6'; g.fillRect(x + 2, y + 9, 10, 2);
+    }
+    if (kind === 'brickBlock') {
+      g.fillStyle = '#e8e2d6'; g.fillRect(36, H - 34, 24, 4);
+      g.fillStyle = '#2f4a3a'; g.fillRect(38, H - 30, 20, 30); g.fillStyle = '#e8c35a'; g.fillRect(53, H - 16, 2, 3);
+    } else {
+      g.fillStyle = '#e8e2d6'; g.beginPath(); g.arc(64, H - 22, 22, Math.PI, 0); g.fill(); g.fillRect(42, H - 22, 44, 22);
+      g.fillStyle = '#6b8a5a'; g.beginPath(); g.arc(64, H - 22, 19, Math.PI, 0); g.fill(); g.fillRect(45, H - 22, 38, 22);
+      g.fillStyle = '#3f6b47'; g.beginPath(); g.arc(70, H - 22, 9, 0, 7); g.fill();
+      g.fillStyle = '#26272c'; for (let x = 46; x < 84; x += 5) g.fillRect(x, H - 36, 2, 36); g.fillRect(45, H - 20, 38, 2);
+    }
+    return;
+  }
+  if (kind === 'rangerHut') {
+    // The Kalvebod rangers' hut: tarred planks, a turf roof and a lookout flag.
+    g.fillStyle = '#5b8a4a'; g.beginPath(); g.moveTo(0, 30); g.lineTo(W / 2, 4); g.lineTo(W, 30); g.fill();
+    g.fillStyle = '#4a7a3c'; for (let x = 6; x < W; x += 10) g.fillRect(x, 26 - Math.abs(W / 2 - x) * 0.4, 3, 3);
+    g.fillStyle = '#5a3a26'; g.fillRect(4, 28, W - 8, H - 28);
+    g.fillStyle = '#4a2e1e'; for (let x = 8; x < W - 4; x += 8) g.fillRect(x, 28, 1, H - 28);
+    g.fillStyle = '#f2e6c4'; g.fillRect(W - 40, 44, 20, 16); g.fillStyle = '#5a3a26'; g.fillRect(W - 31, 44, 2, 16);
+    g.fillStyle = '#3b2a22'; g.fillRect(36, H - 30, 22, 30);
+    g.fillStyle = '#6b4526'; g.fillRect(W - 12, 0, 2, 20); g.fillStyle = '#4fae5b'; g.fillRect(W - 10, 1, 10, 7);
+    return;
+  }
+  if (kind === 'cathedral') {
+    // Roskilde Domkirke: red brick, a long copper roof and the twin green spires over the west front.
+    g.fillStyle = '#4f7a6a'; g.fillRect(0, 50, W, 16);
+    g.fillStyle = '#a5462f'; g.fillRect(0, 64, W, H - 64);
+    g.fillStyle = 'rgba(60,20,12,0.3)'; for (let y = 68; y < H; y += 6) g.fillRect(0, y, W, 1);
+    for (const x of [W / 2 - 46, W / 2 + 22]) {
+      g.fillStyle = '#a5462f'; g.fillRect(x, 26, 24, H - 26);
+      g.fillStyle = '#4f7a6a'; g.beginPath(); g.moveTo(x - 2, 28); g.lineTo(x + 12, 0); g.lineTo(x + 26, 28); g.fill();
+      g.fillStyle = '#e8c35a'; g.fillRect(x + 11, 0, 2, 4);
+      g.fillStyle = '#2a2430'; g.fillRect(x + 8, 40, 8, 14);
+    }
+    for (let x = 16; x < W - 16; x += 28) if (Math.abs(x + 6 - W / 2) > 50) { g.fillStyle = '#3a3448'; g.fillRect(x, 80, 12, 26); g.beginPath(); g.arc(x + 6, 80, 6, Math.PI, 0); g.fill(); }
+    g.fillStyle = '#f2e6c4'; g.beginPath(); g.arc(W / 2, 74, 9, 0, 7); g.fill(); g.fillStyle = '#c9302c'; g.beginPath(); g.arc(W / 2, 74, 6, 0, 7); g.fill();
+    g.fillStyle = '#2a1c16'; g.beginPath(); g.moveTo(W / 2 - 12, H); g.lineTo(W / 2 - 12, H - 20); g.arc(W / 2, H - 20, 12, Math.PI, 0); g.lineTo(W / 2 + 12, H); g.fill();
+    return;
+  }
+  if (kind === 'vikingMuseum') {
+    // The Viking Ship Museum: a low concrete hall with a glass wall to the fjord and a longship on the sign.
+    g.fillStyle = '#b8b5ae'; g.fillRect(0, 10, W, H - 10);
+    g.fillStyle = '#8f8a7c'; g.fillRect(0, 10, W, 6);
+    g.fillStyle = '#7fb6d6'; g.fillRect(W - 80, 22, 70, 50); g.fillStyle = '#b8b5ae'; for (let x = W - 80; x < W - 10; x += 14) g.fillRect(x, 22, 2, 50);
+    g.fillStyle = '#6b4526'; g.beginPath(); g.moveTo(12, 40); g.quadraticCurveTo(50, 60, 88, 40); g.lineTo(80, 50); g.quadraticCurveTo(50, 64, 20, 50); g.fill();
+    g.fillStyle = '#c9302c'; g.fillRect(48, 22, 2, 22); g.fillStyle = '#f2efe6'; g.fillRect(50, 22, 16, 14); g.fillStyle = '#c9302c'; for (let y = 24; y < 36; y += 4) g.fillRect(50, y, 16, 2);
+    g.fillStyle = '#3b3f4a'; g.fillRect(W / 2 - 12, H - 28, 24, 28);
+    return;
+  }
+  if (kind === 'tivoliGate') {
+    // Tivoli's main gate: a Moorish arch with onion domes, the name in lights over the opening.
+    g.fillStyle = '#f2e6c8'; g.fillRect(0, 22, W, H - 22);
+    for (const x of [10, W - 26]) { g.fillStyle = '#f2e6c8'; g.fillRect(x, 10, 16, 20); g.fillStyle = '#c9302c'; g.beginPath(); g.moveTo(x - 2, 12); g.quadraticCurveTo(x + 8, -6, x + 18, 12); g.fill(); g.fillStyle = '#e8c35a'; g.fillRect(x + 7, 0, 2, 4); }
+    g.fillStyle = '#c9302c'; g.fillRect(0, 34, W, 6);
+    g.fillStyle = '#2a1c16'; g.beginPath(); g.moveTo(W / 2 - 16, H); g.lineTo(W / 2 - 16, H - 26); g.quadraticCurveTo(W / 2, H - 50, W / 2 + 16, H - 26); g.lineTo(W / 2 + 16, H); g.fill();
+    g.fillStyle = '#ffd36b'; g.font = 'bold 9px sans-serif'; g.fillText('TIVOLI', W / 2 - 18, 31);
+    for (let x = 4; x < W; x += 8) { g.fillStyle = x % 16 ? '#ffd36b' : '#fff3cc'; g.fillRect(x, 42, 3, 3); }
+    return;
+  }
+  if (kind === 'daemonen') {
+    // Dæmonen: the coaster's blue steel loops behind its station tower, a dragon on the sign.
+    g.strokeStyle = '#3a6fa8'; g.lineWidth = 4;
+    g.beginPath(); g.arc(W / 2 - 18, 40, 26, 0, 7); g.stroke(); g.beginPath(); g.arc(W / 2 + 26, 50, 20, 0, 7); g.stroke();
+    g.strokeStyle = '#26323a'; g.lineWidth = 2; for (const x of [W / 2 - 18, W / 2 + 26]) { g.beginPath(); g.moveTo(x, 66); g.lineTo(x, H - 30); g.stroke(); }
+    g.fillStyle = '#26272c'; g.fillRect(16, H - 64, W - 32, 64);
+    g.fillStyle = '#c9302c'; g.fillRect(16, H - 64, W - 32, 8);
+    g.fillStyle = '#e8c35a'; g.font = 'bold 9px sans-serif'; g.fillText('DÆMONEN', 34, H - 44);
+    g.fillStyle = '#d9473a'; g.beginPath(); g.moveTo(W - 40, H - 52); g.lineTo(W - 26, H - 58); g.lineTo(W - 30, H - 46); g.fill();
+    g.fillStyle = '#3b3f4a'; g.fillRect(W / 2 - 12, H - 30, 24, 30);
+    return;
+  }
+  if (kind === 'concertHall') {
+    // Tivoli's Concert Hall: a pale front, a green copper roof and tall lit windows.
+    g.fillStyle = '#4f7a6a'; g.beginPath(); g.moveTo(0, 30); g.lineTo(20, 8); g.lineTo(W - 20, 8); g.lineTo(W, 30); g.fill();
+    g.fillStyle = '#e8e2d6'; g.fillRect(0, 28, W, H - 28);
+    for (let x = 14; x < W - 14; x += 26) if (Math.abs(x + 6 - W / 2) > 20) { g.fillStyle = '#fff3cc'; g.fillRect(x, 44, 12, 34); g.beginPath(); g.arc(x + 6, 44, 6, Math.PI, 0); g.fill(); }
+    g.fillStyle = '#c9302c'; g.fillRect(W / 2 - 40, 32, 80, 8); g.fillStyle = '#fff'; g.font = 'bold 7px sans-serif'; g.fillText('KONCERTSAL', W / 2 - 22, 39);
+    g.fillStyle = '#3b2a22'; g.fillRect(W / 2 - 12, H - 30, 24, 30);
+    return;
+  }
+  if (kind === 'pantomime') {
+    // The Pantomime Theatre: a Chinese-style pavilion whose stage curtain is a painted peacock tail.
+    g.fillStyle = '#c9302c'; g.beginPath(); g.moveTo(0, 26); g.quadraticCurveTo(W / 2, -6, W, 26); g.fill();
+    g.fillStyle = '#e8c35a'; g.fillRect(0, 24, W, 4);
+    g.fillStyle = '#2f6f4a'; g.fillRect(6, 28, W - 12, H - 28);
+    for (let i = 0; i < 9; i++) { const a = Math.PI + (i + 0.5) * Math.PI / 9; g.fillStyle = i % 2 ? '#3a8fc4' : '#4fae5b'; g.beginPath(); g.moveTo(W / 2, 92); g.lineTo(W / 2 + Math.cos(a) * 54, 92 + Math.sin(a) * 54); g.lineTo(W / 2 + Math.cos(a + 0.3) * 54, 92 + Math.sin(a + 0.3) * 54); g.fill(); }
+    for (let i = 0; i < 6; i++) { g.fillStyle = '#e8c35a'; g.beginPath(); g.arc(W / 2 + Math.cos(Math.PI + (i + 0.5) * Math.PI / 6) * 40, 92 + Math.sin(Math.PI + (i + 0.5) * Math.PI / 6) * 40, 3, 0, 7); g.fill(); }
+    g.fillStyle = '#26172a'; g.fillRect(W / 2 - 12, H - 30, 24, 30);
+    return;
+  }
+  if (kind === 'rutschebanen') {
+    // Rutschebanen: the painted rock mountain of Tivoli's 1914 wooden coaster, a train cresting the top.
+    g.fillStyle = '#8f8a7c'; g.beginPath(); g.moveTo(0, H); g.lineTo(30, 30); g.lineTo(70, 46); g.lineTo(120, 6); g.lineTo(170, 40); g.lineTo(W, H); g.fill();
+    g.fillStyle = '#a8a294'; g.beginPath(); g.moveTo(120, 6); g.lineTo(170, 40); g.lineTo(140, 60); g.fill();
+    g.fillStyle = '#e8eef2'; g.beginPath(); g.moveTo(110, 14); g.lineTo(120, 6); g.lineTo(132, 14); g.fill();
+    g.strokeStyle = '#6b4526'; g.lineWidth = 3; g.beginPath(); g.moveTo(10, H - 20); g.lineTo(60, 50); g.lineTo(118, 16); g.lineTo(200, H - 30); g.stroke();
+    g.fillStyle = '#c9302c'; g.fillRect(100, 18, 12, 6); g.fillRect(114, 14, 12, 6);
+    g.fillStyle = '#4e7a55'; for (const x of [20, 80, 150, 200]) { g.beginPath(); g.arc(x, H - 8, 10, 0, 7); g.fill(); }
     return;
   }
   if (kind === 'houseboat') {

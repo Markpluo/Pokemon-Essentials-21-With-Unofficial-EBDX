@@ -52,7 +52,25 @@ export const MAP_MUSIC: Record<string, { bgm: string; night?: string; ambient?: 
   shipyards: { bgm: 'industrial', ambient: 'amb_machinery' },
   eastquay: { bgm: 'industrial', ambient: 'amb_waves' },
   cranetop: { bgm: 'industrial', ambient: 'amb_wind' },
-  copenhill: { bgm: 'copenhill', ambient: 'amb_wind' }
+  copenhill: { bgm: 'copenhill', ambient: 'amb_wind' },
+  // Chapters 11-15 and the League
+  floodnyhavn: { bgm: 'crisis', ambient: 'amb_waves' },
+  metro: { bgm: 'metro', ambient: 'amb_hum' },
+  ruins: { bgm: 'ruins', ambient: 'amb_drips' },
+  helsingor: { bgm: 'castle', ambient: 'amb_waves' }, casemates: { bgm: 'castle', ambient: 'amb_drips' },
+  stormhill: { bgm: 'copenhill', ambient: 'amb_wind' }, smokestack: { bgm: 'copenhill', ambient: 'amb_wind' },
+  oresund: { bgm: 'route_bridge', ambient: 'amb_wind' },
+  peberholm: { bgm: 'island', ambient: 'amb_birds' },
+  ronne: { bgm: 'island', ambient: 'amb_waves' }, route14: { bgm: 'island', ambient: 'amb_waves' },
+  hammershus: { bgm: 'castle', ambient: 'amb_wind' }, hammerdeep: { bgm: 'ruins', ambient: 'amb_drips' }, deepsound: { bgm: 'ruins', ambient: 'amb_drips' },
+  kalvebod: { bgm: 'wilds', ambient: 'amb_birds' }, kalvebodrange: { bgm: 'wilds', ambient: 'amb_wind' },
+  rangerhut: { bgm: 'home' }, safehouse: { bgm: 'fleet' },
+  route10: { bgm: 'route_country', ambient: 'amb_birds' },
+  roskilde: { bgm: 'viking' }, museum: { bgm: 'viking' },
+  domkirke: { bgm: 'cathedral' }, crypt: { bgm: 'ruins' },
+  tivoli: { bgm: 'tivoli' }, daemonentower: { bgm: 'tivoli' }, concerthall: { bgm: 'tivoli' }, pantomimehall: { bgm: 'tivoli' },
+  leaguehall: { bgm: 'league' }, stables: { bgm: 'league' }, admiral: { bgm: 'league' }, greathall: { bgm: 'league' },
+  towerstairs: { bgm: 'league' }, towerroof: { bgm: 'league', ambient: 'amb_wind' }
 };
 
 /** A map's music: its own if it names one, else the table above, else by kind of map. */
@@ -67,15 +85,20 @@ export function withMusic(m: MapDef): MapDef {
 
 const FLEET = new Set(['Deckhand', 'Bosun', 'Sailor']);
 const VANGUARD = new Set(['Grid Enforcer', 'Grid Technician', 'Engineer', 'Vanguard Scientist', 'Vanguard Lawyer', 'Survey Drone']);
-const BOSSES = new Set(['Captain', 'Commander']);
-const LEGENDS = new Set(['langelira', 'kronvakt']);
+const BOSSES = new Set(['Captain', 'Commander', 'Enforcer Captain', 'Director']);
+const LUMEN = new Set(['Lumen Nord Field Lead', 'Lumen Nord CEO']);
+const LEGENDS = new Set(['langelira', 'kronvakt', 'kronikon']);
 
 /** Battle music by who you fight (audio-plan.md §3). */
 export function battleMusic(o: BattleOptions): string | undefined {
   if (o.kind === 'wild') return o.foes.some(f => LEGENDS.has(f.species)) ? 'battle_legend' : undefined;
   const title = o.trainer?.title ?? '';
+  if (title === 'Champion') return 'battle_champion';
+  if (title === 'Elite Four') return 'battle_elite';
   if (o.leader || title === 'Leader') return 'battle_leader';
+  if (title === 'The Last Echo') return 'battle_legend';
   if (title === 'Rival') return 'battle_rival';
+  if (LUMEN.has(title)) return 'battle_lumen';
   if (BOSSES.has(title)) return 'battle_boss';
   if (FLEET.has(title)) return 'battle_fleet';
   if (VANGUARD.has(title)) return 'battle_vanguard';

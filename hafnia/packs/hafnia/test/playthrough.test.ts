@@ -1,7 +1,7 @@
 // Plays the whole prologue through game-core with no client: new game, starter, rival battle,
 // Route 1, Maja, the gym and the chapter end. Also checks saves round-trip.
 import { describe, expect, it } from 'vitest';
-import { Content, Game, LocalServer, OPPOSITE, TRICK_TILES, healMon, type Dir, type SaveData, type ServerEvent } from '@hafnia/core';
+import { Content, Game, LocalServer, OPPOSITE, Rng, TRICK_TILES, healMon, makeMon, type Dir, type SaveData, type ServerEvent } from '@hafnia/core';
 import { hafnia } from '../src';
 
 const content = new Content([hafnia]);
@@ -12,32 +12,48 @@ class Driver {
   battles: string[] = [];
   /** Prompt answers to use before falling back to the first option. */
   answers: number[] = [];
+  /** A ball to throw instead of attacking in wild battles (catching a legendary). */
+  ball: string | null = null;
+  /** The concert: use each Coil mode once, as soon as the Coil is charged. */
+  sing = false;
+  private sung = new Set<string>();
+  private wild = false;
   constructor(public game: Game, first: ServerEvent[]) { this.take(first); }
 
   /** Sends an intent, then answers every prompt and battle request that follows (always the first option). */
   send(intent: Parameters<Game['handle']>[0]) { this.take(this.game.handle(intent)); }
 
-  private take(evs: ServerEvent[]) {
-    this.log.push(...evs);
-    for (const e of evs) if (e.t === 'error') throw new Error(e.message);
-    for (const e of evs) if (e.t === 'battleEnd') this.battles.push(e.result);
-    const last = [...evs].reverse().find(e => ['prompt', 'pickSpecies', 'battleRequest', 'askName', 'pickLook'].includes(e.t));
-    if (!last) return;
-    if (last.t === 'askName') this.send({ t: 'answer', index: 0, text: last.suggestions[0] });
-    else if (last.t === 'pickLook') this.send({ t: 'answer', index: 0 });
-    else if (last.t === 'prompt' || last.t === 'pickSpecies') this.send({ t: 'answer', index: this.answers.shift() ?? 0 });
-    else if (last.t === 'battleRequest') {
-      const r = last.request;
-      if (r.forceSwitch) {
-        const next = r.party.find(p => p.hp > 0 && p.uid !== r.activeUid)!;
-        this.send({ t: 'battle', action: { kind: 'switch', uid: next.uid } });
-      } else {
-        // Strongest usable move, like a sensible player.
-        const best = r.moves.map((m, i) => ({ m, i })).filter(x => !x.m.disabled)
-          .sort((a, b) => Number(b.m.type !== 'normal') - Number(a.m.type !== 'normal'))[0];
-        this.send({ t: 'battle', action: { kind: 'move', index: best?.i ?? 0 } });
-      }
+  private take(first: ServerEvent[]) {
+    // A loop, not recursion: a long battle is hundreds of answers deep.
+    for (let evs = first, n = 0; ; n++) {
+      if (n > 3000) throw new Error(`stuck answering: ${this.where()} ${JSON.stringify(evs.slice(-6)).slice(0, 1500)}`);
+      this.log.push(...evs);
+      for (const e of evs) if (e.t === 'error') throw new Error(e.message);
+      for (const e of evs) if (e.t === 'battleEnd') this.battles.push(e.result);
+      for (const e of evs) if (e.t === 'battleStart') this.wild = e.battle.kind === 'wild';
+      const last = [...evs].reverse().find(e => ['prompt', 'pickSpecies', 'battleRequest', 'askName', 'pickLook'].includes(e.t));
+      if (!last) return;
+      evs = this.game.handle(this.reply(last));
     }
+  }
+
+  private reply(last: ServerEvent): Parameters<Game['handle']>[0] {
+    if (last.t === 'askName') return { t: 'answer', index: 0, text: last.suggestions[0] };
+    if (last.t === 'pickLook') return { t: 'answer', index: 0 };
+    if (last.t === 'prompt' || last.t === 'pickSpecies') return { t: 'answer', index: this.answers.shift() ?? 0 };
+    if (last.t !== 'battleRequest') throw new Error(`no reply for ${last.t}`);
+    const r = last.request;
+    if (r.forceSwitch) {
+      const next = r.party.find(p => p.hp > 0 && p.uid !== r.activeUid)!;
+      return { t: 'battle', action: { kind: 'switch', uid: next.uid } };
+    }
+    if (this.ball && this.wild) return { t: 'battle', action: { kind: 'ball', item: this.ball } };
+    // Strongest usable move, like a sensible player.
+    const best = r.moves.map((m, i) => ({ m, i })).filter(x => !x.m.disabled && x.m.pp !== 0)
+      .sort((a, b) => Number(b.m.type !== 'normal') - Number(a.m.type !== 'normal'))[0];
+    const mode = this.sing ? (['copper', 'current', 'harmony'] as const).find(m => r.coil?.[m] === null && !this.sung.has(m)) : undefined;
+    if (mode) this.sung.add(mode);
+    return { t: 'battle', action: { kind: 'move', index: best?.i ?? 0, ...(mode ? { mode } : {}) } };
   }
 
   get s() { return this.game.state; }
@@ -89,6 +105,7 @@ class Driver {
     const spots: [Dir, number, number][] = [['up', x, y + 1], ['down', x, y - 1], ['left', x + 1, y], ['right', x - 1, y]];
     for (const [dir, sx, sy] of spots) {
       if (this.game.solid(sx, sy) && !(this.s.x === sx && this.s.y === sy)) continue;
+      if (!this.path(sx, sy)) continue;                   // the far side of a door or a dead end
       this.walkTo(sx, sy);
       this.send({ t: 'turn', dir });
       this.send({ t: 'interact' });
@@ -154,7 +171,7 @@ describe('Hafnia demo', () => {
     });
   });
 
-  it('plays from the first step to the end of Chapter 9', () => {
+  it('plays from the first step through the story and whole post-game (P1-P5)', () => {
     const d = newGame(11);
     d.s.flags['debug:noEncounters'] = true; // this test is about story flow, not wild battles
     const at = (map: string) => expect(d.s.map, d.where()).toBe(`hafnia:${map}`);
@@ -544,7 +561,7 @@ describe('Hafnia demo', () => {
     d.leave('left'); at('slotsholmen');
     expect(flag('c9arrive'), d.where()).toBe(true);
     d.s.party.forEach(healMon);
-    d.s.party[0].moves = [{ id: 'flamethrower', pp: 15 }, ...d.s.party[0].moves];   // answers to Steel types
+    d.s.party[0].moves = [{ id: 'flamethrower', pp: 15 }, ...d.s.party[0].moves].slice(0, 4);   // answers to Steel types
     d.walkTo(19, 6); d.send({ t: 'step', dir: 'up' }); at('borsen');
     d.answers.push(0); d.talkTo(5, 1);                         // show Margrethe Andersen's ledger
     expect(flag('vaultOpen'), d.where()).toBe(true);
@@ -565,7 +582,243 @@ describe('Hafnia demo', () => {
     expect(flag('lukas9'), d.where()).toBe(true);
     expect(flag('ch9done')).toBe(true);
     expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 9 complete');
-  });
+
+    // Chapter 10: the shipyards, Brix, Lukas on the great crane, CopenHill's turbine hall, Astrid, Lindholm's broadcast
+    d.leave('up'); at('indreby');
+    expect(flag('ch10'), d.where()).toBe(true);
+    d.leave('right'); at('nyhavn');
+    d.talkTo(22, 11); at('drydock');                           // Bodil's harbour bus
+    d.leave('right'); at('shipyards');
+    expect(flag('c10arrive'), d.where()).toBe(true);
+    Object.assign(d.s.party[0], { species: 'meowscarada', moves: ['knockoff', 'flamethrower', 'earthquake', 'playrough'].map(id => ({ id, pp: 15 })) });
+    d.s.party.forEach(healMon);
+    d.answers.push(0); d.talkTo(14, 9);                        // the dock crane over the slipway: Brix and the Enforcers
+    expect(flag('c10brix'), d.where()).toBe(true);
+    expect(d.s.bag.shutdownseq).toBe(1);
+    d.s.party.forEach(healMon);
+    at('eastquay');
+    d.talkTo(9, 1); at('cranetop');
+    d.answers.push(0); d.talkTo(12, 2);                        // Lukas
+    expect(flag('c10lukas'), d.where()).toBe(true);
+    d.talkTo(1, 2); at('eastquay');
+    d.leave('right'); at('copenhill');
+    d.s.party.forEach(healMon);
+    d.walkTo(14, 7); d.send({ t: 'step', dir: 'up' }); at('gym8');
+    d.answers.push(0); d.talkTo(4, 8);                         // turbine A: relays 1 and 2, not yet
+    expect(flag('liftOn')).toBeFalsy();
+    d.answers.push(0); d.talkTo(9, 8);                         // and B: 2 cancels, so 1 and 3
+    expect(flag('liftOn'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    d.walkTo(9, 3); d.answers.push(0); d.talkTo(9, 2);         // Astrid
+    expect(d.s.badges.at(-1), d.where()).toBe('hafnia:turbine');
+    expect([d.s.bag.torquegears, d.s.bag.overloaddata]).toEqual([1, 1]);
+    d.walkTo(9, 13); at('copenhill');                          // every screen on Amager
+    expect(flag('ch10done'), d.where()).toBe(true);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 10 complete');
+
+    // Chapter 11: the Mermaid shatters, the flood, the M-Ring, Maja's broadcast, Absalon's ruins, Kronborg
+    d.leave('left'); at('floodnyhavn');                         // the next map: the statue cracks, Ivar's hydrofoil
+    expect(flag('ch11'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    d.talkTo(3, 3); d.talkTo(13, 6); d.talkTo(22, 3);          // Fru Jensen, the pølse man, Captain Bodil
+    expect([flag('resJensen'), flag('resPolse'), flag('resBodil')], d.where()).toEqual([true, true, true]);
+    d.talkTo(12, 12); at('metro');
+    d.s.party.forEach(healMon);
+    d.talkTo(26, 1); at('slotsholmen');                        // Maja's broadcast, Vinther resigns
+    expect(flag('c11broadcast'), d.where()).toBe(true);
+    d.talkTo(8, 6); at('ruins');
+    d.answers.push(1); d.talkTo(4, 2);                         // the wrong badge: the door stays shut
+    expect(flag('ruinsDoor0')).toBeFalsy();
+    d.answers.push(0); d.talkTo(4, 2);                         // Spray
+    d.answers.push(1); d.talkTo(8, 2);                         // Lantern
+    d.answers.push(1); d.talkTo(12, 2);                        // Orrery
+    d.answers.push(3); d.talkTo(16, 2);                        // Turbine
+    expect([0, 1, 2, 3].map(i => flag(`ruinsDoor${i}`)), d.where()).toEqual([true, true, true, true]);
+    d.talkTo(18, 1); at('helsingor');                          // Absalon's altar: Kronvakt's Key, then Kystbanen north
+    expect(d.s.bag.kronkey).toBe(1);
+    d.s.party.forEach(healMon);
+    d.walkTo(15, 7); d.send({ t: 'step', dir: 'up' }); at('casemates');
+    d.walkTo(14, 8);                                           // Kaas and Bjørn, with Maja
+    expect(flag('c11kaas'), d.where()).toBe(true);
+    d.talkTo(16, 1);                                           // Holger Danske wakes
+    expect(flag('kronvakt'), d.where()).toBe(true);
+    expect(d.s.bag.pactsong).toBe(1);
+    expect(flag('ch11done')).toBe(true);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 11 complete');
+
+    // Chapter 12: the slope in the storm, Lindholm on the Smokestack Ring, the city's song, Langelira
+    d.walkTo(4, 9); d.send({ t: 'step', dir: 'down' }); at('stormhill');   // out of Kronborg: the last train south
+    expect(flag('ch12'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    d.talkTo(1, 18); d.talkTo(1, 12);                          // Kronvakt breaks the black ice
+    d.s.party.forEach(healMon);
+    d.talkTo(1, 6);
+    expect([flag('c12iceA'), flag('c12iceB'), flag('c12iceC')], d.where()).toEqual([true, true, true]);
+    d.s.party.forEach(healMon);
+    d.walkTo(7, 2);                                            // the Enforcer captains, with Lukas
+    expect(flag('c12lift'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    d.walkTo(7, 0); d.send({ t: 'step', dir: 'up' }); at('smokestack');   // Lindholm, Reactor Rotom, the plea
+    expect([flag('c12phase1'), flag('c12phase2'), flag('c12song')], d.where()).toEqual([true, true, true]);
+    expect(d.said.join('\n')).toMatch(/whole city sings/);
+    Object.assign(d.s.party[0], { level: 100, exp: 100 ** 3 }); d.s.party.forEach(healMon);
+    d.s.bag.ultraball = 60; d.ball = 'ultraball';
+    d.talkTo(12, 1);                                           // Langelira waits to be caught
+    d.ball = null;
+    expect([...d.s.party, ...d.s.box].some(m => m.species === 'langelira'), d.where()).toBe(true);
+    expect(flag('ch12done')).toBe(true);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('Chapter 12 complete');
+
+    // Chapter 13: the dark night, home, and the League at Christiansborg
+    d.walkTo(7, 11); d.send({ t: 'step', dir: 'down' }); at('flat');   // down from the Ring: candles, then Mum
+    expect(flag('ch13'), d.where()).toBe(true);
+    Object.assign(d.s, { map: 'hafnia:slotsholmen', x: 6, y: 6, dir: 'up' as Dir });
+    d.send({ t: 'step', dir: 'up' }); at('leaguehall');
+    d.walkTo(6, 0); at('stables');
+    // A player picks the right attack for each hall (the driver always uses the first move).
+    const hits: Record<string, string> = { valdemar: 'surf', clara: 'thunderbolt', nikolai: 'surf', freja: 'earthquake' };
+    for (const [m, next] of [['valdemar', 'admiral'], ['clara', 'greathall'], ['nikolai', 'towerstairs'], ['freja', 'towerroof']]) {
+      d.s.party[0].moves = [{ id: hits[m], pp: 99 }, { id: 'surf', pp: 99 }, { id: 'thunderbolt', pp: 99 }];
+      d.s.party.forEach(healMon);
+      // Each hall's gap opens to its puzzle: saddle the horses eldest first, light all four lamps (the first three
+      // wicks from the start), answer the Lampent, beat the two deckhands.
+      if (m === 'valdemar') for (const [x, y] of [[2, 5], [8, 5], [8, 7]]) d.talkTo(x, y);
+      if (m === 'clara') for (const x of [2, 4, 6]) d.talkTo(x, 6);
+      if (m === 'nikolai') { d.answers.push(0, 1, 2); d.talkTo(5, 4); }
+      if (m === 'freja') { d.talkTo(2, 6); d.talkTo(8, 6); d.s.party.forEach(healMon); d.talkTo(5, 4); }
+      expect(flag(`e4p${m}`), d.where()).toBe(true);
+      d.talkTo(5, 2);
+      expect(flag(`e4${m}`), d.where()).toBe(true);
+      if (next === 'towerroof') { d.s.party[0].moves = [{ id: 'flamethrower', pp: 99 }, { id: 'surf', pp: 99 }]; d.s.party.forEach(healMon); }
+      d.talkTo(5, 0); at(next === 'towerroof' ? 'flat' : next); // up to the next hall (the roof: the Champions, the ending, home)
+    }
+    expect(flag('champion'), d.where()).toBe(true);           // Ørsted and Lukas, with Maja beside you
+    expect(flag('ch13done')).toBe(true);
+    expect(d.said.join('\n')).toMatch(/Not tiny/);
+    expect(d.log.filter(e => e.t === 'chapterEnd').map(e => (e as { title: string }).title)).toContain('The End');
+
+    // Post-game P1, Morning After: Mum, Ørsted and Brix, the Mermaid's Tear, two Eggs and the first Rift
+    d.walkTo(6, 6); at('norrebro');
+    expect(flag('pg1'), d.where()).toBe(true);
+    d.exit('down', 12, 21); d.exit('down', 9, 15); d.exit('down', 11, 31); d.exit('up', 14, 11); at('palmhouse');
+    expect(flag('pg1palm'), d.where()).toBe(true);
+    expect(d.s.bag.expcandyl).toBe(3);
+    Object.assign(d.s, { map: 'hafnia:osterbro', x: 22, y: 16, dir: 'up' as Dir });
+    const eggCount = () => [...d.s.party, ...d.s.box].filter(m => m.egg).length;
+    const eggsBefore = eggCount();
+    d.talkTo(22, 13);
+    expect(flag('pg1harmony'), d.where()).toBe(true);
+    expect(d.s.coil.harmony).toBe(true);
+    expect(d.s.bag.mermaidtear).toBe(1);
+    expect(eggCount()).toBe(eggsBefore + 2);
+    Object.assign(d.s, { map: 'hafnia:route1', x: 10, y: 12, dir: 'up' as Dir });
+    d.s.party.forEach(healMon);
+    d.s.party[0].moves = [{ id: 'thunderbolt', pp: 99 }];
+    d.talkTo(14, 11);
+    expect(d.battles.at(-1), d.where()).toBe('win');
+    expect(flag('pg1done'), d.where()).toBe(true);
+    expect(d.s.bag.echoshard).toBe(1);
+    d.talkTo(14, 11);                                           // the same time of day: the Echo is still gathering
+    expect(d.said.at(-1)).toMatch(/Echo is dim/);
+
+    // Post-game P2, the Guardian's Oath: three Oath Trials in the casemates, then Kronvakt
+    Object.assign(d.s, { map: 'hafnia:casemates', x: 4, y: 9, dir: 'down' as Dir });
+    d.send({ t: 'step', dir: 'down' }); at('helsingor');
+    expect(flag('pg2'), d.where()).toBe(true);
+    d.walkTo(15, 7); d.send({ t: 'step', dir: 'up' }); at('casemates');
+    d.talkTo(18, 1);
+    expect(d.said.at(-1)).toMatch(/untested trainer/);
+    Object.assign(d.s.party[0], { level: 90 });
+    d.s.party[0].moves = [{ id: 'earthquake', pp: 99 }, { id: 'flamethrower', pp: 99 }];
+    d.s.party.forEach(healMon);
+    d.talkTo(13, 1); d.talkTo(13, 3);
+    expect([flag('oathCopper'), flag('oathCurrent')], d.where()).toEqual([true, true]);
+    d.s.party.forEach(healMon);
+    d.answers.push(0); d.talkTo(20, 3);                        // the Oath: three battles, no healing
+    expect(flag('oathOath'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    // A player would wear it down first; here a wall of Lv 100 Skarmory (Kronvakt's moves barely scratch it) keeps throwing Ultra Balls.
+    d.s.party.splice(0, 6, ...[1, 2, 3, 4, 5, 6].map(i => makeMon('skarmory', 100, new Rng(i), { moves: ['roost'] })));
+    d.s.bag.ultraball = 99; d.ball = 'ultraball';
+    d.talkTo(18, 1);
+    d.ball = null;
+    expect([...d.s.party, ...d.s.box].some(m => m.species === 'kronvakt'), d.where()).toBe(true);
+    expect(flag('pg2done')).toBe(true);
+
+    // Post-game P3, the Bridge and the Island: the toll, the bridge deck in a gale, Bjørk's permit, Lumen Nord, the big Echo
+    d.s.party.splice(0, 6, makeMon('mew', 100, new Rng(9), { moves: ['psychic', 'earthquake'] }));
+    Object.assign(d.s, { map: 'hafnia:dragor', x: 19, y: 17, dir: 'up' as Dir });
+    d.talkTo(19, 16); at('oresund');
+    expect(flag('pg3'), d.where()).toBe(true);
+    d.walkTo(21, 6);
+    expect(flag('pg3gust1'), d.where()).toBe(true);
+    d.s.party.forEach(healMon);
+    d.talkTo(22, 6);                                            // Bjørk, the reserve's ranger
+    expect(flag('pg3permit'), d.where()).toBe(true);
+    expect(d.s.bag.rangerpermit).toBe(1);
+    d.walkTo(22, 6); d.send({ t: 'step', dir: 'down' }); at('peberholm');
+    d.s.party.forEach(healMon);
+    d.talkTo(12, 13);                                           // Lumen Nord's field lead, then Vinther
+    expect(flag('pg3lead'), d.where()).toBe(true);
+    expect(d.said.join('\n')).toMatch(/Think of it as recycling/);
+    d.s.party.forEach(healMon);
+    d.answers.push(0); d.talkTo(12, 16);                       // the great Echo opens on a Paradox Pokémon
+    expect(flag('pg3done'), d.where()).toBe(true);
+    expect(d.s.bag.echoshard).toBeGreaterThanOrEqual(3);
+
+    // Post-game P4, Granite Song: the Bornholm ferry, four round-church shrines, Vinther under Hammershus, Krønikon
+    d.s.party[0].moves = [{ id: 'flamethrower', pp: 99 }, { id: 'psychic', pp: 99 }];
+    d.s.party.forEach(healMon);
+    Object.assign(d.s, { map: 'hafnia:dragor', x: 20, y: 7, dir: 'up' as Dir });
+    d.answers.push(0); d.talkTo(20, 5); at('ronne');
+    expect(flag('pg4'), d.where()).toBe(true);
+    d.exit('right', 25, 9); at('route14');
+    // Each church wants one Coil mode (Copper, Current, Harmony, Current); Østerlars has a Lumen Nord crew inside first.
+    for (const [x, y, pick] of [[6, 6, 0], [17, 15, 1], [27, 6, 2], [35, 15, 1]]) {
+      d.s.party.forEach(healMon);
+      d.walkTo(x, y + 1); d.answers.push(pick); d.send({ t: 'step', dir: 'up' });
+    }
+    expect([flag('shrineNyker'), flag('shrineNylars'), flag('shrineOlsker'), flag('shrineOsterlars')], d.where()).toEqual([true, true, true, true]);
+    d.exit('right', 43, 9); at('hammershus');
+    d.walkTo(13, 7); d.send({ t: 'step', dir: 'up' }); at('hammerdeep');
+    d.s.party.forEach(healMon);
+    d.talkTo(11, 4);                                            // Vinther, then Maja's live broadcast
+    expect(flag('pg4vinther'), d.where()).toBe(true);
+    expect(d.said.join('\n')).toMatch(/investors just pulled out/);
+    d.s.party.splice(0, 6, ...[1, 2, 3, 4, 5, 6].map(i => makeMon('bronzong', 100, new Rng(20 + i), { moves: ['irondefense'] })));
+    d.s.bag.ultraball = 99; d.ball = 'ultraball';
+    d.talkTo(11, 1);                                            // the Baltic Wyrm
+    d.ball = null;
+    expect([...d.s.party, ...d.s.box].some(m => m.species === 'kronikon'), d.where()).toBe(true);
+    expect(flag('pg4done')).toBe(true);
+
+    // Post-game P5, The Lighthouse: Freja's call, the last Echo, the Deep Sound concert, the lamp, Lindholm's letter
+    d.s.party.splice(0, 6, makeMon('mew', 100, new Rng(30), { moves: ['psychic', 'flamethrower'] }), makeMon('snorlax', 100, new Rng(31), { moves: ['bodyslam'] }));
+    Object.assign(d.s, { map: 'hafnia:pcchristianshavn', x: 6, y: 5, dir: 'down' as Dir });
+    d.send({ t: 'step', dir: 'down' }); at('christianshavn');   // into a hub after P2-P4: Freja calls
+    expect(flag('pg5'), d.where()).toBe(true);
+    d.answers.push(0); d.talkTo(3, 6); at('trekroner');
+    expect(flag('pg5fort'), d.where()).toBe(true);
+    Object.assign(d.s, { map: 'hafnia:siphon', x: 8, y: 9, dir: 'up' as Dir });
+    d.s.party.forEach(healMon);
+    d.answers.push(0); d.talkTo(8, 4);                         // the last Echo
+    expect(flag('pg5echo'), d.where()).toBe(true);
+    Object.assign(d.s, { map: 'hafnia:osterbro', x: 21, y: 15, dir: 'down' as Dir });
+    d.answers.push(0); d.talkTo(22, 16); at('deepsound');
+    for (const [x, y, pick] of [[1, 7, 0], [17, 7, 1], [9, 6, 2]]) { d.answers.push(pick); d.talkTo(x, y); }
+    expect([flag('noteLow'), flag('noteHigh'), flag('noteBoth')], d.where()).toEqual([true, true, true]);
+    d.s.party.forEach(healMon);
+    d.sing = true; d.talkTo(9, 1); d.sing = false;              // the concert: all three modes, then the song is whole
+    expect(flag('pg5song'), d.where()).toBe(true);
+    expect(d.said.join('\n')).toMatch(/song is home/);
+    Object.assign(d.s, { map: 'hafnia:tklighthouse', x: 4, y: 4, dir: 'up' as Dir });
+    d.answers.push(0); d.talkTo(2, 4);                         // Freja relights the lamp
+    expect(flag('pg5done'), d.where()).toBe(true);
+    expect(d.said.join('\n')).toMatch(/a light answers/);
+    Object.assign(d.s, { map: 'hafnia:norrebro', x: 4, y: 8, dir: 'up' as Dir });
+    d.send({ t: 'step', dir: 'up' }); at('flat');               // home: Lindholm's letter
+    expect(d.said.join('\n')).toMatch(/Is the sea calm/);
+  }, 30_000);
 
   it('a wrong steam valve closes them all again', () => {
     const d = newGame(3);

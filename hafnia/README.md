@@ -10,7 +10,7 @@ source of sprites, sounds and Pokémon data.
 cd hafnia
 npm install
 npm run dev        # copies assets from ../Graphics and ../Audio, then starts Vite
-npm test           # plays the story from the first step to the end of Chapter 9 through game-core, no browser needed
+npm test           # plays the story from the first step through Chapter 13 and the whole post-game (P1-P5) through game-core, no browser needed
 npm run build      # static site in apps/client/dist
 npm run bot        # the test bot plays the real game in headless Chromium (bot/README.md)
 ```

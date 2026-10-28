@@ -140,6 +140,48 @@ describe('Copper & Current: the Coil', () => {
     expect(foe.maxhp - foe.hp).toBe(Math.floor(foe.baseMaxhp / 8));
   });
 
+  it('Harmony: only offered once unlocked, gives Copper and Current at once with no drain', () => {
+    const locked = battle({ party: [['snorlax', 50, ['growl', 'tackle']]], foes: [{ species: 'magikarp', level: 60, moves: ['splash'] }] });
+    expect(locked.lastRequest()!.coil!.harmony).toBeUndefined();
+    const t = battle({ party: [['snorlax', 50, ['growl', 'tackle']]], foes: [{ species: 'magikarp', level: 60, moves: ['splash'] }],
+      coil: { copper: true, current: true, harmony: true } });
+    expect(t.lastRequest()!.coil!.harmony).toMatch(/isn't charged/);
+    for (let i = 0; i < 3; i++) t.act({ kind: 'move', index: 0 });
+    expect(t.lastRequest()!.coil!.harmony).toBeNull();
+    t.act({ kind: 'move', index: 0, mode: 'harmony' });
+    expect(t.texts().at(-1)).toMatch(/Status moves can't carry Current/);
+    const hp = t.sim.p1.active[0].hp;
+    t.act({ kind: 'move', index: 1, mode: 'harmony' });
+    expect(t.battleEvents().some(e => e.b === 'harmony' && e.side === 'ally')).toBe(true);
+    const lax = t.sim.p1.active[0];
+    expect(lax.volatiles.hafniapatina).toBeTruthy();
+    expect(lax.volatiles.hafniaovercharge).toBeFalsy();
+    expect(lax.hp).toBe(hp);
+    expect(t.lastRequest()!.coil!.copper).toMatch(/already been used/);
+  });
+
+  it('an Echo-warped Pokémon (a Resonance Rift) starts with +1 in every stat', () => {
+    const t = battle({ party: [['snorlax', 50, ['growl']]], foes: [{ species: 'golduck', level: 30, moves: ['splash'] }], opts: { echo: true } });
+    expect(t.sim.p2.active[0].boosts).toMatchObject({ atk: 1, def: 1, spa: 1, spd: 1, spe: 1 });
+    expect(t.texts().join('\n')).toMatch(/Echo's frozen song warps/);
+  });
+
+  it('a concert battle: the Coil refills, and the foe holds on at 1 HP until all three modes are sung', () => {
+    const t = battle({ party: [['snorlax', 100, ['growl', 'tackle']]], foes: [{ species: 'magikarp', level: 30, moves: ['splash'] }],
+      coil: { copper: true, current: true, harmony: true }, opts: { concert: true } });
+    const ready = () => { for (let i = 0; i < 8 && t.lastRequest()!.coil!.current !== null; i++) t.act({ kind: 'move', index: 0 }); };
+    t.act({ kind: 'move', index: 1 });
+    expect(t.sim.p2.active[0].hp).toBe(1);
+    expect(t.texts().join('\n')).toMatch(/holds the note/);
+    ready(); t.act({ kind: 'move', index: 0, mode: 'copper' });
+    ready(); t.act({ kind: 'move', index: 1, mode: 'current' });
+    expect(t.sim.p2.active[0].hp).toBe(1);
+    expect(t.texts().join('\n')).toMatch(/2 of its 3 parts/);
+    ready(); t.act({ kind: 'move', index: 1, mode: 'harmony' });
+    expect(t.texts().join('\n')).toMatch(/song is\nwhole again/);
+    expect(t.b.result).toBe('win');
+  });
+
   it('a plain battle has no Coil', () => {
     const t = battle({ party: [['pikachu', 20, ['growl']]], foes: [{ species: 'magikarp', level: 5, moves: ['splash'] }], opts: { coil: false } });
     expect(t.lastRequest()!.coil).toBeUndefined();

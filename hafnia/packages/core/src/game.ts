@@ -34,6 +34,7 @@ export interface SaveData {
   repel: number;                   // steps left
   look: Look;                      // the player's character
   clock: number;                   // in-game minutes since midnight (1 day = 48 real minutes in the overworld)
+  day: number;                     // in-game days passed (the clock wrapping past midnight), for once-a-day events
   daycare: DaycareState;           // Vuggestuen: two Pokémon and the eggs waiting in the prams
   steps: number;                   // overworld steps taken
   hatched: number;                 // eggs hatched (Ørsted's Hatchery Log)
@@ -88,7 +89,7 @@ export class Game {
       v: SAVE_VERSION, packs: [...content.packs.keys()], name: 'Player', map, x: start.x, y: start.y, dir: start.dir,
       party: [], box: [], bag: {}, money: 3000, flags: {}, npcs: {},
       respawn: { ...start.respawn, map: ns(base.manifest.id, start.respawn.map) }, rng: seed >>> 0,
-      badges: [], coil: {}, repel: 0, look: 'boy', clock: PERIOD_START.morning + 4 * 60,
+      badges: [], coil: {}, repel: 0, look: 'boy', clock: PERIOD_START.morning + 4 * 60, day: 0,
       daycare: emptyDaycare(), steps: 0, hatched: 0, dex: emptyDex()
     });
     game.emitMap();
@@ -131,7 +132,7 @@ export class Game {
         if (intent.t === 'answer') this.answer(intent.index, intent.text);
       } else {
         switch (intent.t) {
-          case 'tick': this.state.clock = (this.state.clock + Math.max(0, Math.min(60, Number(intent.seconds) || 0)) * GAME_MINUTES_PER_SECOND) % 1440; break;
+          case 'tick': this.advanceClock(Math.max(0, Math.min(60, Number(intent.seconds) || 0)) * GAME_MINUTES_PER_SECOND); break;
           case 'turn': this.state.dir = intent.dir; break;
           case 'step': this.pcOpen = false; this.step(intent.dir); break;
           case 'interact': this.pcOpen = false; this.interact(); break;
@@ -194,6 +195,13 @@ export class Game {
   }
 
   get period(): DayPeriod { return periodOf(this.state.clock); }
+
+  /** Moves the clock forward, counting a new day each time it passes midnight. */
+  private advanceClock(minutes: number) {
+    const t = this.state.clock + minutes;
+    this.state.day = (this.state.day ?? 0) + Math.floor(t / 1440);
+    this.state.clock = t % 1440;
+  }
 
   private buildingAt(m: MapDef & { key: string; pack: string }, x: number, y: number) {
     return m.buildings.some(b => {
@@ -371,13 +379,23 @@ export class Game {
     const table = this.period === 'night' && m.encountersNight ? m.encountersNight : m.encounters;
     if (this.tile(m, s.x, s.y) === (m.encounterTile ?? GRASS_TILE) && table?.length && this.partyAlive() && this.rng.chance(this.content.rules.encounterRate)) {
       const sp = this.rollTable(table);
-      const [lo, hi] = m.levels ?? [2, 4];
+      const [lo, hi] = this.wildLevels(m, m.levels ?? [2, 4]);
       const level = lo + this.rng.int(hi - lo + 1);
       const lead = s.party.find(p => p.hp > 0);
       if (s.repel > 0 && lead && level < lead.level) return;
       const bg = m.battleBg;
       this.run(function* (api) { return yield api.battle({ kind: 'wild', foes: [{ species: sp, level }], bg }); }, m.pack);
     }
+  }
+
+  /** A map with `scaleLevels` (an optional side area you can visit at any point) matches its wild Pokémon to
+   *  the current level cap: from `scaleLevels` below the cap up to two below it. */
+  private wildLevels(m: MapDef, fixed: [number, number]): [number, number] {
+    if (!m.scaleLevels) return fixed;
+    const caps = this.content.rules.levelCaps;
+    const step = this.state.badges.length + (this.content.rules.capFlags ?? []).filter(f => this.state.flags[f]).length;
+    const cap = caps[step] ?? caps[caps.length - 1] + 6;
+    return [cap - m.scaleLevels, cap - 2];
   }
 
   private rollTable(table: [number, string][]) {
@@ -399,7 +417,7 @@ export class Game {
     const ev = this.eventAt(m, fx, fy, 'interact');
     if (ev) { this.run(ev.run, m.pack); return; }
     const t = this.tile(m, fx, fy);
-    if (t && WATER_TILES.has(t) && m.fishing?.length && s.bag.oldrod) { this.fish(m.fishing, m.fishLevels ?? [5, 10], m.battleBg, m.pack); return; }
+    if (t && WATER_TILES.has(t) && m.fishing?.length && s.bag.oldrod) { this.fish(m.fishing, this.wildLevels(m, m.fishLevels ?? [5, 10]), m.battleBg, m.pack); return; }
     this.tickWorld(); // pressing A at nothing waits a moment
   }
 
@@ -444,6 +462,7 @@ export class Game {
   private useItem(item: string, uid: string) {
     const it = ITEMS[item];
     if (!it || !this.state.bag[item]) return;
+    if (it.field === 'thermos') { this.thermos(); return; }
     if (it.repel) {
       if (this.state.repel > 0) { this.out.push({ t: 'say', text: 'A Repel is still working.' }); return; }
       this.state.bag[item]--; this.state.repel = it.repel;
@@ -455,6 +474,7 @@ export class Game {
     if (m && it.tm) { this.teachTM(m, it.tm, it.name); return; }
     if (m && it.evolve) { this.evolveWithItem(m, item); return; }
     if (m && it.exp) { this.giveExpCandy(m, item); return; }
+    if (m && it.evs) { this.giveVitamin(m, item); return; }
     if (!m || it.pocket !== 'medicine') return;
     const fx = itemEffect(it, m.hp, maxHp(m), m.status);
     if (!fx) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
@@ -478,14 +498,49 @@ export class Game {
     }, this.map.pack);
   }
 
-  /** Evolution stones: the Pokémon evolves at once if its species.json lists an "Item" evolution for this item. */
+  /** Evolution stones: the Pokémon evolves at once if its species.json lists an "Item" evolution for this item.
+   *  Day/NightHoldItem evolutions (Happiny's Oval Stone) work the same way at the right time of day, and the
+   *  Soothe Bell stands in for friendship: it triggers Happiness evolutions and is never used up. */
   private evolveWithItem(m: Mon, item: string) {
-    const it = ITEMS[item];
-    const to = (speciesExtra(m.species).evolutions ?? []).find(([, method, param]) => method === 'Item' && param === it.evolve)?.[0];
-    if (!to) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
-    this.state.bag[item]--;
+    const it = ITEMS[item], p = this.period, day = p === 'morning' || p === 'day';
+    const evos = speciesExtra(m.species).evolutions ?? [];
+    const to = evos.find(([, method, param]) => (method === 'Item' && param === it.evolve)
+      || (method === 'DayHoldItem' && param === it.evolve && day) || (method === 'NightHoldItem' && param === it.evolve && p === 'night')
+      || (it.evolve === 'SOOTHEBELL' && (method === 'Happiness' || (method === 'HappinessDay' && day) || (method === 'HappinessNight' && p === 'night'))))?.[0];
+    if (!to) {
+      const later = evos.some(([, method, param]) => (/HoldItem$/.test(method) && param === it.evolve) || (it.evolve === 'SOOTHEBELL' && /^Happiness(Day|Night)$/.test(method)));
+      this.out.push({ t: 'say', text: later ? `Nothing happened... ${monName(m)} seems to want ${day ? 'the night' : 'daylight'}.` : 'It won\'t have any effect.' });
+      return;
+    }
+    if (!it.keep) this.state.bag[item]--;
     const g = this;
-    this.run(function* () { yield* g.evolveScene(m, to); }, this.map.pack);
+    this.run(function* (api) {
+      if (it.evolve === 'SOOTHEBELL') api.say(`The Soothe Bell chimed softly.\n${monName(m)} looks very fond of you!`);
+      yield* g.evolveScene(m, to);
+    }, this.map.pack);
+  }
+
+  /** The Termokande (Hygge Passport reward): a coffee break outdoors that moves the clock on, without the café's heal. */
+  private thermos() {
+    if (this.map.indoor) { this.out.push({ t: 'say', text: 'Save the Termokande for a bench outdoors.' }); return; }
+    const periods: DayPeriod[] = ['morning', 'day', 'evening', 'night'];
+    this.run(function* (api) {
+      const c: number = yield api.ask('You pour a cup from the Termokande.\nSit until...', ['Morning', 'Day', 'Evening', 'Night', 'Not now'], 4);
+      if (c > 3) return;
+      api.fade(1, 20); api.setTime(periods[c]); api.fade(0, 20);
+      api.say(`The coffee steams. The city goes by.\nIt's ${periods[c] === 'day' ? 'midday' : periods[c]} now.`);
+    }, this.map.pack);
+  }
+
+  /** Titan Herb: effort values on every stat, up to the usual 252 per stat. */
+  private giveVitamin(m: Mon, item: string) {
+    const keys = Object.keys(m.evs) as (keyof Mon['evs'])[];
+    if (keys.every(k => m.evs[k] >= 252)) { this.out.push({ t: 'say', text: 'It won\'t have any effect.' }); return; }
+    const before = maxHp(m);
+    for (const k of keys) m.evs[k] = Math.min(252, m.evs[k] + ITEMS[item].evs!);
+    if (m.hp > 0) m.hp += maxHp(m) - before;
+    this.state.bag[item]--;
+    this.out.push({ t: 'sfx', name: 'select' }, { t: 'say', text: `${monName(m)} feels sturdier all over!` });
   }
 
   private giveExpCandy(m: Mon, item: string) {
@@ -561,7 +616,7 @@ export class Game {
         }, this.map.pack);
         break;
       case 'time': {
-        s.clock = Math.floor(s.clock + 6 * 60) % (24 * 60);
+        this.advanceClock(6 * 60); s.clock = Math.floor(s.clock);
         say(`Debug: it is now ${String(Math.floor(s.clock / 60)).padStart(2, '0')}:${String(s.clock % 60).padStart(2, '0')}.`); break;
       }
       case 'hatchEggs': {
@@ -718,6 +773,7 @@ export class Game {
     return {
       rng: g.rng, party: g.state.party.filter(m => !m.egg), bag: g.state.bag, playerName: g.state.name,
       rules: g.content.rules, badges: g.state.badges.length, coil: g.state.coil,
+      capStep: g.state.badges.length + (g.content.rules.capFlags ?? []).filter(f => g.state.flags[f]).length,
       whiteout: () => {
         const rules = g.content.rules, top = Math.max(1, ...g.state.party.map(m => m.level));
         const loss = Math.min(g.state.money, rules.whiteoutBase[Math.min(g.state.badges.length, rules.whiteoutBase.length - 1)] * top);
@@ -813,7 +869,12 @@ export class Game {
       setName: name => { s.name = name; },
       setLook: look => { s.look = look; },
       get period() { return g.period; },
-      setTime: period => { s.clock = PERIOD_START[period]; },
+      setTime: period => { if (PERIOD_START[period] <= s.clock) s.day = (s.day ?? 0) + 1; s.clock = PERIOD_START[period]; },
+      get day() { return s.day ?? 0; },
+      hasCaught: species => !!s.dex.caught[species],
+      hatched: () => s.hatched,
+      get clock() { return Math.floor(s.clock); },
+      setClock: minutes => { s.clock = ((Math.floor(minutes) % 1440) + 1440) % 1440; },
       givePokemon: (species, level) => {
         const m = makeMon(species, level, g.rng, { ot: s.name });
         g.addMon(m);
@@ -937,12 +998,18 @@ export class Game {
 
   view(): WorldView {
     const s = this.state, m = this.map;
+    let goal: string | undefined;
+    for (const [id, p] of [...this.content.packs].reverse()) {
+      const g = p.goal?.(name => this.flag(id, name));
+      if (g) { goal = this.text(id, g); break; }
+    }
     return {
       name: s.name, map: m.key, x: s.x, y: s.y, dir: s.dir,
       npcs: this.npcViews(),
       party: s.party.map(monView), bag: { ...s.bag }, money: s.money, badges: s.badges.length,
       look: s.look, period: this.period, clock: Math.floor(s.clock),
       dex: { seen: Object.keys(s.dex.seen).length, caught: Object.keys(s.dex.caught).length },
+      ...(goal ? { goal } : {}),
       ...(this.debug ? { debug: true } : {})
     };
   }
@@ -959,7 +1026,7 @@ export function migrate(save: SaveData): SaveData {
   const s = structuredClone(save);
   s.box ??= []; s.npcs ??= {}; s.flags ??= {};
   s.badges ??= []; s.coil ??= {}; s.repel ??= 0;   // v2: badges, Coil unlocks, Repel
-  s.look ??= 'boy'; s.clock ??= 8 * 60;              // character look and world clock (no version bump: defaults are safe)
+  s.look ??= 'boy'; s.clock ??= 8 * 60; s.day ??= 0;              // character look and world clock (no version bump: defaults are safe)
   s.daycare ??= emptyDaycare(); s.steps ??= 0; s.hatched ??= 0;   // v3: Vuggestuen and eggs
   if (!s.dex) {                                                    // v4: Pokédex, from what the player owns
     s.dex = emptyDex();

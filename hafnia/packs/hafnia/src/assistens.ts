@@ -3,6 +3,7 @@
 // Lantern Walk, and two side quests: the Assistens Ghost Stories and Kanelsnegl Morning.
 import type { Dir, MapEvent, NpcDef, Script, ScriptApi } from '@hafnia/core';
 import { itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
+import { rematch } from './rematch';
 
 // ---------- Nørrebro: the chapter starts ----------
 
@@ -226,6 +227,7 @@ const gust: Script = function* (s) {
 };
 
 const sorenGym: Script = function* (s) {
+  if (s.flag('champion')) { yield* rematch(s, 'soren'); return; }
   if (s.flag('lantern')) { s.say('c4.soren.after'); return; }
   s.say('c4.soren.gym.1'); s.say('c4.soren.gym.2'); s.say('c4.soren.gym.3');
   const c: number = yield s.ask('Søren: Shall we?', ['Yes', 'Not yet'], 1);

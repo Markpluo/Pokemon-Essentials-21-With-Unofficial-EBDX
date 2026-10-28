@@ -35,9 +35,10 @@ export function dexEntries(content: Content, d: DexState): DexEntry[] {
     const seen = !!d.seen[species], caught = !!d.caught[species];
     if (!seen) return { n: i + 1, species, seen, caught };
     const x = speciesExtra(species), sp = Dex.species.get(species);
+    const text = [...content.packs.values()].map(p => p.dexText?.[species]).find(Boolean) ?? x.dex ?? '';
     return {
       n: i + 1, species, seen, caught, key: x.key, name: speciesName(species), types: speciesTypes(species),
-      ...(caught ? { category: x.category ? `${x.category} Pokémon` : '', text: x.dex ?? '', height: sp.heightm, weight: sp.weightkg } : {})
+      ...(caught ? { category: x.category ? `${x.category} Pokémon` : '', text, height: sp.heightm, weight: sp.weightkg } : {})
     };
   });
 }

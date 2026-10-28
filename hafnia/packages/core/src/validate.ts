@@ -21,6 +21,7 @@ export function validateContent(content: Content): string[] {
       const where = `${id}:${m.id}`;
       if (m.grid.length !== m.h || m.grid.some(r => r.length !== m.w)) err(where, `grid is not ${m.w}x${m.h}`);
       for (const row of m.grid) for (const t of row) if (!KNOWN_TILES.has(t)) { err(where, `unknown tile "${t}"`); break; }
+      if (m.decor && (m.decor.length !== m.h || m.decor.some(r => r.length !== m.w))) err(where, `decor is not ${m.w}x${m.h}`);
       for (const b of m.buildings) {
         const st = pack.stamps[b.s];
         if (!st) { err(where, `building uses unknown stamp "${b.s}"`); continue; }

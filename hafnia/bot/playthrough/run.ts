@@ -1,4 +1,5 @@
-// Runs the headless playthrough: `npm run playthrough` (all chapters) or `-- --from ch3` / `-- --only ch1`.
+// Runs the headless playthrough: `npm run playthrough` (all chapters) or `-- --from ch3` / `-- --only ch1`;
+// `-- --side` (or `-- --side --only tivoli`) plays the optional side areas from the saved chapters.
 // Writes bot/results/playthrough/: a save after each chapter (<chapter>.json, loadable by the browser bot),
 // battles.tsv, transcript.txt and a summary on stdout.
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -10,11 +11,36 @@ import * as R from './route';
 
 const OUT = join(process.cwd(), 'bot', 'results', 'playthrough');
 const CHAPTERS: [string, (p: Player) => void][] = [
-  ['prologue', R.prologue], ['ch1', R.chapter1], ['ch2', R.chapter2], ['ch3', R.chapter3], ['ch4', R.chapter4], ['ch5', R.chapter5], ['ch6', R.chapter6], ['ch7', R.chapter7], ['ch8', R.chapter8], ['ch9', R.chapter9]
+  ['prologue', R.prologue], ['ch1', R.chapter1], ['ch2', R.chapter2], ['ch3', R.chapter3], ['ch4', R.chapter4], ['ch5', R.chapter5], ['ch6', R.chapter6], ['ch7', R.chapter7], ['ch8', R.chapter8], ['ch9', R.chapter9], ['ch10', R.chapter10], ['ch11', R.chapter11], ['ch12', R.chapter12], ['ch13', R.chapter13], ['pg1', R.postgame1], ['pg2', R.postgame2], ['pg3', R.postgame3], ['pg4', R.postgame4], ['pg5', R.postgame5]
 ];
+
+/** Side areas, each from a saved chapter (see route.ts). */
+const SIDE: [string, string, (p: Player) => void][] = [
+  ['kalvebod', 'ch3', R.sideKalvebod], ['singers', 'ch3', R.sideSingers], ['roskilde', 'ch8', R.sideRoskilde], ['tivoli', 'pg5', R.sideTivoli], ['trolls', 'pg5', R.sideTrolls], ['small', 'ch3', R.sideSmall],
+  ['pram', 'ch1', R.sidePram], ['lene', 'ch2', R.sideLene], ['errands', 'pg5', R.sideErrands]
+];
+
+async function side(content: Content, only: string | null) {
+  let bad = false;
+  for (const [id, from, run] of SIDE) {
+    if (only && id !== only) continue;
+    const game = Game.load(content, JSON.parse(readFileSync(join(OUT, `${from}.json`), 'utf8')));
+    const p = new Player(game, game.resumeEvents());
+    try { run(p); } catch (e) { bad = true; console.log(`\n!! side ${id} stopped: ${(e as Error).message}\n   at ${p.mapId} ${p.s.x},${p.s.y}`); }
+    const bs = p.battles;
+    console.log(`side ${id} (from ${from}): ${bs.length} battles (${bs.filter(b => b.kind === 'trainer').length} trainer, ${bs.filter(b => b.result === 'lose').length} lost); team ${p.s.party.map(m => `${m.species} ${m.level}`).join(', ')}`);
+    for (const b of bs.filter(b => b.kind === 'trainer')) console.log(`  ${b.result.padEnd(4)} ${b.trainer.padEnd(30)} [${b.foes}] vs [${b.team}] ${b.turns}t`);
+    if (p.notes.length) console.log(`  ${p.notes.join('\n  ')}`);
+    if (p.problems.length) console.log(`  problems: ${p.problems.join('; ')}`);
+    writeFileSync(join(OUT, `side-${id}.json`), JSON.stringify(p.game.toSave()));
+    writeFileSync(join(OUT, `transcript-side-${id}.txt`), p.said.join('\n\n'));
+  }
+  if (bad) process.exit(1);
+}
 
 async function main() {
   await world();
+  if (process.argv.includes('--side')) { const a = process.argv; return side(new Content([hafnia]), a.includes('--only') ? a[a.indexOf('--only') + 1] : null); }
   mkdirSync(OUT, { recursive: true });
   const args = process.argv.slice(2);
   const from = args[args.indexOf('--from') + 1] ?? null, only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;

@@ -12,7 +12,10 @@ type P = Player;
 const HEALERS: [string, number, number, string][] = [
   ['flat', 6, 2, 'starter'], ['pcnorrebro', 2, 2, 'starter'], ['pcindreby', 2, 2, 'c2'], ['pcchristianshavn', 2, 2, 'chrMaja'],
   ['pcvesterbro', 2, 2, 'vbArrive'], ['pcfrederiksberg', 2, 2, 'ch5met'],
-  ['pcosterbro', 2, 2, 'c7met'], ['pcbakken', 2, 2, 'bakkenSeen'], ['trekroner', 12, 21, 'c8land'], ['pcslotsholmen', 2, 2, 'c9arrive']
+  ['pcosterbro', 2, 2, 'c7met'], ['pcbakken', 2, 2, 'bakkenSeen'], ['trekroner', 12, 21, 'c8land'], ['pcslotsholmen', 2, 2, 'c9arrive'],
+  ['shipyards', 2, 4, 'c10arrive'], ['pccopenhill', 2, 2, 'c10hill'],
+  ['floodnyhavn', 1, 10, 'ch11'], ['metro', 1, 8, 'c11metro'], ['pchelsingor', 2, 2, 'c11ruins'],
+  ['stormhill', 3, 22, 'ch12'], ['leaguehall', 3, 1, 'ch13']
 ];
 
 /** Walks to the nearest open Pokémon Center (or Mum) and heals. */
@@ -31,7 +34,8 @@ let grindMaps: string[] = ['route1'];
 export function train(p: P, level: number, why: string) {
   // Like a player: train towards the foe's level, but not past the soft cap (Exp is a trickle beyond it),
   // and bring the rest of the team along to within two levels.
-  const cap = p.game.content.rules.levelCaps[p.s.badges.length] ?? Infinity;
+  const rules = p.game.content.rules;
+  const cap = rules.levelCaps[p.s.badges.length + (rules.capFlags ?? []).filter(f => p.s.flags[f]).length] ?? Infinity;
   level = Math.min(level, cap);
   const ok = () => p.leadLevel >= level && p.minLevel >= level - 2;
   const before = `${p.minLevel}-${p.leadLevel}`;
@@ -306,4 +310,352 @@ export function chapter9(p: P) {
   goal(p, 'the scales', () => !!p.flag('scalesDone'), () => { goto(p, 'gym7'); p.talkTo(9, 7); });
   goal(p, 'Margrethe', () => !!p.flag('spire'), () => { goto(p, 'gym7'); p.walkTo(9, 3); p.talkTo(9, 2); });
   goal(p, 'Lukas on Knippelsbro', () => !!p.flag('ch9done'), () => { goto(p, 'slotsholmen'); goto(p, 'route4'); });
+}
+
+export function chapter10(p: P) {
+  grindMaps = ['shipyards', 'eastquay', 'copenhill', 'slotsholmen'];
+  goal(p, 'the chapter opens', () => !!p.flag('ch10'), () => goto(p, 'indreby'));
+  goal(p, 'the shipyards', () => !!p.flag('c10arrive'), () => goto(p, 'shipyards'));
+  goal(p, 'Brix on the east quay', () => !!p.flag('c10brix'), () => goto(p, 'eastquay'));
+  goal(p, 'Lukas on the great crane', () => !!p.flag('c10lukas'), () => { goto(p, 'cranetop'); p.talkTo(12, 2); });
+  goal(p, 'CopenHill', () => !!p.flag('c10hill'), () => goto(p, 'copenhill'));
+  shopAndHeal(p, 'pccopenhill');
+  // The board: A feeds 1+2, B feeds 2+3, C feeds 1+3. Relays 1 and 3 live, 2 dark: turbine C alone.
+  goal(p, 'the summit lift', () => !!p.flag('liftOn'), () => { goto(p, 'gym8'); p.talkTo(14, 8); });
+  goal(p, 'Astrid', () => !!p.flag('turbine'), () => { goto(p, 'gym8'); p.walkTo(9, 3); p.talkTo(9, 2); });
+  goal(p, 'the broadcast', () => !!p.flag('ch10done'), () => goto(p, 'copenhill'));
+}
+
+export function chapter11(p: P) {
+  grindMaps = ['metro', 'ruins', 'helsingor'];
+  // the Mermaid cutscene carries the player off the quay mid-walk
+  goal(p, 'the chapter opens', () => !!p.flag('ch11'), () => { try { goto(p, 'eastquay'); } catch (e) { if (!p.flag('ch11')) throw e; } });
+  goal(p, 'Fru Jensen', () => !!p.flag('resJensen'), () => { goto(p, 'floodnyhavn'); p.talkTo(3, 3); });
+  goal(p, 'the pølse man', () => !!p.flag('resPolse'), () => { goto(p, 'floodnyhavn'); p.talkTo(13, 6); });
+  goal(p, 'Captain Bodil', () => !!p.flag('resBodil'), () => { goto(p, 'floodnyhavn'); p.talkTo(22, 3); });
+  goal(p, 'the M-Ring', () => !!p.flag('c11metro'), () => goto(p, 'metro'));
+  goal(p, "Maja's broadcast", () => !!p.flag('c11broadcast'), () => goto(p, 'slotsholmen'));
+  // Absalon's ruins: each plaque is a gym (the Spray, the Lantern walk, the Rundetårn orrery, the turbines)
+  ([[4, 'Spray'], [8, 'Lantern'], [12, 'Orrery'], [16, 'Turbine']] as const).forEach(([x, badge], i) =>
+    goal(p, `the ${badge} door`, () => !!p.flag(`ruinsDoor${i}`), () => { goto(p, 'ruins'); p.queue.push(badge); p.talkTo(x, 2); }));
+  goal(p, "Absalon's altar", () => !!p.flag('c11ruins'), () => { goto(p, 'ruins'); p.talkTo(18, 1); });
+  shopAndHeal(p, 'pchelsingor');
+  goal(p, 'Kaas in the casemates', () => !!p.flag('c11kaas'), () => { goto(p, 'casemates'); p.walkTo(14, 8); });
+  goal(p, 'Holger Danske', () => !!p.flag('ch11done'), () => { goto(p, 'casemates'); p.talkTo(16, 1); });
+}
+
+export function chapter12(p: P) {
+  grindMaps = ['copenhill', 'helsingor'];
+  // The last train south leaves as you step out of Kronborg (no healing first: the way to a Center is through it).
+  if (!p.flag('ch12')) try { goto(p, 'helsingor'); } catch (e) { if (!p.flag('ch12')) throw e; }
+  // Kronvakt breaks the three walls of black ice on the switchbacks
+  for (const [id, y] of [['A', 18], ['B', 12], ['C', 6]] as const)
+    goal(p, `the ice wall ${id}`, () => !!p.flag(`c12ice${id}`), () => { goto(p, 'stormhill'); p.talkTo(1, y); });
+  goal(p, 'the lift, with Lukas', () => !!p.flag('c12lift'), () => { goto(p, 'stormhill'); p.walkTo(7, 2); });
+  shopAndHeal(p, 'pccopenhill');
+  goal(p, 'Lindholm on the Smokestack Ring', () => !!p.flag('c12song'), () => goto(p, 'smokestack'));
+  // A player brings a bag of Ultra Balls for a legend.
+  if ((p.s.bag.ultraball ?? 0) < 15) { goto(p, 'pccopenhill'); p.buy([['Ultra Ball', 10], ['Ultra Ball', 10]]); }
+  p.wanted.add('langelira');
+  goal(p, 'Langelira', () => !!p.flag('ch12done'), () => {
+    for (let i = 0; i < 4 && !p.flag('ch12done'); i++) {    // knocked out by mistake: she rises again
+      if ((p.s.bag.ultraball ?? 0) < 5) { goto(p, 'pccopenhill'); p.buy([['Ultra Ball', 10]]); }
+      goto(p, 'smokestack'); p.talkTo(12, 1);
+    }
+  });
+}
+
+export function chapter13(p: P) {
+  grindMaps = ['helsingor', 'copenhill'];
+  // The dark night starts on the way down from the Ring and ends at home.
+  if (!p.flag('ch13')) try { goto(p, 'copenhill'); } catch (e) { if (!p.flag('ch13')) throw e; }
+  shopAndHeal(p, 'pcslotsholmen');
+  // Like a player: Karla's Exp. Candy on the weakest, then sparring rounds with her (healing at the palace nurse)
+  // until the team is near the League's levels.
+  goto(p, 'leaguehall');
+  p.talkTo(10, 4);
+  for (let i = 0; i < 3 && p.s.bag.expcandyl; i++) {
+    const weakest = p.s.party.filter(m => !m.egg).sort((a, b) => a.level - b.level)[0];
+    p.send({ t: 'useItem', item: 'expcandyl', uid: weakest.uid });
+  }
+  for (let i = 0; i < 20 && (p.leadLevel < 60 || p.minLevel < 56); i++) { p.talkTo(3, 1); p.talkTo(10, 4); }
+  p.talkTo(3, 1);
+  p.notes.push(`sparred with Karla: team ${p.minLevel}-${p.leadLevel} before the Elite Four`);
+  for (const [m, map] of [['valdemar', 'stables'], ['clara', 'admiral'], ['nikolai', 'greathall'], ['freja', 'towerstairs']] as const)
+    goal(p, `Elite Four ${m}`, () => !!p.flag(`e4${m}`), () => { goto(p, map); e4Puzzle(p, m); p.talkTo(5, 2); });
+  goal(p, 'the Champions', () => !!p.flag('ch13done'), () => goto(p, 'towerroof'));
+}
+
+/** The puzzle that opens each Elite Four hall's gap, solved like a player who has read the signs. */
+function e4Puzzle(p: P, m: string) {
+  if (p.flag(`e4p${m}`)) return;
+  if (m === 'valdemar') for (const [x, y] of [[2, 5], [8, 5], [8, 7]]) p.talkTo(x, y);   // eldest first, by the stable board
+  if (m === 'clara') for (const x of [2, 4, 6]) p.talkTo(x, 6);                           // lamps 1-3 light all four
+  if (m === 'nikolai') {
+    p.answers.push({ when: /squares loud/, pick: 'Tariq', once: true }, { when: /captains the Black Fleet/, pick: 'Freja', once: true },
+      { when: /storm on CopenHill/, pick: 'Langelira', once: true });
+    p.talkTo(5, 4);
+  }
+  if (m === 'freja') { p.talkTo(2, 6); p.talkTo(8, 6); p.talkTo(5, 4); }
+}
+
+export function postgame1(p: P) {
+  grindMaps = ['route1', 'copenhill'];
+  // The morning after: P1 starts the first time you step outside after the credits.
+  if (!p.flag('pg1')) try { goto(p, 'norrebro'); } catch (e) { if (!p.flag('pg1')) throw e; }
+  goal(p, 'Ørsted and Brix', () => !!p.flag('pg1palm'), () => goto(p, 'palmhouse'));
+  goal(p, 'the Mermaid\'s Tear', () => !!p.flag('pg1harmony'), () => { goto(p, 'osterbro'); p.talkTo(22, 13); });
+  p.answers.push({ when: /Touch it with the charged Coil/, pick: 'Touch it' });
+  goal(p, 'the first Resonance Rift', () => !!p.flag('pg1done'), () => { goto(p, 'route1'); p.talkTo(14, 11); });
+}
+
+export function postgame2(p: P) {
+  grindMaps = ['casemates', 'route1'];
+  // The Guardian's Oath starts on the way into Helsingør.
+  if (!p.flag('pg2')) try { goto(p, 'helsingor'); } catch (e) { if (!p.flag('pg2')) throw e; }
+  shopAndHeal(p, 'pchelsingor');
+  goal(p, 'the Trial of Copper', () => !!p.flag('oathCopper'), () => { goto(p, 'casemates'); p.talkTo(13, 1); });
+  goal(p, 'the Trial of Current', () => !!p.flag('oathCurrent'), () => { goto(p, 'casemates'); p.talkTo(13, 3); });
+  p.answers.push({ when: /Start the Trial of the Oath/, pick: 'Begin' });
+  goal(p, 'the Trial of the Oath', () => !!p.flag('oathOath'), () => { goto(p, 'casemates'); p.talkTo(20, 3); });
+  if ((p.s.bag.ultraball ?? 0) < 15) { goto(p, 'pchelsingor'); p.buy([['Ultra Ball', 10], ['Ultra Ball', 10]]); }
+  p.wanted.add('kronvakt');
+  goal(p, 'Kronvakt', () => !!p.flag('pg2done'), () => {
+    for (let i = 0; i < 4 && !p.flag('pg2done'); i++) {    // knocked out by mistake: it stands up again
+      if ((p.s.bag.ultraball ?? 0) < 5) { goto(p, 'pchelsingor'); p.buy([['Ultra Ball', 10]]); }
+      goto(p, 'casemates'); p.talkTo(18, 1);
+    }
+  });
+}
+
+export function postgame3(p: P) {
+  grindMaps = ['oresund', 'peberholm'];
+  goal(p, 'the bridge toll', () => !!p.flag('pg3'), () => goto(p, 'oresund'));
+  goal(p, 'Bjørk\'s permit', () => !!p.flag('pg3permit'), () => { goto(p, 'oresund'); p.talkTo(22, 6); });
+  goal(p, 'Lumen Nord\'s field lead', () => !!p.flag('pg3lead'), () => { goto(p, 'peberholm'); p.talkTo(14, 3); p.talkTo(12, 13); });
+  p.answers.push({ when: /Touch it with the charged Coil/, pick: 'Touch it' });
+  goal(p, 'the great Echo', () => !!p.flag('pg3done'), () => { goto(p, 'peberholm'); p.talkTo(14, 3); p.talkTo(12, 16); });
+}
+
+export function postgame4(p: P) {
+  grindMaps = ['route14', 'hammerdeep'];
+  goal(p, 'the Bornholm ferry', () => !!p.flag('pg4'), () => goto(p, 'ronne'));
+  shopAndHeal(p, 'pcronne');
+  const shrines: [string, string, string][] = [['nyker', 'shrineNyker', 'Copper'], ['nylars', 'shrineNylars', 'Current'],
+    ['olsker', 'shrineOlsker', 'Harmony'], ['osterlars', 'shrineOsterlars', 'Current']];
+  for (const [door, flag, pick] of shrines) goal(p, `the ${door} shrine`, () => !!p.flag(flag), () => {
+    goto(p, 'route14');
+    coilAnswer(p, pick);
+    p.enter(door);
+  });
+  goal(p, 'Vinther', () => !!p.flag('pg4vinther'), () => { goto(p, 'hammershus'); p.talkTo(5, 10); goto(p, 'hammerdeep'); p.talkTo(11, 4); });
+  if ((p.s.bag.ultraball ?? 0) < 15) { goto(p, 'pcronne'); p.buy([['Ultra Ball', 10], ['Ultra Ball', 10]]); }
+  p.wanted.add('kronikon');
+  goal(p, 'Krønikon', () => !!p.flag('pg4done'), () => {
+    for (let i = 0; i < 4 && !p.flag('pg4done'); i++) {    // knocked out by mistake: it settles back into the stone
+      if ((p.s.bag.ultraball ?? 0) < 5) { goto(p, 'pcronne'); p.buy([['Ultra Ball', 10]]); }
+      goto(p, 'hammershus'); p.talkTo(5, 10); goto(p, 'hammerdeep'); p.talkTo(11, 1);
+    }
+  });
+}
+
+export function postgame5(p: P) {
+  grindMaps = ['trekroner', 'deepsound'];
+  // Freja calls on the way into any hub once P2-P4 are done.
+  goal(p, 'Freja\'s call', () => !!p.flag('pg5'), () => { goto(p, 'pcchristianshavn'); goto(p, 'christianshavn'); });
+  goal(p, 'the hydrofoil', () => !!p.flag('pg5fort'), () => goto(p, 'trekroner'));
+  p.answers.push({ when: /Touch it with the charged Coil/, pick: 'Touch it' });
+  goal(p, 'the last Echo', () => !!p.flag('pg5echo'), () => { goto(p, 'trekroner'); p.talkTo(12, 21); goto(p, 'siphon'); p.talkTo(8, 4); });
+  goal(p, 'the dive', () => p.mapId === 'deepsound' || !!p.flag('pg5song'), () => {
+    goto(p, 'osterbro');
+    p.answers.push({ when: /Dive down to the Deep Sound/, pick: 'Dive', once: true });
+    p.talkTo(22, 16);
+  });
+  const notes: [number, number, string, string][] = [[1, 7, 'noteLow', 'Copper'], [17, 7, 'noteHigh', 'Current'], [9, 6, 'noteBoth', 'Harmony']];
+  for (const [x, y, flag, pick] of notes) goal(p, `the ${flag} stone`, () => !!p.flag(flag) || !!p.flag('pg5song'), () => {
+    if (p.mapId !== 'deepsound') { goto(p, 'osterbro'); p.answers.push({ when: /Dive down/, pick: 'Dive', once: true }); p.talkTo(22, 16); }
+    coilAnswer(p, pick);
+    p.talkTo(x, y);
+  });
+  goal(p, 'the concert', () => !!p.flag('pg5song'), () => {
+    if (p.mapId !== 'deepsound') { goto(p, 'osterbro'); p.answers.push({ when: /Dive down/, pick: 'Dive', once: true }); p.talkTo(22, 16); }
+    p.sing = true;
+    try { p.talkTo(9, 1); } finally { p.sing = false; }
+  });
+  p.answers.push({ when: /Charge the lamp/, pick: 'Charge it' });
+  goal(p, 'the lamp', () => !!p.flag('pg5done'), () => { goto(p, 'tklighthouse'); p.talkTo(2, 4); });
+  goal(p, 'Lindholm\'s letter', () => !!p.flag('pg5letter'), () => goto(p, 'flat'));
+  // The Champion's Gym Leader rematches: one a day, and they pay.
+  const money = p.s.money;
+  goal(p, 'Tariq\'s rematch', () => p.flag('rematch.tariq') !== undefined, () => { heal(p); goto(p, 'gym1'); p.talkTo(7, 2); });
+  p.talkTo(7, 2);
+  if (!/One round a day/.test(p.said.slice(-3).join('\n'))) throw new Error('Tariq took a second rematch on the same day');
+  p.notes.push(`Tariq's rematch paid ${p.s.money - money} kr.`);
+}
+
+// ---------- Side areas (npm run playthrough -- --side) ----------
+// Each starts from a saved chapter: the Wilds and the Last Singers after Chapter 3 (three badges), the Roskilde
+// Saga after Chapter 7 (six), Tivoli after the post-game. They don't feed back into the story run.
+
+/** Answers the next Coil prompt (shrines, note stones). Drops an unused answer left by a retried goal first, or it
+ *  would answer the wrong stone. */
+function coilAnswer(p: P, pick: string) {
+  for (let i = p.answers.length - 1; i >= 0; i--) if (String(p.answers[i].when) === String(/How do you charge the Coil/)) p.answers.splice(i, 1);
+  p.answers.push({ when: /How do you charge the Coil/, pick, once: true });
+}
+
+/** Six hours pass (a player would wait it out; the bot uses the debug clock). */
+function passTime(p: P) {
+  p.game.debug = true;
+  p.send({ t: 'debug', cmd: 'time' });
+  p.game.debug = false;
+}
+
+const KALVEBOD_WILD = ['tauros', 'mudbray', 'wooloo', 'starly', 'lotad', 'poliwag', 'phanpy', 'flamigo', 'girafarig', 'hoothoot', 'stunky', 'chewtle', 'wiglett', 'buizel', 'rolycoly', 'silicobra', 'cufant', 'rufflet', 'orthworm'];
+
+export function sideKalvebod(p: P) {
+  p.eagerCatch = true;
+  grindMaps = ['kalvebod'];
+  HEALERS.push(['rangerhut', 1, 1, 'kalvebodArrive']);
+  goal(p, 'the skiff to Kalvebod', () => p.mapId === 'kalvebod', () => goto(p, 'kalvebod'));
+  p.talkTo(21, 2);                                           // Ranger Ebbe's first task
+  if ((p.s.bag.pokeball ?? 0) + (p.s.bag.greatball ?? 0) < 15) { goto(p, 'pcvesterbro'); p.buy([['Great Ball', 10], ['Great Ball', 10]]); }
+  for (const sp of KALVEBOD_WILD) p.wanted.add(sp);
+  const caught = () => KALVEBOD_WILD.filter(sp => p.s.dex.caught[sp]).length;
+  for (let round = 0; round < 14 && caught() < 10; round++) {
+    heal(p);
+    goto(p, round % 2 ? 'kalvebodrange' : 'kalvebod');
+    p.grind(() => caught() >= 10 || p.hurt() || (p.s.bag.greatball ?? 0) + (p.s.bag.pokeball ?? 0) < 2, 40);
+    if ((p.s.bag.greatball ?? 0) + (p.s.bag.pokeball ?? 0) < 2) { goto(p, 'pcvesterbro'); p.buy([['Great Ball', 10]]); }
+  }
+  goal(p, 'Ebbe\'s first two tasks', () => !!p.flag('ebbe2'), () => { goto(p, 'kalvebod'); p.talkTo(21, 2); });
+  goal(p, 'the giant Orthworm', () => !!p.flag('orthwormDone'), () => { heal(p); goto(p, 'kalvebodrange'); p.talkTo(15, 14); });
+  goal(p, 'Ebbe\'s last task', () => !!p.flag('ebbe3'), () => { goto(p, 'kalvebod'); p.talkTo(21, 2); });
+  goal(p, 'the Titan Store Mor', () => !!p.flag('titan.storemor'), () => { heal(p); goto(p, 'kalvebod'); p.talkTo(37, 20); });
+  p.notes.push(`Kalvebod: ${caught()} of ${KALVEBOD_WILD.length} kinds caught, Exp. Charm ${p.s.bag.expcharm ? 'yes' : 'no'}`);
+}
+
+const TITAN_SPOTS = [{ id: 'storemor', map: 'kalvebod', x: 37, y: 20 }, { id: 'pia', map: 'dragor', x: 2, y: 17 },
+  { id: 'ulf', map: 'dyrehaven', x: 32, y: 1 }, { id: 'lilletom', map: 'drydock', x: 26, y: 8 },
+  { id: 'hjalte', map: 'route10', x: 27, y: 5 }, { id: 'gamleknas', map: 'route14', x: 41, y: 15 }];
+/** The Six Forgotten Trolls: battle each Titan where it sleeps, then Store Mor sends Lille Tom along. */
+export function sideTrolls(p: P) {
+  grindMaps = ['kalvebod', 'route14'];
+  for (const t of TITAN_SPOTS) {
+    goal(p, `the Titan ${t.id}`, () => !!p.flag(`titan.${t.id}`), () => { heal(p); goto(p, t.map); p.talkTo(t.x, t.y); });
+  }
+  const mor = TITAN_SPOTS.find(t => t.id === 'storemor')!;
+  goal(p, 'Lille Tom joins', () => !!p.flag('trollGift'), () => { goto(p, mor.map); p.talkTo(mor.x, mor.y); });
+  p.notes.push(`Trolls: ${TITAN_SPOTS.filter(t => p.flag(`titan.${t.id}`)).length}/6 woken, Titan Herbs ${p.s.bag.titanherb ?? 0}, Lille Tom ${[...p.s.party, ...p.s.box].some(m => m.nickname === 'Lille Tom') ? 'yes' : 'no'}`);
+}
+
+/** Gækkebrev (Ella's eight snowdrop letters) and the Winter Bathers' Relay, both from Chapter 3. */
+export function sideSmall(p: P) {
+  grindMaps = ['kalvebod', 'islandsbrygge'];
+  goal(p, 'Gækkebrev', () => !!p.flag('gaekDone'), () => {
+    goto(p, 'christianshavn');
+    p.queue.push('Read', 'Tariq', 'Kasper', 'Ørsted', 'Maja', 'Lukas', 'Lene', 'Freja', 'Knud');
+    p.talkTo(7, 11);
+  });
+  goal(p, 'the bath swimmers', () => !!p.flag('tr.ibswim1') && !!p.flag('tr.ibswim2'), () => { goto(p, 'islandsbrygge'); p.talkTo(5, 3); p.talkTo(10, 7); });
+  goal(p, 'the Winter Bathers\' Relay', () => !!p.flag('relayDone'), () => { heal(p); goto(p, 'islandsbrygge'); p.talkTo(11, 4); });
+  p.notes.push(`Gækkebrev ${p.flag('gaekDone') ? 'done' : 'not done'} (egg ${[...p.s.party, ...p.s.box].some(m => m.egg && m.species === 'togepi') ? 'yes' : 'no'}), relay ${p.flag('relayDone') ? 'won' : 'not won'}, TM Scald ${p.s.bag.tmscald ? 'yes' : 'no'}`);
+}
+
+/** Barnevognen: chase the runaway pram down the Søerne path (Chapter 1, daytime). */
+export function sidePram(p: P) {
+  for (let i = 0; i < 4 && !['morning', 'day'].includes(p.game.period); i++) passTime(p);
+  goal(p, 'Karoline\'s pram', () => !!p.flag('pramGo'), () => { goto(p, 'route1'); p.talkTo(5, 20); });
+  const stages: [number, number][] = [[7, 20], [8, 16], [3, 15], [2, 14]];
+  stages.forEach(([x, y], i) => goal(p, `pram stage ${i + 1}`, () => ((p.flag('pram') as number | undefined) ?? 0) > i, () => { goto(p, 'route1'); p.talkTo(x, y); }));
+  p.notes.push(`Barnevognen ${p.flag('pramDone') ? 'done' : 'not done'} (Azurill egg ${[...p.s.party, ...p.s.box].some(m => m.egg && m.species === 'azurill') ? 'yes' : 'no'})`);
+}
+
+/** Lene's Night Shift: four parcels across Nørrebro, the bridge, Strøget and Nyhavn before 05:00 (Chapter 2). */
+export function sideLene(p: P) {
+  goal(p, 'Lene\'s shift', () => !!p.flag('leneShift'), () => { goto(p, 'pcnorrebro'); p.talkTo(4, 3); });
+  const stops: [string, number, number][] = [['norrebro', 24, 15], ['bridge', 10, 13], ['indreby', 14, 13], ['nyhavn', 24, 8]];
+  stops.forEach(([map, x, y], i) => goal(p, `parcel ${i + 1}`, () => !!(((p.flag('leneDone') as number | undefined) ?? 0) & (1 << i)), () => { goto(p, map); p.talkTo(x, y); }));
+  goal(p, 'Lene\'s reward', () => !!p.flag('leneShiftDone'), () => { goto(p, 'pcnorrebro'); p.talkTo(4, 3); });
+  p.notes.push(`Lene's Night Shift ${p.flag('leneShiftDone') ? 'done' : 'not done'} (Happiny egg ${[...p.s.party, ...p.s.box].some(m => m.egg && m.species === 'happiny') ? 'yes' : 'no'}, Oval Stone ${p.s.bag.ovalstone ?? 0})`);
+}
+
+const CAFE_SPOTS: [string, number, number][] = [['norrebro', 24, 16], ['route1', 16, 18], ['bridge', 5, 3], ['indreby', 25, 9], ['nyhavn', 2, 9], ['christianshavn', 12, 2],
+  ['vesterbro', 24, 8], ['kodbyen', 13, 2], ['islandsbrygge', 3, 9], ['frederiksberg', 20, 4], ['osterbro', 9, 2], ['dragor', 10, 5]];
+const SCOPE_SPOTS: [string, number, number][] = [['indreby', 4, 7], ['nyhavn', 24, 4], ['christianshavn', 14, 1], ['osterbro', 17, 2], ['frederiksberg', 7, 4],
+  ['islandsbrygge', 4, 12], ['slotsholmen', 12, 3], ['copenhill', 25, 10]];
+const FIRE_SPOTS: [string, string, number, number][] = [['tariq', 'norrebro', 3, 16], ['alva', 'christianshavn', 26, 8], ['kasper', 'kodbyen', 3, 8], ['soren', 'assistens', 24, 6],
+  ['tycho', 'indreby', 2, 10], ['pierrot', 'bakken', 27, 6], ['margrethe', 'slotsholmen', 2, 9], ['astrid', 'copenhill', 2, 9]];
+const bit = (p: P, flag: string, i: number) => !!(((p.flag(flag) as number | undefined) ?? 0) & (1 << i));
+
+/** The Hygge Passport, Tycho's Star Charts and the Midsummer Bonfires, all played from the post-game. */
+export function sideErrands(p: P) {
+  CAFE_SPOTS.forEach(([map, x, y], i) => goal(p, `coffee at ${map}`, () => bit(p, 'hygge', i) || !!p.flag('hyggeDone'), () => { goto(p, map); p.talkTo(x, y); }));
+  goal(p, 'Kirsten\'s star chart', () => !!p.s.bag.starchart || !!p.flag('starsDone'), () => { goto(p, 'towerin'); p.talkTo(3, 2); });
+  SCOPE_SPOTS.forEach(([map, x, y], i) => goal(p, `telescope at ${map}`, () => bit(p, 'stars', i) || !!p.flag('starsDone'), () => { goto(p, map); p.talkTo(x, y); }));
+  goal(p, 'the finished star chart', () => !!p.flag('starsDone'), () => { goto(p, 'towerin'); p.talkTo(3, 2); });
+  for (const [id, map, x, y] of FIRE_SPOTS) goal(p, `bonfire ${id}`, () => !!p.flag(`fire.${id}`), () => { goto(p, map); p.talkTo(x, y); });
+  p.notes.push(`Hygge Passport ${p.flag('hyggeDone') ? 'done' : 'not done'} (Sinistea ${[...p.s.party, ...p.s.box].some(m => m.species === 'sinistea') ? 'yes' : 'no'}, Termokande ${p.s.bag.termokande ?? 0}), ` +
+    `star charts ${p.flag('starsDone') ? 'done' : 'not done'} (Moon Stones ${p.s.bag.moonstone ?? 0}), bonfires ${FIRE_SPOTS.filter(([id]) => p.flag(`fire.${id}`)).length}/8 (Ember ${p.s.bag.ember ?? 0})`);
+}
+
+export function sideSingers(p: P) {
+  p.eagerCatch = true;
+  grindMaps = ['kalvebod', 'islandsbrygge'];
+  const elder = (id: string, x: number, y: number) => { goto(p, 'dragor'); p.talkTo(x, y); void id; };
+  goal(p, 'Ingeborg\'s errand', () => !!p.flag('sing.ingeborg'), () => elder('ingeborg', 12, 10));
+  goal(p, 'the net float', () => !!p.s.bag.netfloat || p.flag('sing.ingeborg') === 2, () => { goto(p, 'islandsbrygge'); p.talkTo(2, 17); });
+  goal(p, 'Ingeborg\'s verse', () => p.flag('sing.ingeborg') === 2, () => elder('ingeborg', 12, 10));
+  goal(p, 'Henning\'s errand', () => !!p.flag('sing.henning'), () => elder('henning', 20, 14));
+  goal(p, 'beat Oluf', () => !!p.flag('tr.oluf'), () => elder('oluf', 19, 11));
+  goal(p, 'Henning\'s verse', () => p.flag('sing.henning') === 2, () => elder('henning', 20, 14));
+  p.answers.push({ when: /Battle Elder Asta/, pick: 'Yes' });
+  goal(p, 'Asta\'s verse', () => p.flag('sing.asta') === 2, () => { heal(p); elder('asta', 16, 7); });
+  goal(p, 'Poul\'s errand', () => !!p.flag('sing.poul'), () => elder('poul', 17, 16));
+  if (!p.s.party.some(m => m.species === 'wiglett')) {
+    p.wanted.add('wiglett');
+    if ((p.s.bag.pokeball ?? 0) + (p.s.bag.greatball ?? 0) < 10) { goto(p, 'pcvesterbro'); p.buy([['Great Ball', 10]]); }
+    // Fish off the Dragør quay until a Wiglett bites (it has to be in the party to show Poul).
+    const has = () => [...p.s.party, ...p.s.box].some(m => m.species === 'wiglett');
+    for (let i = 0; i < 60 && !has(); i++) {
+      if (p.hurt()) heal(p);
+      goto(p, 'dragor');
+      p.walkTo(20, 12); p.face('right'); p.send({ t: 'interact' });
+    }
+    swapIn(p, 'pcvesterbro', 'wiglett');     // a full team sends it to the box: take it out at a PC
+  }
+  goal(p, 'Poul\'s verse', () => p.flag('sing.poul') === 2, () => elder('poul', 17, 16));
+  goal(p, 'Karen at night', () => !!p.flag('dragorMelody'), () => {
+    goto(p, 'dragor');
+    for (let i = 0; i < 4 && p.game.period !== 'night'; i++) passTime(p);
+    p.talkTo(11, 16);
+  });
+  goal(p, 'the safehouse', () => p.mapId === 'safehouse', () => goto(p, 'safehouse'));
+  p.notes.push(`Last Singers: melody ${p.flag('dragorMelody') ? 'learned' : 'missing'}, Lapras ${[...p.s.party, ...p.s.box].some(m => m.species === 'lapras') ? 'received' : 'missing'}`);
+}
+
+export function sideRoskilde(p: P) {
+  grindMaps = ['route10'];
+  HEALERS.push(['pcroskilde', 2, 2, 'roskildeArrive']);
+  goal(p, 'Roskilde', () => !!p.flag('roskildeArrive'), () => goto(p, 'roskilde'));
+  shopAndHeal(p, 'pcroskilde');
+  goal(p, 'the crypt grunt', () => !!p.flag('tr.crEnf1'), () => { goto(p, 'crypt'); p.talkTo(10, 7); });
+  goal(p, 'Enforcer Ravn', () => !!p.flag('roskildePage'), () => { heal(p); goto(p, 'crypt'); p.talkTo(10, 1); });
+  goal(p, 'the museum Dhelmise', () => !!p.flag('museumGift'), () => { goto(p, 'museum'); p.talkTo(6, 1); });
+  goal(p, 'the Titan Hjalte', () => !!p.flag('titan.hjalte'), () => { heal(p); goto(p, 'route10'); p.talkTo(27, 5); });
+  p.notes.push(`Roskilde: page ${p.s.bag.roskildepage ? 'found' : 'missing'}, Dhelmise ${[...p.s.party, ...p.s.box].some(m => m.species === 'dhelmise') ? 'received' : 'missing'}`);
+}
+
+export function sideTivoli(p: P) {
+  grindMaps = ['peberholm', 'route14'];
+  HEALERS.push(['tivoli', 18, 13, 'tivoliOpen']);
+  p.answers.push({ when: /Buy æbleskiver/, pick: 'Yes (200 kr.)' });
+  const m0 = p.s.money;
+  goal(p, 'Tivoli', () => p.mapId === 'tivoli', () => goto(p, 'tivoli'));
+  p.answers.push({ when: /Start the Tower Challenge/, pick: 'Start' });
+  goal(p, 'the Tower Challenge', () => Number(p.flag('tower.wins') ?? 0) >= 1, () => { heal(p); goto(p, 'daemonentower'); p.talkTo(5, 2); if (!p.flag('tower.wins')) for (let i = 0; i < 4; i++) passTime(p); });
+  for (const [map, x, y, key] of [['concerthall', 6, 2, 'valdemar'], ['tivoli', 12, 18, 'clara'], ['pantomimehall', 5, 2, 'freja']] as const) {
+    goal(p, `${key}'s rematch`, () => p.flag(`rematch.${key}`) !== undefined, () => { heal(p); goto(p, map); p.queue.push('Yes'); p.talkTo(x, y); p.queue = []; });
+  }
+  p.notes.push(`Tivoli: tower wins ${p.flag('tower.wins') ?? 0}, money ${m0} -> ${p.s.money} kr.`);
 }

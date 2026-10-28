@@ -4,6 +4,8 @@ import type { NpcDef, Script, ScriptApi } from '@hafnia/core';
 import { centerNpcs } from './home';
 import { ferry } from './dragor';
 import { findItem, grown, itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
+import { skiff } from './kalvebod';
+import { rematch } from './rematch';
 import { majaStarter } from './starters';
 
 // ---------- Nørrebro → Route 2 ----------
@@ -235,6 +237,7 @@ const valve = (i: number): Script => function* (s) {
 };
 
 const kasperGym: Script = function* (s) {
+  if (s.flag('champion')) { yield* rematch(s, 'kasper'); return; }
   if (s.flag('frost')) { s.say('c3.kasper.after'); return; }
   s.say('c3.kasper.intro.1'); s.say('c3.kasper.intro.2');
   const c: number = yield s.ask('Kasper: Ready to be plated?', ['Yes', 'Not yet'], 1);
@@ -307,7 +310,7 @@ const ROUTE3: MapScripts = {
   onEnter: function* (s) { if (s.flag('frost') && !s.flag('majaRace')) yield* majaRace(s); },
   npcs: [
     { id: 'majar', sprite: 'chars/maja', x: 12, y: 2, dir: 'down', hidden: true },
-    trainer({ id: 'r3cyclist', x: 13, y: 3, dir: 'up', sprite: 'chars/biker', sight: 1, cls: 'Cyclist', name: 'Freja B.',
+    trainer({ id: 'r3cyclist', x: 13, y: 3, dir: 'up', sprite: 'chars/biker', sight: 1, cls: 'Cyclist', name: 'Frida',
       foes: [{ species: 'wattrel', level: 20 }, { species: 'starly', level: 20 }],
       intro: ['Cyclist: The tailwind up here is free speed!\nBattle me before it changes!'], lose: ['Cyclist: Headwind. Emotionally.'] })
   ]
@@ -325,7 +328,7 @@ const ISLANDSBRYGGE: MapScripts = {
     { id: 'lifeguard', sprite: 'chars/lifeguard', x: 11, y: 4, dir: 'left', talk: talk('c3.ib.guard', 'c3.ib.guard.2') },
     trainer({ id: 'ibswim1', x: 5, y: 3, dir: 'left', sprite: 'chars/swimmer', sight: 2, cls: 'Swimmer', name: 'Lone',
       foes: [{ species: 'finizen', level: 20 }, { species: 'shellos', level: 20 }], intro: ['c3.ib.swim1.intro'], lose: ['c3.ib.swim1.lose'] }),
-    trainer({ id: 'ibswim2', x: 10, y: 7, dir: 'up', sprite: 'chars/swimmer', sight: 3, cls: 'Swimmer', name: 'Viggo',
+    trainer({ id: 'ibswim2', x: 10, y: 7, dir: 'up', sprite: 'chars/swimmer', sight: 3, cls: 'Swimmer', name: 'Torben',
       foes: [{ species: 'tentacool', level: 20 }, { species: 'spheal', level: 21 }], intro: ['c3.ib.swim2.intro'], lose: ['c3.ib.swim2.lose'] }),
     { id: 'ladder', sprite: 'obj:ladder', x: 7, y: 3, dir: 'down', object: true, talk: function* (s) {
       if (s.hasItem('mussels') || s.flag('dinnerDone')) { s.say('Mussels cling to the ladder. You have plenty.'); return; }
@@ -340,8 +343,14 @@ const ISLANDSBRYGGE: MapScripts = {
       s.say('c3.got.buckthorn');
     } },
     sign('wildssign', 13, 19, 'obj:sign', 'c3.ib.wilds'),
-    { id: 'ranger', sprite: 'chars/ranger', x: 20, y: 12, dir: 'left', talk: talk('c3.ib.ranger') },
+    { id: 'ranger', sprite: 'chars/ranger', x: 20, y: 12, dir: 'left', talk: skiff('kalvebod') },
     { id: 'skipper', sprite: 'chars/sailor', x: 2, y: 11, dir: 'right', talk: ferry('dragor') },
+    // The Last Singers: Elder Ingeborg's net float washed up here.
+    { id: 'netfloat', sprite: 'obj:buoy', x: 2, y: 17, dir: 'down', object: true, when: f => f('sing.ingeborg') === 1 && !f('netfloatTaken'), talk: function* (s) {
+      s.setFlag('netfloatTaken', true);
+      s.giveItem('netfloat'); s.me('me_item');
+      s.say(`${s.player.name} found a red and white glass net float!`);
+    } },
     itemBall('item.ib3', 21, 19, 'revive', 1, 'a Revive'),
     itemBall('item.ib2', 3, 18, 'netball', 2, 'Net Balls')
   ]

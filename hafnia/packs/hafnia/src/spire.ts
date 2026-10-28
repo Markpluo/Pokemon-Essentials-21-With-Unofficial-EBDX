@@ -6,6 +6,7 @@
 import { maxPp, type NpcDef, type Script, type ScriptApi } from '@hafnia/core';
 import { centerNpcs } from './home';
 import { grown, itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
+import { rematch } from './rematch';
 import { lukasStarter } from './starters';
 
 // ---------- The chapter starts ----------
@@ -58,7 +59,7 @@ const SLOTSHOLMEN: MapScripts = {
     { id: 'lukas9a', sprite: 'chars/lukas', x: 22, y: 10, dir: 'down', hidden: true },
     sign('slsign', 24, 8, 'obj:sign', 'c9.sl.sign'),
     sign('slscaffold', 13, 6, 'obj:sign', 'c9.sl.scaffold'),
-    sign('slpalace', 6, 6, 'obj:sign', 'c9.sl.palace'),
+    sign('slpalace', 4, 6, 'obj:sign', 'c9.sl.palace'),
     { id: 'slvan', sprite: 'obj:container', x: 16, y: 7, dir: 'down', object: true, talk: talk('c9.sl.van') },
     { id: 'slcrowd', sprite: 'chars/oldwoman', x: 9, y: 9, dir: 'right', talk: talk('c9.sl.crowd') },
     { id: 'slguard', sprite: 'chars/guard', x: 3, y: 7, dir: 'down', talk: talk('c9.sl.guard') },
@@ -78,10 +79,17 @@ const SLOTSHOLMEN: MapScripts = {
 const margrethe: Script = function* (s) {
   if (s.flag('spire')) { s.say('c9.mar.after'); return; }
   if (s.flag('vaultOpen')) { s.say('c9.mar.go'); return; }
-  s.say('c9.mar.1'); s.say('c9.mar.2'); s.say('c9.mar.3');
-  if (!s.hasItem('ledgercopy')) { s.say('c9.mar.noledger'); return; }
-  const c: number = yield s.ask('c9.mar.ask', ['Show Andersen\'s ledger', 'Leave'], 1);
-  if (c !== 0) { s.say('c9.mar.leave'); return; }
+  if (s.hasItem('roskildepage') && s.hasItem('ledgercopy')) {
+    // The Roskilde Saga: the crypt's page carries the royal archivists' seal, and Margrethe trusts you at once.
+    s.say('Margrethe: Børsen is closed for restoration...\nIs that the royal crypt seal? On a page of Andersen?');
+    s.say('Margrethe: Only a king\'s archivist could have hidden that\nin Roskilde. You went down into the crypt for it?');
+    s.say('Margrethe: Then I don\'t need a reason. Show me the rest.');
+  } else {
+    s.say('c9.mar.1'); s.say('c9.mar.2'); s.say('c9.mar.3');
+    if (!s.hasItem('ledgercopy')) { s.say('c9.mar.noledger'); return; }
+    const c: number = yield s.ask('c9.mar.ask', ['Show Andersen\'s ledger', 'Leave'], 1);
+    if (c !== 0) { s.say('c9.mar.leave'); return; }
+  }
   s.say('c9.mar.read.1'); s.wait(30); s.say('c9.mar.read.2'); s.say('c9.mar.read.3'); s.say('c9.mar.read.4');
   s.setFlag('vaultOpen', true);
   s.say('c9.mar.read.5');
@@ -152,6 +160,7 @@ const scales: Script = function* (s) {
 };
 
 const margretheGym: Script = function* (s) {
+  if (s.flag('champion')) { yield* rematch(s, 'margrethe'); return; }
   if (s.flag('spire')) { s.say('c9.mar.gym.after'); return; }
   s.say('c9.mar.gym.1'); s.say('c9.mar.gym.2');
   const c: number = yield s.ask('c9.mar.gym.ask', ['Yes', 'Not yet'], 1);

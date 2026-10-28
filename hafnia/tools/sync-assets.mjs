@@ -33,7 +33,14 @@ for (const dir of readdirSync(join(root, 'packs'))) {
   // Species plus everything they evolve into by levelling up, so evolution scenes have sprites.
   const all = new Set(pack.species);
   for (const id of all) for (const [to, method] of species[id]?.evolutions ?? []) if (method.startsWith('Level') && species[to]) all.add(to);
+  // Hafnia's own Pokémon (pack.json "pokemon"): sprites and cry by key, from the pack or the repo.
+  const own = pack.pokemon ?? {};
+  for (const [key, src] of Object.entries(own)) {
+    for (const kind of ['front', 'back', 'icons']) copy(src[kind], join(out, 'pokemon', kind, `${key}.png`), packDir);
+    copy(src.cry, join(out, 'pokemon', 'cries', `${key}.ogg`), packDir);
+  }
   for (const id of all) {
+    if (own[id.toUpperCase()]) continue;
     // Regional forms the pack adds itself (speciesExtra) list their sprite key in pack.json "spriteKeys".
     const key = pack.spriteKeys?.[id] ?? species[id]?.key ?? id.toUpperCase();
     const base = key.replace(/_\d+$/, '');

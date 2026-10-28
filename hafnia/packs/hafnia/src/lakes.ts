@@ -21,7 +21,7 @@ const bumped: Script = function* (s) {
 };
 
 const riders: NpcDef[] = LANES.flatMap((l, li) => l.xs.map((x, i) => ({
-  id: `rider${li}${i}`, sprite: (li + i) % 2 ? 'chars/cyclist2' : 'chars/cyclist1', x, y: l.y, dir: l.dir,
+  id: `rider${li}${i}`, sprite: `chars/commuter${(li + i) % 4 + 1}`, x, y: l.y, dir: l.dir,
   patrol: { dir: l.dir, min: 4, max: 15 }, bump: bumped, when: (f: (n: string) => any) => !f('finale'),
   talk: talk('Commuter: Ding ding! Can\'t stop, late for work!')
 })));
@@ -140,7 +140,7 @@ const ROUTE1: MapScripts = {
     { id: 'maja2', sprite: 'chars/maja', x: 12, y: 27, dir: 'left', trainer: { sight: 3, flag: 'beatMaja' },
       when: f => !!f('beatLukas') && !f('beatMaja'), talk: majaBattle },
     { id: 'sensor', sprite: 'chars/deckhand', x: 8, y: 14, dir: 'left', talk: talk('r1.sensor') },
-    { id: 'terminal', sprite: 'obj:terminal', x: 13, y: 25, dir: 'down', object: true, talk: terminal },
+    { id: 'terminal', sprite: 'obj:vgterminal', x: 13, y: 25, dir: 'down', object: true, talk: terminal },
     { id: 'barrier', sprite: 'obj:barrier', x: 14, y: 26, dir: 'down', object: true, when: f => !f('barrier'), talk: terminal },
     itemBall('item1', 16, 12, 'potion', 2, 'Potions'),
     itemBall('item2', 3, 26, 'pokeball', 3, 'Poké Balls'),
@@ -284,7 +284,7 @@ const PALMHOUSE: MapScripts = {
 const TUNNELS: MapScripts = {
   npcs: [
     trainer({ id: 'eng1', x: 12, y: 1, dir: 'down', sprite: 'chars/engineer', sight: 1, cls: 'Engineer', name: 'Holm',
-      foes: [{ species: 'magnemite', level: 10 }, { species: 'klink', level: 11 }], intro: ['c1.eng1.intro'], lose: ['c1.eng1.lose'] }),
+      foes: [{ species: 'magnemite', level: 9 }, { species: 'klink', level: 10 }], intro: ['c1.eng1.intro'], lose: ['c1.eng1.lose'] }),
     trainer({ id: 'eng2', x: 8, y: 6, dir: 'up', sprite: 'chars/engineer', sight: 1, cls: 'Engineer', name: 'Brandt', battle: { ai: 2 },
       foes: [{ species: 'voltorb', level: 11 }, { species: 'tadbulb', level: 12 }], intro: ['c1.eng2.intro'], lose: ['c1.eng2.lose'] }),
     { id: 'valve', sprite: 'obj:valve', x: 20, y: 13, dir: 'down', object: true, talk: function* (s) {

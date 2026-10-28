@@ -40,6 +40,8 @@ export interface BattleHost {
   readonly playerName: string;
   readonly rules: Rules;
   readonly badges: number;
+  /** Which level cap applies: the badge count plus any story steps past the last badge (rules.capFlags). */
+  readonly capStep?: number;
   readonly coil: CoilUnlocks;
   emit(ev: ServerEvent): void;
   /** Takes the whiteout money and returns how much was lost. */
@@ -48,7 +50,7 @@ export interface BattleHost {
   giveMoney(n: number): void;
 }
 
-interface CoilSide { enabled: boolean; pips: number; used: boolean; unlocks: CoilUnlocks; overcharge: boolean; seTurn: number }
+interface CoilSide { enabled: boolean; pips: number; used: boolean; unlocks: CoilUnlocks; overcharge: boolean; seTurn: number; concert?: boolean }
 
 const STAT_NAMES: Record<string, string> = {
   atk: 'Attack', def: 'Defense', spa: 'Sp. Atk', spd: 'Sp. Def', spe: 'Speed', accuracy: 'accuracy', evasion: 'evasiveness'
@@ -71,6 +73,8 @@ export class BattleSession {
   private sim: Battle;
   private logIndex = 0;
   private foes: Mon[];
+  /** Coil modes the player has used in a concert battle. */
+  private sung = new Set<string>();
   /** Multi battles: the partner's team (p3) and the second trainer's (p4). */
   private partnerMons: Mon[] = [];
   private foes2: Mon[] = [];
@@ -95,7 +99,7 @@ export class BattleSession {
     const plain = opts.coil === false;
     const start = opts.kind === 'wild' ? cr.startWild : cr.startTrainer;
     this.coil = {
-      ally: { enabled: !plain && !!(host.coil.copper || host.coil.current), pips: start, used: false, unlocks: host.coil, overcharge: false, seTurn: -1 },
+      ally: { enabled: !plain && !!(host.coil.copper || host.coil.current), pips: opts.concert ? cr.max : start, used: false, unlocks: host.coil, overcharge: false, seTurn: -1, concert: !!opts.concert },
       foe: {
         enabled: !plain && !!(opts.foeCoil || opts.overcharge), pips: opts.overcharge ? cr.max : start, used: false,
         unlocks: opts.overcharge ? { copper: true, current: true } : opts.foeCoil ?? {}, overcharge: !!opts.overcharge, seTurn: -1
@@ -145,12 +149,18 @@ export class BattleSession {
   private activate(side: BattleSide, mode: CoilMode | 'overcharge'): BattleEvent[] {
     const c = this.coil[side], p = (side === 'ally' ? this.sim.p1 : this.sim.p2).active[0];
     const who = side === 'ally' ? p.name : this.nameOf(`p2a: ${p.name}`);
-    c.pips = 0;
-    if (!c.overcharge) c.used = true;
+    // A concert starts with a full Coil and refills from one pip: the song needs all three modes.
+    const concert = side === 'ally' && !!this.opts.concert;
+    c.pips = concert ? 1 : 0;
+    if (!c.overcharge && !concert) c.used = true;
     const out: BattleEvent[] = [];
     if (mode === 'overcharge') {
       applyPatina(p); applyCurrent(p); applyOvercharge(p);
       out.push({ b: 'overcharge', side, text: `${who} is Overcharged!\nCopper and Current at once, but it burns!` });
+    } else if (mode === 'harmony') {
+      // Harmony (post-game): both modes on one Pokémon, with no Overcharge drain.
+      applyPatina(p); applyCurrent(p);
+      out.push({ b: 'harmony', side, text: `Copper and Current in harmony!\n${who} is patinated and charged at once!` });
     } else if (mode === 'copper') {
       applyPatina(p);
       out.push({ b: 'copper', side, text: `${who} is coated in a copper patina!` });
@@ -159,12 +169,22 @@ export class BattleSession {
       out.push({ b: 'current', side, text: `The Coil surges! ${who}'s next move\ncarries the Current!` });
     }
     out.push({ b: 'coil', side, coil: this.coilView(side) });
+    if (side === 'ally' && this.opts.concert && mode !== 'overcharge') {
+      this.sung.add(mode);
+      const foe = this.sim.p2.active[0];
+      if (foe && !(foe as any).m.concertOpen) {
+        if (this.sung.size === 3) {
+          (foe as any).m.concertOpen = true;
+          out.push({ b: 'text', text: 'Copper, Current and Harmony! The song is\nwhole again, and the Echo can rest!' });
+        } else out.push({ b: 'text', text: `The song has ${this.sung.size} of its 3 parts.` });
+      }
+    }
     return out;
   }
 
   private toSet(m: Mon, player: boolean) {
     return {
-      uid: m.uid, name: monName(m), species: speciesName(m.species), level: m.level, gender: m.gender,
+      uid: m.uid, name: monName(m), species: Dex.species.get(m.species).name, level: m.level, gender: m.gender,
       shiny: m.shiny, ability: m.ability, nature: m.nature, item: m.item ?? '', ivs: m.ivs, evs: m.evs,
       moves: [...m.moves.map(mv => mv.id), ...(player ? [WAIT] : [])]
     };
@@ -225,6 +245,13 @@ export class BattleSession {
     this.sim.p1.pokemonLeft = this.sim.p1.pokemon.filter(p => !p.fainted).length;
     for (const side of [this.sim.p1, this.sim.p2]) side.addSideCondition('hafniacoil', side.active[0]);
     if (o.tutorial) this.sim.p1.active[0].addVolatile('hafniaguard');
+    if (o.concert) this.sim.p2.active[0].addVolatile('hafniaconcert');
+    if (o.echo || o.titan) {
+      // A Resonance Rift: the Echo's frozen song lifts every stat of the wild Pokémon by one stage. A Titan is just big.
+      const p = this.sim.p2.active[0];
+      this.sim.add('-activate', p, o.titan ? 'Titan' : 'Echo');
+      this.sim.boost({ atk: 1, def: 1, spa: 1, spd: 1, spe: 1 }, p, p);
+    }
     this.advance();
   }
 
@@ -286,6 +313,7 @@ export class BattleSession {
       case 'ball': {
         const ball = ITEMS[action.item];
         if (this.opts.kind !== 'wild') { this.ev({ b: 'text', text: 'The trainer blocked the ball!\nDon\'t be a thief!' }); return this.request(); }
+        if (this.opts.titan) { this.ev({ b: 'text', text: 'The Titan brushed the ball aside!\nIt won\'t be caught like this.' }); return this.request(); }
         if (!ball?.ball || !this.host.bag[action.item]) return this.request();
         this.host.bag[action.item]--;
         this.ev({ b: 'text', text: `${this.host.playerName} threw a ${ball.name}!` });
@@ -406,7 +434,8 @@ export class BattleSession {
     };
     const c = this.coil.ally;
     if (c.enabled && active && !req?.forceSwitch) {
-      out.coil = { ...this.coilView('ally'), copper: coilBlock('copper', c, active), current: coilBlock('current', c, active) };
+      out.coil = { ...this.coilView('ally'), copper: coilBlock('copper', c, active), current: coilBlock('current', c, active),
+        ...(c.unlocks.harmony ? { harmony: coilBlock('harmony', c, active) } : {}) };
     }
     this.host.emit({ t: 'battleRequest', request: out });
   }
@@ -585,7 +614,7 @@ export class BattleSession {
       const base = (title: string) => this.opts.prize ?? rules.prizeBase[title] ?? rules.prizeDefault;
       const prize = this.foes[this.foes.length - 1].level * base(t.title) + (m ? this.foes2[this.foes2.length - 1].level * base(m.second.title) : 0);
       this.host.giveMoney(prize);
-      this.ev({ b: 'text', text: `You got ${prize} kr. for winning!` });
+      if (prize > 0) this.ev({ b: 'text', text: `You got ${prize} kr. for winning!` });
     } else if (result === 'win') this.host.emit({ t: 'bgm', name: 'victory_wild' });
     else if (result === 'lose') {
       if (this.opts.soft) this.ev({ b: 'text', text: 'You lost the battle...' });
@@ -622,25 +651,27 @@ export class BattleSession {
   private awardExp(fainted: SimPokemon) {
     const foe = this.monOf(fainted)!;
     const b = speciesExtra(foe.species).baseExp, L = foe.level;
-    const trainer = this.opts.kind === 'trainer' ? 1.5 : 1;
+    const trainer = (this.opts.kind === 'trainer' ? 1.5 : 1) * (this.host.bag.expcharm ? 1.5 : 1);
     const active = this.sim.p1.active[0];
     const team = this.sim.p1.pokemon.filter(p => !p.fainted && p.hp > 0 && this.monOf(p)!.level < 100);
     team.sort((x, y) => Number(y === active) - Number(x === active));
-    const rules = this.host.rules, cap = rules.levelCaps[this.host.badges] ?? Infinity;
+    const rules = this.host.rules, cap = rules.levelCaps[this.host.capStep ?? this.host.badges] ?? Infinity;
     let sharedSaid = false;
     for (const p of team) {
       const m = this.monOf(p)!, Lp = m.level;
       const full = (b * L / 5) * trainer * ((2 * L + 10) / (L + Lp + 10)) ** 2.5 + 1;
       const amount = Math.max(1, Math.floor(full * (p === active ? 1 : rules.benchExp) * (Lp >= cap ? rules.overCapExp : 1)));
       if (p === active) this.ev({ b: 'text', text: `${p.name} gained ${amount} Exp. Points!` });
-      if (p === active && Lp >= cap && !this.capSaid) { this.capSaid = true; this.ev({ b: 'text', text: `${p.name} is already a match for the next Gym\nLeader, so it learns less from battles now.` }); }
+      if (p === active && Lp >= cap && !this.capSaid) { this.capSaid = true; this.ev({ b: 'text', text: (this.host.capStep ?? this.host.badges) >= 8
+        ? `${p.name} is already a match for the League,\nso it learns less from battles now.`
+        : `${p.name} is already a match for the next Gym\nLeader, so it learns less from battles now.` }); }
       else if (!sharedSaid) { sharedSaid = true; this.ev({ b: 'text', text: 'The rest of your team gained Exp. Points\nthanks to the Exp. Share!' }); }
       const steps = gainExp(m, amount);
       for (const step of steps) {
         this.leveled.add(m.uid);
         this.syncLevel(p, m);
         if (p === active) this.expEvent(p, m);
-        this.host.emit({ t: 'me', name: 'me_item' });
+        this.host.emit({ t: 'me', name: 'me_item', wait: false });
         this.ev({ b: 'text', text: `${p.name} grew to Lv. ${step.level}!` });
         for (const id of step.learned) this.ev({ b: 'text', text: `${p.name} learned ${Dex.moves.get(id).name}!` });
         if (step.learned.length) this.rebuildMoves(p, m);
@@ -833,6 +864,8 @@ export class BattleSession {
           else if (eff === 'Attract') evs.push({ b: 'text', text: `${this.nameOf(a1)} is in love with ${this.nameOf(kw('of') ?? a1, false)}!` });
           else if (eff === 'Protect') evs.push({ b: 'text', text: `${this.nameOf(a1)} protected itself!` });
           else if (eff === 'Patina') evs.push({ b: 'text', text: `${this.nameOf(a1)}'s patina kept its defenses\nfrom dropping!` });
+          else if (eff === 'Concert') evs.push({ b: 'text', text: `${this.nameOf(a1)} holds the note!\nThe song isn't whole yet.` });
+          else if (eff === 'Echo') evs.push({ b: 'text', text: `The Echo's frozen song warps\n${this.nameOf(a1, false)}!` });
           else if (eff === 'Live Wire') evs.push({ b: 'text', text: `Live Wire! The Coil's spark jolts\n${this.nameOf(a1, false)} into action!` });
           break;
         }

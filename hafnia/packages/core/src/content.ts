@@ -55,6 +55,8 @@ export interface MapDef {
   npcs: NpcDef[];
   encounters?: [number, string][];  // [weight %, species]
   levels?: [number, number];
+  /** Optional side areas: wild (and fishing) levels follow the level cap, from this many below it to two below. */
+  scaleLevels?: number;
   encountersNight?: [number, string][];
   /** Tile that triggers wild encounters (default tall grass). */
   encounterTile?: string;
@@ -67,6 +69,11 @@ export interface MapDef {
   onEnter?: Script;
   indoor?: boolean;            // no day-night tint
   dark?: boolean;              // tunnels: lit only around the player
+  /** Look of the floor, walls and house fronts (client art only), e.g. 'home', 'center', 'brick'. */
+  theme?: string;
+  /** Furniture and wall decorations drawn over the grid, one char per tile ('.' for none). Purely visual:
+   *  the grid alone decides what is solid, so solid furniture sits on 'K' tiles. */
+  decor?: string[][];
   battleBg: string;
   bgm: string;
   /** Music at night, if different. */
@@ -87,13 +94,15 @@ export interface Rules {
   benchExp: number;
   /** Soft level caps by badge count (the next leader's ace): Pokémon at or above it get `overCapExp` of the Exp. */
   levelCaps: number[];
+  /** Story flags ("pack:flag") that each move the cap one step on, for the story past the last badge (the League). */
+  capFlags?: string[];
   overCapExp: number;
   coil: CoilRules;
 }
 
 export const DEFAULT_RULES: Rules = {
   encounterRate: 0.1,
-  prizeBase: { Youngster: 16, Cyclist: 24, Skater: 20, Grunt: 40, Rival: 60, Leader: 120, 'Elite Four': 160, Champion: 200 },
+  prizeBase: { Youngster: 16, Cyclist: 24, Skater: 20, Grunt: 40, Rival: 60, Leader: 120, 'Elite Four': 160, Champion: 200, 'Oath Trial': 60 },
   prizeDefault: 24,
   whiteoutBase: [8, 16, 24, 36, 48, 64, 80, 100, 120],
   obedienceBase: 20, obediencePerBadge: 5,
@@ -108,6 +117,8 @@ export interface PackManifest {
   /** Regional Pokédex order (defaults to `species`); level evolutions are slotted in after each. */
   dex?: string[];
   images: Record<string, string>;   // asset key -> path inside the Essentials repo
+  /** Sprites and cries for the pack's own Pokémon, by key (LANGELIRA); "pack:" paths are inside the pack. */
+  pokemon?: Record<string, { front: string; back: string; icons: string; cry: string }>;
   audio: Record<string, string>;
 }
 
@@ -124,6 +135,10 @@ export interface Pack {
   textVars?: (flags: FlagReader) => Record<string, string>;
   /** Picks battle music for battles that don't name their own (by trainer class, legendary...); only the base pack's is used. */
   battleMusic?: (o: BattleOptions) => string | undefined;
+  /** Pokédex entries by species id, in place of the mainline text from PBS. */
+  dexText?: Record<string, string>;
+  /** The player's current story goal (a line or a string key), or null when this pack has nothing to say. Later packs win. */
+  goal?: (flags: FlagReader) => string | null;
   /** Balance overrides; only the base pack's are used. */
   rules?: Partial<Rules>;
   /** Only the base game sets this: where a new game begins. */

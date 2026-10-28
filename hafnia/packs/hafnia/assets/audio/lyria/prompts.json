@@ -1,0 +1,222 @@
+{
+  "title": {
+    "bpm": 84,
+    "prompt": "Hopeful orchestral overture, harbour at dawn, gentle strings and horn melody, glockenspiel, adventure begins, video game title theme"
+  },
+  "norrebro": {
+    "bpm": 96,
+    "prompt": "Warm upbeat town theme, laid-back hip-hop swing drums, Rhodes piano, bicycle bell accents, friendly multicultural city neighbourhood, video game"
+  },
+  "town_night": {
+    "bpm": 70,
+    "prompt": "Quiet night-time town theme, soft muted piano and music box, slow, sleepy city streets under lamplight, video game"
+  },
+  "home": {
+    "bpm": 80,
+    "prompt": "Cosy home theme, solo piano and soft acoustic guitar, warm and gentle, morning in a small flat, video game"
+  },
+  "route_lakes": {
+    "bpm": 112,
+    "prompt": "Bright open route theme, lakeside strings and flute, light percussion, adventurous walking music, video game overworld"
+  },
+  "lab": {
+    "bpm": 100,
+    "prompt": "Curious playful laboratory theme, woodwinds and pizzicato strings, marimba, botanical greenhouse, science and wonder, video game"
+  },
+  "cave": {
+    "bpm": 72,
+    "prompt": "Dark underground tunnel ambience music, low synth drones, distant metallic percussion, steam pipes, mysterious, video game dungeon"
+  },
+  "city": {
+    "bpm": 108,
+    "prompt": "Big city theme, brass and strings, cobblestone streets, busy shopping street, confident and bustling, video game town"
+  },
+  "tower": {
+    "bpm": 90,
+    "prompt": "Climbing an old observatory tower, harpsichord and celesta, starry and solemn, slowly rising arpeggios, video game dungeon"
+  },
+  "harbour": {
+    "bpm": 104,
+    "prompt": "Cheerful harbour town theme, accordion and fiddle sea shanty, acoustic guitar, colourful houses by the canal, video game"
+  },
+  "cafe": {
+    "bpm": 92,
+    "prompt": "Light jazzy cafe music, brushed drums, upright bass, vibraphone, relaxed and chatty, video game shop"
+  },
+  "industrial": {
+    "bpm": 100,
+    "prompt": "Tense industrial shipyard theme, clanking metal percussion, low brass, driving bass, cranes and containers, video game"
+  },
+  "route_city": {
+    "bpm": 120,
+    "prompt": "Energetic cycling route through the city, funky bass, electric guitar, synth lead, sunny day, video game overworld"
+  },
+  "bike": {
+    "bpm": 132,
+    "prompt": "Fast fun bicycle riding theme, bright synth lead, bouncy bass, upbeat drums, wind in your hair, video game"
+  },
+  "freetown": {
+    "bpm": 88,
+    "prompt": "Laid-back hippie neighbourhood theme, reggae-tinged acoustic guitars, hand percussion, relaxed and free, video game town"
+  },
+  "park": {
+    "bpm": 98,
+    "prompt": "Peaceful garden park theme, flute and harp, light strings, birdsong feel, sunny afternoon, video game"
+  },
+  "forest": {
+    "bpm": 94,
+    "prompt": "Ancient deer forest theme, oboe and pizzicato strings, soft hand drums, misty woodland, gentle mystery, video game route"
+  },
+  "village": {
+    "bpm": 96,
+    "prompt": "Rustic seaside village theme, folk fiddle, accordion and acoustic guitar, yellow houses, old fishing harbour, video game"
+  },
+  "vesterbro": {
+    "bpm": 102,
+    "prompt": "Hip gritty city district theme, lo-fi beat, jazzy guitar, a bit of grit, street art and cafes, video game town"
+  },
+  "cemetery": {
+    "bpm": 66,
+    "prompt": "Quiet old cemetery theme at dusk, music box melody, soft strings, lanterns, melancholic and a little eerie, video game"
+  },
+  "cisterns": {
+    "bpm": 70,
+    "prompt": "Echoing underground water cisterns, dripping water percussion, deep reverb pads, glassy bells, mysterious, video game dungeon"
+  },
+  "kastellet": {
+    "bpm": 112,
+    "prompt": "Military fortress theme, marching snare drums, brass fanfare, proud and disciplined, star-shaped citadel, video game"
+  },
+  "route_coast": {
+    "bpm": 110,
+    "prompt": "Breezy coastal road theme, acoustic guitar and strings, sea view, light and open, summer drive, video game overworld"
+  },
+  "bakken": {
+    "bpm": 120,
+    "prompt": "Old amusement park theme, carousel organ waltz, calliope, playful and slightly crazy, funfair, video game"
+  },
+  "vanguard": {
+    "bpm": 104,
+    "prompt": "Cold corporate villain base theme, clean electronic synths, pulsing bass, sterile and tense, power plant, video game"
+  },
+  "fleet": {
+    "bpm": 84,
+    "prompt": "Pirate crew hideout theme, low brass and cello, minor-key sea shanty, mysterious captain, melancholic and proud, video game"
+  },
+  "sea": {
+    "bpm": 100,
+    "prompt": "Open sea surfing theme, bobbing rhythm, steel drums and strings, sea fort on the horizon, video game"
+  },
+  "palace": {
+    "bpm": 86,
+    "prompt": "Grand palace and old stock exchange theme, harpsichord and string quartet, regal and refined, old money, video game"
+  },
+  "copenhill": {
+    "bpm": 116,
+    "prompt": "Uplifting mountain top theme, wind turbines, ski slope on a power plant roof, soaring synth and strings, video game"
+  },
+  "center": {
+    "bpm": 96,
+    "prompt": "Calm healing centre theme, soft electric piano and bells, comforting and familiar, video game Pokemon Center style"
+  },
+  "gym": {
+    "bpm": 128,
+    "prompt": "Gym battle arena theme, driving drums, electric guitar riff, confident and competitive, video game gym"
+  },
+  "battle_wild": {
+    "bpm": 150,
+    "prompt": "Exciting wild monster battle theme, fast drums, synth brass stabs, energetic bass, video game JRPG battle music"
+  },
+  "battle_trainer": {
+    "bpm": 152,
+    "prompt": "Trainer battle theme, energetic rock drums, synth lead melody, punchy bass, video game JRPG battle music"
+  },
+  "battle_rival": {
+    "bpm": 156,
+    "prompt": "Rival battle theme, intense synth and electric guitar duel, driving drums, competitive and heroic, video game battle music"
+  },
+  "battle_leader": {
+    "bpm": 158,
+    "prompt": "Gym leader battle theme, epic orchestral rock, brass and electric guitar, high stakes, video game boss battle music"
+  },
+  "battle_boss": {
+    "bpm": 146,
+    "prompt": "Villain boss battle theme, dark orchestral, low brass, choir pads, pounding drums, dramatic, video game final boss"
+  },
+  "battle_fleet": {
+    "bpm": 150,
+    "prompt": "Pirate crew battle theme, minor-key sea shanty at battle tempo, fiddle and accordion with rock drums, video game battle"
+  },
+  "battle_vanguard": {
+    "bpm": 148,
+    "prompt": "Corporate villain grunt battle theme, cold electronic synths, aggressive bass, industrial drums, video game battle"
+  },
+  "battle_legend": {
+    "bpm": 140,
+    "prompt": "Legendary creature battle theme, majestic orchestra and choir, harp glissandos, awe and danger, video game legendary battle"
+  },
+  "battle_lowhp": {
+    "bpm": 160,
+    "prompt": "Urgent low health battle theme, tense staccato strings, alarm-like synth pulses, fast drums, video game danger music"
+  },
+  "metro": {
+    "bpm": 98,
+    "prompt": "Underground metro tunnel theme, pulsing electronic bass, distant train rumble, echoing synth arps, tense, video game dungeon"
+  },
+  "ruins": {
+    "bpm": 68,
+    "prompt": "Ancient medieval ruins and deep caves, low choir pads, slow tribal drums, stone echoes, mysterious and ancient, video game dungeon"
+  },
+  "castle": {
+    "bpm": 92,
+    "prompt": "Renaissance castle theme, lute, recorder and strings, Hamlet's fortress by the sea, noble and slightly ominous, video game"
+  },
+  "island": {
+    "bpm": 100,
+    "prompt": "Sunny Baltic island theme, acoustic guitar, fiddle and light percussion, rocky coast and smokehouses, relaxed holiday, video game"
+  },
+  "route_bridge": {
+    "bpm": 118,
+    "prompt": "Long bridge across the sea, sweeping strings and synth pads, driving rhythm, wind and open sky, video game overworld"
+  },
+  "wilds": {
+    "bpm": 96,
+    "prompt": "Wild marshland nature reserve, hand drums, wooden flute, open grassland, a little untamed, video game safari route"
+  },
+  "route_country": {
+    "bpm": 108,
+    "prompt": "Country road through farmland, acoustic guitar and accordion, light folk percussion, golden fields, video game overworld"
+  },
+  "viking": {
+    "bpm": 90,
+    "prompt": "Viking town theme, nordic folk, hurdy-gurdy, frame drum, low horn, longships in the harbour, proud and old, video game"
+  },
+  "cathedral": {
+    "bpm": 64,
+    "prompt": "Old cathedral theme, pipe organ and choir, reverent and solemn, royal tombs, video game"
+  },
+  "tivoli": {
+    "bpm": 116,
+    "prompt": "Magical evening amusement garden theme, sparkling celesta, waltzing strings, fairy lights, joyful and enchanted, video game"
+  },
+  "league": {
+    "bpm": 96,
+    "prompt": "Pokemon League palace theme, majestic brass and timpani, grand marble halls, tension before the final challenge, video game"
+  },
+  "crisis": {
+    "bpm": 124,
+    "prompt": "City in crisis theme, flooding harbour, urgent strings ostinato, pounding drums, alarm-like synth, video game emergency"
+  },
+  "battle_elite": {
+    "bpm": 156,
+    "prompt": "Elite Four battle theme, epic orchestral rock, choir stabs, heroic and intense, video game elite battle music"
+  },
+  "battle_champion": {
+    "bpm": 160,
+    "prompt": "Champion final battle theme, grand orchestra with electric guitar and choir, triumphant and climactic, video game champion battle"
+  },
+  "battle_lumen": {
+    "bpm": 150,
+    "prompt": "Sleek tech corporation villain battle theme, glossy cold synthwave, aggressive arps, ominous bass, video game boss battle"
+  }
+}

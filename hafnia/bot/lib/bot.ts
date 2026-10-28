@@ -29,7 +29,7 @@ export interface Answer { when?: RegExp; pick: Match; once?: boolean }
  *  (Current, else Copper) as soon as it is charged, `catch` throws Poké Balls at wild Pokémon, `run` flees.
  *  A function decides each turn. */
 export type BattlePlan = 'fight' | 'coil' | 'catch' | 'run' | ((s: Probe) => BattleChoice);
-export type BattleChoice = { move: number | string; coil?: 'copper' | 'current'; target?: number } | { ball: string } | { run: true } | { switchTo: number | string };
+export type BattleChoice = { move: number | string; coil?: 'copper' | 'current' | 'harmony'; target?: number } | { ball: string } | { run: true } | { switchTo: number | string };
 
 export interface SettleOptions {
   /** Max time to wait for the overworld to be free again. */
@@ -295,7 +295,7 @@ export class Bot {
       const mi = typeof choice.move === 'number' ? choice.move : moves.findIndex(m => m.name === choice.move || m.id === choice.move);
       if (mi < 0) throw new Error(`No move ${String(choice.move)}: ${moves.map(m => m.name).join(', ')}`);
       if (choice.coil) {
-        const toggle = grid.items.findIndex(it => it.label.startsWith(choice.coil === 'copper' ? 'Copper' : 'Current'));
+        const toggle = grid.items.findIndex(it => it.label.toLowerCase().startsWith(choice.coil!));
         if (toggle < 0) throw new Error(`The Coil is not online in this battle (no ${choice.coil} toggle)`);
         if (!grid.items[toggle].label.includes('✓')) { await this.gridPick(toggle); await this.waitFor(x => !!x.battle?.grid || !!x.text, 5000, 'the move menu'); const again = await this.state(); if (!again.battle?.grid) return; }
       }
@@ -341,17 +341,19 @@ export class Bot {
   /** One step (or a turn plus a step). Returns false when blocked. */
   async step(dir: Dir, opts: { settle?: boolean } = {}): Promise<boolean> {
     const s0 = await this.waitFor(Bot.idle, 15_000, 'the overworld to be free');
-    await this.page.keyboard.down(KEYS[dir]);
-    let s = s0, moved = false;
-    try {
-      const end = Date.now() + 1500;
-      for (;;) {
-        s = await this.state();
-        if (s.moving || s.x !== s0.x || s.y !== s0.y || s.map !== s0.map || s.text || s.choice || s.scene !== 'overworld' || s.fade > 0) { moved = true; break; }
-        if (Date.now() > end) break;
-        await sleep(10);
-      }
-    } finally { await this.page.keyboard.up(KEYS[dir]); }
+    // Hold the key in the page and let go on the first frame the game reacts. Polling from here is too slow
+    // on a busy runner: the key stays down after an ice slide ends and the player takes an extra step.
+    const moved = await this.page.evaluate(({ key, s0 }) => new Promise<boolean>(done => {
+      const h = (window as any).__hafnia, end = performance.now() + 1500;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key }));
+      const tick = () => {
+        const s = h.probe();
+        const reacted = s.moving || s.x !== s0.x || s.y !== s0.y || s.map !== s0.map || !!s.text || !!s.choice || s.scene !== 'overworld' || s.fade > 0;
+        if (reacted || performance.now() > end) { window.dispatchEvent(new KeyboardEvent('keyup', { key })); done(reacted); }
+        else requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }), { key: KEYS[dir], s0: { x: s0.x, y: s0.y, map: s0.map } });
     if (!moved) return false;
     await this.waitFor(s => !s.moving, 5000, 'the step to finish');
     if (opts.settle !== false) await this.settle();

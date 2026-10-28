@@ -1,6 +1,6 @@
 // Small helpers shared by the story scripts. Text arguments are string keys from strings/en.json
 // (see tools/import-strings.mjs) or literal lines.
-import { levelEvolution, makeMon, Rng, type Pause, type BattleOptions, type Dir, type FoeSpec, type MapEvent, type NpcDef, type Script, type ScriptApi } from '@hafnia/core';
+import { ITEMS, levelEvolution, makeMon, Rng, type Pause, type BattleOptions, type Dir, type FoeSpec, type MapEvent, type NpcDef, type Script, type ScriptApi } from '@hafnia/core';
 
 export interface MapScripts {
   npcs?: NpcDef[];
@@ -16,6 +16,16 @@ export function* findItem(s: ScriptApi, flag: string, item: string, qty: number,
   s.giveItem(item, qty);
   s.me('me_item');
   s.say(`${s.player.name} found ${qty > 1 ? `${qty} ` : ''}${label}!`);
+}
+
+/** Before a Pokémon the story needs you to catch: with (almost) no balls left and no way to earn money in the
+ *  post-game, the player could be stuck, so someone hands over a few Ultra Balls. */
+export function ballsFor(s: ScriptApi, giver: string) {
+  const balls = Object.entries(ITEMS).filter(([, it]) => it.pocket === 'balls').reduce((n, [id]) => n + s.hasItem(id), 0);
+  if (balls >= 3) return;
+  s.giveItem('ultraball', 5);
+  s.me('me_item');
+  s.say(`${giver} pressed 5 Ultra Balls into ${s.player.name}'s hand.\n"You'll want these. Trust me."`);
 }
 
 /** An item ball that disappears once taken. */
@@ -35,7 +45,8 @@ export const TR: Record<string, string> = {
   Busker: 'tr/juggler', Tourist: 'tr/tourist', 'Royal Guard': 'tr/guard', Sailor: 'tr/sailor', Swimmer: 'tr/swimmer',
   Deckhand: 'tr/deckhand', Gardener: 'tr/gardener', Christianite: 'tr/picnicker', 'Grid Enforcer': 'tr/enforcer',
   Picnicker: 'tr/picnicker', Medium: 'tr/channeler', Bosun: 'tr/ivar', Cadet: 'tr/guard', Explorer: 'tr/camper', 'Survey Drone': 'tr/scientist', Captain: 'tr/freja', Rival: 'tr/lukas', Leader: 'tr/tariq',
-  'Vanguard Scientist': 'tr/scientist', Commander: 'tr/kaas', 'Vanguard Lawyer': 'tr/lawyer', Merchant: 'tr/gentleman'
+  'Vanguard Scientist': 'tr/scientist', Commander: 'tr/kaas', 'Vanguard Lawyer': 'tr/lawyer', Merchant: 'tr/gentleman',
+  'Ace Trainer': 'tr/acem', Ranger: 'tr/ranger', Elder: 'tr/fisher', 'Viking Reenactor': 'tr/biker', Shipwright: 'tr/engineer', 'Grid Technician': 'tr/engineer'
 };
 
 export interface TrainerSpec {
