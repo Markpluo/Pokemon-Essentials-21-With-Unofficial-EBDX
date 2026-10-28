@@ -15,4 +15,5 @@ To add a project: give it a folder in `projects` in `build.mjs` (or copy static 
 `public/<name>/`), and turn one of the placeholder boxes in `public/index.html` into a link.
 
 `.github/workflows/deploy-pages.yml` builds everything and deploys `dist/` to the Pages project
-`blyn` on every push to `main`.
+`blyn` on every push to `main`. It also copies the repo secrets `INVITE_CODES`/`INVITE_SECRET` to
+the project and attaches blyn.dk and www.blyn.dk as custom domains.
