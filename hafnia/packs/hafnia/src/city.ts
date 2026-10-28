@@ -174,6 +174,7 @@ const DRYDOCK: MapScripts = {
       if (s.flag('crane')) { s.say('The crane hook sways gently.'); return; }
       s.say('c2.dock.crane');
       const c: number = yield s.ask('Slide the hook where?', ['Left', 'Centre', 'Right, over the stuck container'], 1);
+      s.sfx('crane');
       if (c !== 2) { s.sfx('hit_weak'); s.say('The hook swings over empty concrete and back.'); return; }
       s.sfx('hit_super');
       s.say('c2.dock.crane.ok');

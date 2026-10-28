@@ -225,7 +225,7 @@ export class BattleSession {
     this.host.emit({
       t: 'battleStart',
       battle: {
-        kind: o.kind, bg: o.bg ?? 'field', bgm: o.kind === 'wild' ? 'battle_wild' : 'battle_trainer',
+        kind: o.kind, bg: o.bg ?? 'field', bgm: o.bgm ?? (o.kind === 'wild' ? 'battle_wild' : 'battle_trainer'),
         ...(o.trainer ? { trainer: o.trainer } : {}), foeCount: this.foes.length,
         ...(o.multi ? { multi: {
           partner: { name: o.multi.partner.name, sprite: o.multi.partner.sprite },

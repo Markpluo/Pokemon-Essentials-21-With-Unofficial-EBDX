@@ -6,7 +6,7 @@ import { Dex } from '@pkmn/sim';
 import type { Dir } from './protocol';
 import { COIL_DEFAULTS, type CoilRules } from './coil';
 import { registerSpeciesExtra, type SpeciesExtra } from './pokemon';
-import type { Script } from './script';
+import type { BattleOptions, Script } from './script';
 
 /** A building: tileset parts [srcX, srcY, w, h, dx, dy], or `draw` naming a client-drawn building. */
 export interface Stamp { parts?: number[][]; draw?: string; w: number; h: number; door?: [number, number] }
@@ -76,6 +76,10 @@ export interface MapDef {
   decor?: string[][];
   battleBg: string;
   bgm: string;
+  /** Music at night, if different. */
+  bgmNight?: string;
+  /** A quiet looping background sound under the music (waves, dripping water, machinery). */
+  ambient?: string;
 }
 
 /** Balance numbers (systems.md principle 4). The base pack can override any of them. */
@@ -129,6 +133,8 @@ export interface Pack {
   /** Text by key ("p.mum.1"). say() and ask() look keys up here; `{player}` and textVars are filled in. */
   strings?: Record<string, string>;
   textVars?: (flags: FlagReader) => Record<string, string>;
+  /** Picks battle music for battles that don't name their own (by trainer class, legendary...); only the base pack's is used. */
+  battleMusic?: (o: BattleOptions) => string | undefined;
   /** Pokédex entries by species id, in place of the mainline text from PBS. */
   dexText?: Record<string, string>;
   /** The player's current story goal (a line or a string key), or null when this pack has nothing to say. Later packs win. */
