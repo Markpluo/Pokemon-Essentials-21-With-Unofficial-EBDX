@@ -20,6 +20,8 @@ export interface ItemDef {
   evolve?: string;           // evolution item: species.json "Item" evolutions with this parameter (DUSKSTONE)
   exp?: number;              // Exp. Candy: experience points given
   evs?: number;              // Titan Herb: effort values added to every stat (max 252 each)
+  keep?: boolean;            // not used up (the Soothe Bell)
+  field?: 'thermos';         // used from the bag outdoors (the Termokande)
 }
 
 export const ITEMS: Record<string, ItemDef> = {
@@ -91,6 +93,16 @@ export const ITEMS: Record<string, ItemDef> = {
   coppernail: { name: 'Copper Hull Nail', pocket: 'key', price: 0, desc: 'From the old ships. Lets the Coil make Patina armour.' },
   lighthouselog: { name: 'Lighthouse Log', pocket: 'key', price: 0, desc: 'Yellowed pages from a lighthouse keeper\'s log.' },
   everstone: { name: 'Everstone', pocket: 'other', price: 3000, breeding: true, desc: 'Leave it at Vuggestuen with a Pokémon and the Egg gets its nature.' },
+  ovalstone: { name: 'Oval Stone', pocket: 'other', price: 3000, evolve: 'OVALSTONE', desc: 'A round stone, warm as an egg. Some Pokémon evolve when it touches them in daylight.' },
+  moonstone: { name: 'Moon Stone', pocket: 'other', price: 3000, evolve: 'MOONSTONE', desc: 'A stone as black as the night sky. Some Pokémon evolve when it touches them.' },
+  crackedpot: { name: 'Cracked Pot', pocket: 'other', price: 1600, evolve: 'CRACKEDPOT', desc: 'A chipped teapot from a Copenhagen flea market. Sinistea evolve when they move in.' },
+  soothebell: { name: 'Soothe Bell', pocket: 'other', price: 0, evolve: 'SOOTHEBELL', keep: true, desc: 'A bell with a gentle chime. Ring it for a Pokémon that is fond of you and it may evolve. Never wears out.' },
+  termokande: { name: 'Termokande', pocket: 'key', price: 0, field: 'thermos', desc: 'A Danish thermos of hot coffee. Pour a cup outdoors and let the hours slip by.' },
+  hyggepass: { name: 'Hygge Passport', pocket: 'key', price: 0, desc: 'A little booklet with twelve stamp boxes, one for every coffee stop in Hafnia.' },
+  medbag: { name: 'Lene\'s Medicine Bag', pocket: 'key', price: 0, desc: 'Four labelled parcels from the Nørrebro Pokémon Center. Deliver them before 05:00.' },
+  starchart: { name: 'Tycho\'s Star Chart', pocket: 'key', price: 0, desc: 'A blank chart of the Hafnian sky. Eight constellations to find from eight telescopes, at night.' },
+  tmflamethrower: { name: 'TM Flamethrower', pocket: 'tms', price: 0, tm: 'flamethrower', desc: 'Teaches Flamethrower. Can be used again and again.' },
+  ember: { name: 'Sankt Hans Ember', pocket: 'key', price: 0, desc: 'A coal from the eighth Midsummer bonfire. It never goes out, and Fire-types love to sit near it.' },
   destinyknot: { name: 'Destiny Knot', pocket: 'other', price: 20000, breeding: true, desc: 'Leave it at Vuggestuen with a Pokémon and the Egg inherits 5 IVs.' }
 };
 

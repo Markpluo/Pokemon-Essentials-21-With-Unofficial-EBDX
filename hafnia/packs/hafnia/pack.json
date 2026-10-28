@@ -260,7 +260,14 @@
     "ponyta",
     "rapidash",
     "lampent",
-    "troldtrae"
+    "troldtrae",
+    "azurill",
+    "happiny",
+    "chansey",
+    "blissey",
+    "cleffa",
+    "clefable",
+    "polteageist"
   ],
   "pokemon": {
     "LANGELIRA": { "front": "pack:assets/pokemon/front/LANGELIRA.png", "back": "pack:assets/pokemon/back/LANGELIRA.png", "icons": "pack:assets/pokemon/icons/LANGELIRA.png", "cry": "Audio/SE/Cries/PRIMARINA.ogg" },

@@ -401,6 +401,21 @@ export function drawObject(g: G2, kind: string, dx: number, dy: number, time: nu
     case 'starchart': box(14, 18, 4, 14, '#6b4526'); box(3, 3, 26, 18, '#1b2340');
       g.fillStyle = '#f2e6b8'; for (const [x, y] of [[7, 7], [10, 9], [13, 8], [16, 11], [21, 6], [24, 9], [19, 15], [9, 16]]) g.fillRect(dx + x, dy + y, 2, 2);
       g.strokeStyle = 'rgba(242,230,184,0.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(dx + 8, dy + 8); g.lineTo(dx + 11, dy + 10); g.lineTo(dx + 14, dy + 9); g.lineTo(dx + 17, dy + 12); g.stroke(); break;
+    case 'pram': {   // a Danish barnevogn: navy hood, white blanket, big spoked wheels
+      box(6, 8, 18, 12, '#2c3f6b'); box(4, 6, 10, 10, '#22335a'); box(14, 12, 12, 4, '#f2efe6'); box(24, 6, 2, 8, '#8a8f99'); box(22, 5, 6, 2, '#8a8f99');
+      g.fillStyle = '#26272c'; g.beginPath(); g.arc(dx + 9, dy + 25, 5, 0, 7); g.arc(dx + 23, dy + 25, 5, 0, 7); g.fill();
+      g.fillStyle = '#c9ccd3'; g.beginPath(); g.arc(dx + 9, dy + 25, 2, 0, 7); g.arc(dx + 23, dy + 25, 2, 0, 7); g.fill();
+      break;
+    }
+    case 'bonfire': case 'bonfireout': {   // a Sankt Hans pile of logs, with a straw witch on top until it is lit
+      box(4, 24, 24, 4, '#5a3a22'); box(7, 18, 18, 7, '#6b4526'); box(10, 12, 12, 7, '#7a5232');
+      if (kind === 'bonfireout') { box(14, 4, 4, 9, '#c9a64a'); box(12, 6, 8, 2, '#c9a64a'); box(14, 2, 4, 3, '#2b2b30'); break; }
+      const f = Math.sin(time / 5);
+      g.fillStyle = `rgba(255,170,60,${0.2 + 0.06 * f})`; g.beginPath(); g.arc(dx + 16, dy + 14, 16, 0, 7); g.fill();
+      g.fillStyle = '#ff7a2a'; g.beginPath(); g.moveTo(dx + 6, dy + 22); g.lineTo(dx + 16, dy + 1 + f * 2); g.lineTo(dx + 26, dy + 22); g.fill();
+      g.fillStyle = '#ffd36b'; g.beginPath(); g.moveTo(dx + 10, dy + 22); g.lineTo(dx + 16, dy + 8 - f * 2); g.lineTo(dx + 22, dy + 22); g.fill();
+      break;
+    }
     case 'telescope':
       box(10, 26, 12, 4, '#3b3f4a'); box(14, 16, 4, 10, '#565b66');
       g.save(); g.translate(dx + 16, dy + 16); g.rotate(-0.6); g.fillStyle = '#b87333'; g.fillRect(-14, -4, 28, 8); g.fillStyle = '#d9a066'; g.fillRect(-14, -4, 28, 2); g.fillStyle = '#26272c'; g.fillRect(12, -5, 4, 10); g.restore();
