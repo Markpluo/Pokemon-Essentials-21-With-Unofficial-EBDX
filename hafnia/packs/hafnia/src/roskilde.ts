@@ -41,7 +41,7 @@ const ROSKILDE: MapScripts = {
   npcs: [
     { id: 'rkguide', sprite: 'chars/tourist', x: 15, y: 10, dir: 'down', talk: talk('Tourist: The cathedral has forty kings and queens\nin it. Forty! Copenhagen only has traffic.') },
     { id: 'rkkid', sprite: 'chars/kid', x: 5, y: 12, dir: 'right', talk: talk('Kid: Men in grey coats went into the cathedral\nand didn\'t come out. My dad says it\'s "renovation".') },
-    trainer({ id: 'rkviking', x: 11, y: 16, dir: 'right', sprite: 'chars/biker', sight: 3, cls: 'Viking Reenactor', name: 'Ulf',
+    trainer({ id: 'rkviking', x: 12, y: 17, dir: 'right', sprite: 'chars/biker', sight: 7, cls: 'Viking Reenactor', name: 'Ulf',
       foes: [{ species: 'braviary', level: 40 }, { species: 'dhelmise', level: 39 }],
       intro: ['Viking Reenactor Ulf: Hold, traveller! None pass the longships\nwithout a battle. Museum rules.'], lose: ['Viking Reenactor Ulf: Valhalla can wait. I\'m on shift till five.'] }),
     itemBall('item.rk1', 27, 16, 'revive', 2, 'Revives')
