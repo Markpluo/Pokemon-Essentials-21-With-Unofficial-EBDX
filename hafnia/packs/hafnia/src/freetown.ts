@@ -3,6 +3,7 @@
 import type { NpcDef, Script } from '@hafnia/core';
 import { centerNpcs } from './home';
 import { itemBall, sign, talk, trainer, type MapScripts } from './lib';
+import { rematch } from './rematch';
 
 // ---------- Route 4 ----------
 
@@ -155,6 +156,7 @@ const mirror = (flag: string): Script => function* (s) {
 };
 
 const alvaGym: Script = function* (s) {
+  if (s.flag('champion')) { yield* rematch(s, 'alva'); return; }
   if (s.flag('lily')) { s.say('c2.alva.secret'); return; }
   s.say('c2.alva.intro.1'); s.say('c2.alva.intro.2');
   const c: number = yield s.ask('Alva: Shall we?', ['Yes', 'Not yet'], 1);

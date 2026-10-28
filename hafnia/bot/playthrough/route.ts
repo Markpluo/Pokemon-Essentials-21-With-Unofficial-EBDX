@@ -370,6 +370,17 @@ export function chapter13(p: P) {
   // The dark night starts on the way down from the Ring and ends at home.
   if (!p.flag('ch13')) try { goto(p, 'copenhill'); } catch (e) { if (!p.flag('ch13')) throw e; }
   shopAndHeal(p, 'pcslotsholmen');
+  // Like a player: Karla's Exp. Candy on the weakest, then sparring rounds with her (healing at the palace nurse)
+  // until the team is near the League's levels.
+  goto(p, 'leaguehall');
+  p.talkTo(10, 4);
+  for (let i = 0; i < 3 && p.s.bag.expcandyl; i++) {
+    const weakest = p.s.party.filter(m => !m.egg).sort((a, b) => a.level - b.level)[0];
+    p.send({ t: 'useItem', item: 'expcandyl', uid: weakest.uid });
+  }
+  for (let i = 0; i < 20 && (p.leadLevel < 60 || p.minLevel < 56); i++) { p.talkTo(3, 1); p.talkTo(10, 4); }
+  p.talkTo(3, 1);
+  p.notes.push(`sparred with Karla: team ${p.minLevel}-${p.leadLevel} before the Elite Four`);
   for (const [m, map] of [['valdemar', 'stables'], ['clara', 'admiral'], ['nikolai', 'greathall'], ['freja', 'towerstairs']] as const)
     goal(p, `Elite Four ${m}`, () => !!p.flag(`e4${m}`), () => { goto(p, map); p.talkTo(5, 2); });
   goal(p, 'the Champions', () => !!p.flag('ch13done'), () => goto(p, 'towerroof'));
@@ -461,4 +472,10 @@ export function postgame5(p: P) {
   p.answers.push({ when: /Charge the lamp/, pick: 'Charge it' });
   goal(p, 'the lamp', () => !!p.flag('pg5done'), () => { goto(p, 'tklighthouse'); p.talkTo(2, 4); });
   goal(p, 'Lindholm\'s letter', () => !!p.flag('pg5letter'), () => goto(p, 'flat'));
+  // The Champion's Gym Leader rematches: one a day, and they pay.
+  const money = p.s.money;
+  goal(p, 'Tariq\'s rematch', () => p.flag('rematch.tariq') !== undefined, () => { heal(p); goto(p, 'gym1'); p.talkTo(7, 2); });
+  p.talkTo(7, 2);
+  if (!/One round a day/.test(p.said.slice(-3).join('\n'))) throw new Error('Tariq took a second rematch on the same day');
+  p.notes.push(`Tariq's rematch paid ${p.s.money - money} kr.`);
 }

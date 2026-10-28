@@ -34,6 +34,7 @@ export interface SaveData {
   repel: number;                   // steps left
   look: Look;                      // the player's character
   clock: number;                   // in-game minutes since midnight (1 day = 48 real minutes in the overworld)
+  day: number;                     // in-game days passed (the clock wrapping past midnight), for once-a-day events
   daycare: DaycareState;           // Vuggestuen: two Pokémon and the eggs waiting in the prams
   steps: number;                   // overworld steps taken
   hatched: number;                 // eggs hatched (Ørsted's Hatchery Log)
@@ -88,7 +89,7 @@ export class Game {
       v: SAVE_VERSION, packs: [...content.packs.keys()], name: 'Player', map, x: start.x, y: start.y, dir: start.dir,
       party: [], box: [], bag: {}, money: 3000, flags: {}, npcs: {},
       respawn: { ...start.respawn, map: ns(base.manifest.id, start.respawn.map) }, rng: seed >>> 0,
-      badges: [], coil: {}, repel: 0, look: 'boy', clock: PERIOD_START.morning + 4 * 60,
+      badges: [], coil: {}, repel: 0, look: 'boy', clock: PERIOD_START.morning + 4 * 60, day: 0,
       daycare: emptyDaycare(), steps: 0, hatched: 0, dex: emptyDex()
     });
     game.emitMap();
@@ -131,7 +132,7 @@ export class Game {
         if (intent.t === 'answer') this.answer(intent.index, intent.text);
       } else {
         switch (intent.t) {
-          case 'tick': this.state.clock = (this.state.clock + Math.max(0, Math.min(60, Number(intent.seconds) || 0)) * GAME_MINUTES_PER_SECOND) % 1440; break;
+          case 'tick': this.advanceClock(Math.max(0, Math.min(60, Number(intent.seconds) || 0)) * GAME_MINUTES_PER_SECOND); break;
           case 'turn': this.state.dir = intent.dir; break;
           case 'step': this.pcOpen = false; this.step(intent.dir); break;
           case 'interact': this.pcOpen = false; this.interact(); break;
@@ -194,6 +195,13 @@ export class Game {
   }
 
   get period(): DayPeriod { return periodOf(this.state.clock); }
+
+  /** Moves the clock forward, counting a new day each time it passes midnight. */
+  private advanceClock(minutes: number) {
+    const t = this.state.clock + minutes;
+    this.state.day = (this.state.day ?? 0) + Math.floor(t / 1440);
+    this.state.clock = t % 1440;
+  }
 
   private buildingAt(m: MapDef & { key: string; pack: string }, x: number, y: number) {
     return m.buildings.some(b => {
@@ -560,7 +568,7 @@ export class Game {
         }, this.map.pack);
         break;
       case 'time': {
-        s.clock = Math.floor(s.clock + 6 * 60) % (24 * 60);
+        this.advanceClock(6 * 60); s.clock = Math.floor(s.clock);
         say(`Debug: it is now ${String(Math.floor(s.clock / 60)).padStart(2, '0')}:${String(s.clock % 60).padStart(2, '0')}.`); break;
       }
       case 'hatchEggs': {
@@ -812,7 +820,8 @@ export class Game {
       setName: name => { s.name = name; },
       setLook: look => { s.look = look; },
       get period() { return g.period; },
-      setTime: period => { s.clock = PERIOD_START[period]; },
+      setTime: period => { if (PERIOD_START[period] <= s.clock) s.day = (s.day ?? 0) + 1; s.clock = PERIOD_START[period]; },
+      get day() { return s.day ?? 0; },
       get clock() { return Math.floor(s.clock); },
       setClock: minutes => { s.clock = ((Math.floor(minutes) % 1440) + 1440) % 1440; },
       givePokemon: (species, level) => {
@@ -966,7 +975,7 @@ export function migrate(save: SaveData): SaveData {
   const s = structuredClone(save);
   s.box ??= []; s.npcs ??= {}; s.flags ??= {};
   s.badges ??= []; s.coil ??= {}; s.repel ??= 0;   // v2: badges, Coil unlocks, Repel
-  s.look ??= 'boy'; s.clock ??= 8 * 60;              // character look and world clock (no version bump: defaults are safe)
+  s.look ??= 'boy'; s.clock ??= 8 * 60; s.day ??= 0;              // character look and world clock (no version bump: defaults are safe)
   s.daycare ??= emptyDaycare(); s.steps ??= 0; s.hatched ??= 0;   // v3: Vuggestuen and eggs
   if (!s.dex) {                                                    // v4: Pokédex, from what the player owns
     s.dex = emptyDex();

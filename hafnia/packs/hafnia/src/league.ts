@@ -38,6 +38,27 @@ export const palaceDoor: Script = function* (s) {
 
 // ---------- The League hall ----------
 
+/** Karla spars with challengers as often as they like, so the climb to the League's levels is trainer battles,
+ *  not hours in tall grass. The first time she also hands over Exp. Candy. */
+const KARLA_TEAM: FoeSpec[] = [
+  { species: 'staraptor', level: 56 }, { species: 'luxray', level: 56 }, { species: 'lucario', level: 57 },
+  { species: 'gyarados', level: 57 }, { species: 'haxorus', level: 58, item: 'sitrusberry' }
+];
+const karla: Script = function* (s) {
+  if (!s.flag('karlaCandy')) {
+    s.say('Karla: Nervous? Everyone is, the first time.\nI spar with challengers before they go up.');
+    s.say('Karla: Here. The League gives these to everyone\nwho makes it this far.');
+    s.setFlag('karlaCandy', true);
+    s.giveItem('expcandyl', 3); s.me('me_item');
+    s.say(`${s.player.name} got 3 Exp. Candy L!`);
+  }
+  const c: number = yield s.ask('Karla: Want a practice round? As many as you like.', ['Spar', 'Not now'], 1);
+  if (c !== 0) return;
+  const r = yield s.battle({ kind: 'trainer', ai: 2, bg: 'indoor1', soft: true, trainer: { name: 'Karla', title: 'Ace Trainer', sprite: 'tr/acef' }, foes: KARLA_TEAM });
+  if (r === 'win') s.say('Karla: Good. The nurse can patch you up.\nCome back whenever.');
+  else s.say('Karla: Close. Heal up and try again.');
+};
+
 const LEAGUEHALL: MapScripts = {
   npcs: [
     { id: 'lgguard', sprite: 'chars/guard', x: 5, y: 1, dir: 'down', talk: function* (s) { s.say('c13.lobby.guard.1'); s.say('c13.lobby.guard.2'); } },
@@ -49,7 +70,8 @@ const LEAGUEHALL: MapScripts = {
     { id: 'lgclerk', sprite: 'chars/clerk', x: 9, y: 1, dir: 'down', talk: function* (s) {
       s.say('c13.lobby.clerk');
       yield* s.mart(['hyperpotion', 'revive', 'fullheal', 'ultraball']);
-    } }
+    } },
+    { id: 'lgkarla', sprite: 'chars/acef', x: 10, y: 4, dir: 'left', talk: karla }
   ],
   events: [{ x: 6, y: 0, w: 1, h: 1, on: 'step', run: function* (s) { s.sfx('door'); s.warp('stables', 5, 7, 'up'); } }]
 };
@@ -111,7 +133,9 @@ const hallDoor = (m: Member): Script => function* (s) {
 
 const hall = (m: Member): MapScripts => ({
   npcs: [
-    { id: m.id, sprite: `chars/${m.sprite}`, x: 5, y: 2, dir: 'down', talk: memberTalk(m) } as NpcDef,
+    // Freja is away at Trekroner with the Fleet while the lighthouse is rebuilt (post-game P5).
+    { id: m.id, sprite: `chars/${m.sprite}`, x: 5, y: 2, dir: 'down', talk: memberTalk(m),
+      ...(m.id === 'freja' ? { when: f => !f('pg5') || !!f('pg5done') } : {}) } as NpcDef,
     { id: `${m.id}door`, sprite: 'obj:stairs', x: 5, y: 0, dir: 'down', object: true, talk: hallDoor(m) }
   ]
 });

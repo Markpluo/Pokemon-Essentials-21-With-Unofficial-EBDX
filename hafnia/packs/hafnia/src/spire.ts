@@ -6,6 +6,7 @@
 import { maxPp, type NpcDef, type Script, type ScriptApi } from '@hafnia/core';
 import { centerNpcs } from './home';
 import { grown, itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
+import { rematch } from './rematch';
 import { lukasStarter } from './starters';
 
 // ---------- The chapter starts ----------
@@ -152,6 +153,7 @@ const scales: Script = function* (s) {
 };
 
 const margretheGym: Script = function* (s) {
+  if (s.flag('champion')) { yield* rematch(s, 'margrethe'); return; }
   if (s.flag('spire')) { s.say('c9.mar.gym.after'); return; }
   s.say('c9.mar.gym.1'); s.say('c9.mar.gym.2');
   const c: number = yield s.ask('c9.mar.gym.ask', ['Yes', 'Not yet'], 1);
