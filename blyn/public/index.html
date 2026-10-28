@@ -34,7 +34,7 @@ a.card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,.
 a.card:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .thumb { aspect-ratio: 4 / 3; background: var(--line); display: grid; place-items: center; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: block; }
-.thumb.event { color: var(--accent); }
+.thumb.icon { color: var(--accent); }
 .thumb .glyph { font-family: var(--head); font-size: 40px; color: var(--soon); opacity: .6; }
 .body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .body h2 { font-family: var(--head); font-size: 21px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
@@ -67,11 +67,31 @@ footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
     </li>
     <li>
       <a class="card" href="https://event.blyn.dk/">
-        <div class="thumb event"><svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true"><rect x="8" y="12" width="48" height="44" rx="8" fill="none" stroke="currentColor" stroke-width="4"/><path d="M8 26h48M22 6v12M42 6v12" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M22 40l7 7 13-14" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="thumb icon"><svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true"><rect x="8" y="12" width="48" height="44" rx="8" fill="none" stroke="currentColor" stroke-width="4"/><path d="M8 26h48M22 6v12M42 6v12" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M22 40l7 7 13-14" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <div class="body">
           <h2>Blyn</h2>
           <p>Arrangér samlinger: tilmeldinger, datovalg, tjeklister, deling af udgifter og afstemninger.</p>
           <span class="pill go">Værktøj · åbn</span>
+        </div>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="https://tilbud.blyn.dk/">
+        <div class="thumb icon"><svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true"><path d="M10 14h8l6 28h26l6-20H21" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="27" cy="52" r="4" fill="currentColor"/><circle cx="47" cy="52" r="4" fill="currentColor"/></svg></div>
+        <div class="body">
+          <h2>Tilbud &amp; Middag</h2>
+          <p>Ugeplan, indkøbsliste og basislager for husstanden, bygget på ugens tilbud.</p>
+          <span class="pill go">Værktøj · åbn</span>
+        </div>
+      </a>
+    </li>
+    <li>
+      <a class="card" href="https://www.goldenpoop.app/">
+        <div class="thumb icon"><svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true"><path d="M20 8h24v10a12 12 0 0 1-24 0zM20 12h-8a8 8 0 0 0 8 10M44 12h8a8 8 0 0 1-8 10M32 30v10M22 54h20M26 54l2-14h8l2 14" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="body">
+          <h2>Golden Poop Tracker</h2>
+          <p>Golden Poop Tracker på goldenpoop.app.</p>
+          <span class="pill go">App · åbn</span>
         </div>
       </a>
     </li>
@@ -85,17 +105,6 @@ footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
         </div>
       </div>
     </li>
-    <li>
-      <div class="card">
-        <div class="thumb"><span class="glyph">?</span></div>
-        <div class="body">
-          <h2>Nyt værktøj</h2>
-          <p>Et værktøj, jeg har bygget.</p>
-          <span class="pill soon">Kommer snart</span>
-        </div>
-      </div>
-    </li>
-    <li><div class="card empty"><div class="thumb"><span class="glyph">+</span></div><div class="body"><h2>Ledig plads</h2><p>&nbsp;</p></div></div></li>
     <li><div class="card empty"><div class="thumb"><span class="glyph">+</span></div><div class="body"><h2>Ledig plads</h2><p>&nbsp;</p></div></div></li>
   </ul>
 
