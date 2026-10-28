@@ -256,12 +256,17 @@
     "wiglett",
     "orthworm",
     "rufflet",
-    "silicobra"
+    "silicobra",
+    "ponyta",
+    "rapidash",
+    "lampent",
+    "troldtrae"
   ],
   "pokemon": {
     "LANGELIRA": { "front": "pack:assets/pokemon/front/LANGELIRA.png", "back": "pack:assets/pokemon/back/LANGELIRA.png", "icons": "pack:assets/pokemon/icons/LANGELIRA.png", "cry": "Audio/SE/Cries/PRIMARINA.ogg" },
     "ROTOM_REACTOR": { "front": "pack:assets/pokemon/front/ROTOM_REACTOR.png", "back": "pack:assets/pokemon/back/ROTOM_REACTOR.png", "icons": "pack:assets/pokemon/icons/ROTOM_REACTOR.png", "cry": "Audio/SE/Cries/ROTOM.ogg" },
     "KRONVAKT": { "front": "pack:assets/pokemon/front/KRONVAKT.png", "back": "pack:assets/pokemon/back/KRONVAKT.png", "icons": "pack:assets/pokemon/icons/KRONVAKT.png", "cry": "Audio/SE/Cries/GOLURK.ogg" },
+    "TROLDTRAE": { "front": "pack:assets/pokemon/front/TROLDTRAE.png", "back": "pack:assets/pokemon/back/TROLDTRAE.png", "icons": "pack:assets/pokemon/icons/TROLDTRAE.png", "cry": "Audio/SE/Cries/SUDOWOODO.ogg" },
     "KRONIKON": { "front": "pack:assets/pokemon/front/KRONIKON.png", "back": "pack:assets/pokemon/back/KRONIKON.png", "icons": "pack:assets/pokemon/icons/KRONIKON.png", "cry": "Audio/SE/Cries/TYRANTRUM.ogg" }
   },
   "spriteKeys": {
@@ -428,7 +433,11 @@
     "tr/astrid": "Graphics/Trainers/ELITEFOUR_Lorelei.png",
     "chars/tauros": "Graphics/Characters/Followers/TAUROS.png",
     "chars/orthworm": "Graphics/Characters/Followers/ORTHWORM.png",
-    "chars/lapras": "Graphics/Characters/Followers/LAPRAS.png"
+    "chars/lapras": "Graphics/Characters/Followers/LAPRAS.png",
+    "chars/ponyta": "Graphics/Characters/Followers/PONYTA.png",
+    "chars/rapidash": "Graphics/Characters/Followers/RAPIDASH.png",
+    "chars/mudbray": "Graphics/Characters/Followers/MUDBRAY.png",
+    "chars/troldtrae": "pack:assets/chars/troldtrae.png"
   },
   "audio": {
     "title": "Audio/BGM/Title.ogg",

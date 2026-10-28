@@ -246,10 +246,10 @@ export class BattleSession {
     for (const side of [this.sim.p1, this.sim.p2]) side.addSideCondition('hafniacoil', side.active[0]);
     if (o.tutorial) this.sim.p1.active[0].addVolatile('hafniaguard');
     if (o.concert) this.sim.p2.active[0].addVolatile('hafniaconcert');
-    if (o.echo) {
-      // A Resonance Rift: the Echo's frozen song lifts every stat of the wild Pokémon by one stage.
+    if (o.echo || o.titan) {
+      // A Resonance Rift: the Echo's frozen song lifts every stat of the wild Pokémon by one stage. A Titan is just big.
       const p = this.sim.p2.active[0];
-      this.sim.add('-activate', p, 'Echo');
+      this.sim.add('-activate', p, o.titan ? 'Titan' : 'Echo');
       this.sim.boost({ atk: 1, def: 1, spa: 1, spd: 1, spe: 1 }, p, p);
     }
     this.advance();
@@ -313,6 +313,7 @@ export class BattleSession {
       case 'ball': {
         const ball = ITEMS[action.item];
         if (this.opts.kind !== 'wild') { this.ev({ b: 'text', text: 'The trainer blocked the ball!\nDon\'t be a thief!' }); return this.request(); }
+        if (this.opts.titan) { this.ev({ b: 'text', text: 'The Titan brushed the ball aside!\nIt won\'t be caught like this.' }); return this.request(); }
         if (!ball?.ball || !this.host.bag[action.item]) return this.request();
         this.host.bag[action.item]--;
         this.ev({ b: 'text', text: `${this.host.playerName} threw a ${ball.name}!` });

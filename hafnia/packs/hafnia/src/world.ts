@@ -1607,7 +1607,8 @@ const leaguehall = () => room('leaguehall', 'Christiansborg: League Hall', [
   '.............'
 ] });
 
-// The four halls; each one's doormat goes back to the League hall to rest.
+// The four halls; each one's doormat goes back to the League hall to rest. A wall of crates, cannons, tables or
+// barrels across row 4 leaves one gap, held shut by that hall's puzzle (league.ts).
 const stables = () => room('stables', 'The Royal Stables', [
   'wwwww_wwwww',
   'w_________w',
@@ -1622,11 +1623,11 @@ const stables = () => room('stables', 'The Royal Stables', [
   '..W.P.P.W..',
   '.....r.....',
   '.X...r...X.',
-  '.XX..r..XX.',
   '.....r.....',
-  '.YY..r..YY.',
+  '.XXYXrXYXX.',
   '.....r.....',
-  '.X...r...X.',
+  '.....r.....',
+  '.Y...r.....',
   '...........'
 ] });
 const admiral = () => room('admiral', 'The Admiral\'s Hall', [
@@ -1643,11 +1644,11 @@ const admiral = () => room('admiral', 'The Admiral\'s Hall', [
   '..I.0.0.I..',
   '.t...r...t.',
   '.....r.....',
-  '.Z...r...Z.',
   '.....r.....',
-  '.Z..DrD..Z.',
+  '.ZZZZrZZZZ.',
   '.....r.....',
-  '.Z...r...Z.',
+  '.....r.....',
+  '.....r.....',
   '...........'
 ] });
 const greathall = () => room('greathall', 'The Great Hall', [
@@ -1663,7 +1664,7 @@ const greathall = () => room('greathall', 'The Great Hall', [
 ], { to: 'leaguehall', x: 6, y: 1 }, { theme: 'palace', decor: [
   '.PLP...PLP.',
   '.....r.....',
-  '..hTTrTTh..',
+  '..h..r..h..',
   '.....r.....',
   '.hTThrhTTh.',
   '.....r.....',
@@ -1686,9 +1687,9 @@ const towerstairs = () => room('towerstairs', 'The Tower Stairs', [
   '.....r.....',
   '.YY..r..XX.',
   '.....r.....',
-  '.X...r...Y.',
+  '.XYXYrYXYX.',
   '.....r.....',
-  '.YX..r..XY.',
+  '.....r.....',
   '.....r.....',
   '...........'
 ] });
@@ -1939,6 +1940,7 @@ function route10(): MapData {
   const W = 44, H = 16, g = makeGrid(W, H, '.');
   fill(g, 0, 0, W, 2, 'T'); fill(g, 0, 14, W, 2, 'T');
   fill(g, 0, 8, W, 1, '=');                   // Roskildevej
+  for (const x of [0, W - 1]) { fill(g, x, 2, 1, 6, 'T'); fill(g, x, 9, 1, 5, 'T'); }   // only the road leaves the map
   fill(g, 3, 2, 9, 5, 'g'); fill(g, 16, 3, 8, 4, 'g'); fill(g, 30, 2, 10, 5, 'g');   // wheat fields
   fill(g, 6, 10, 10, 3, 'g'); fill(g, 22, 10, 6, 4, 'g'); fill(g, 33, 10, 8, 3, 'g');
   fill(g, 13, 3, 2, 3, 'T'); fill(g, 26, 2, 3, 3, 'T'); fill(g, 18, 11, 2, 2, 'T'); fill(g, 30, 11, 2, 2, 'T');
