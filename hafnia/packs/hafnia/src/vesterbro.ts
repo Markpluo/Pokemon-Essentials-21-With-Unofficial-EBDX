@@ -4,6 +4,7 @@ import type { NpcDef, Script, ScriptApi } from '@hafnia/core';
 import { centerNpcs } from './home';
 import { ferry } from './dragor';
 import { findItem, grown, itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
+import { rematch } from './rematch';
 import { majaStarter } from './starters';
 
 // ---------- Nørrebro → Route 2 ----------
@@ -235,6 +236,7 @@ const valve = (i: number): Script => function* (s) {
 };
 
 const kasperGym: Script = function* (s) {
+  if (s.flag('champion')) { yield* rematch(s, 'kasper'); return; }
   if (s.flag('frost')) { s.say('c3.kasper.after'); return; }
   s.say('c3.kasper.intro.1'); s.say('c3.kasper.intro.2');
   const c: number = yield s.ask('Kasper: Ready to be plated?', ['Yes', 'Not yet'], 1);

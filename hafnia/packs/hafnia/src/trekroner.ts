@@ -44,6 +44,9 @@ export const FLEET_DECKHAND: NpcDef = {
   id: 'fleetdeck', sprite: 'chars/deckhand', x: 3, y: 6, dir: 'down', when: f => !!f('ch8') && !f('ch8done'), talk: gangplank
 };
 
+// Once Vanguard is gone (after the League) its Enforcers leave the fort to the Black Fleet.
+const postStory = (f: (n: string) => unknown) => !f('ch13done');
+
 // ---------- The briefing and the hydrofoil run ----------
 
 function* briefing(s: ScriptApi): Step {
@@ -153,13 +156,13 @@ const TREKRONER: MapScripts = {
     { id: 'maja8', sprite: 'chars/maja', x: 13, y: 17, dir: 'down', hidden: true },
     sign('tksign', 15, 17, 'obj:sign', 'c8.tk.sign'),
     sign('tkbeam', 7, 4, 'obj:sign', 'c8.tk.lamp'),
-    trainer({ id: 'tkEnf1', x: 8, y: 13, dir: 'right', sprite: 'chars/enforcer', sight: 5, cls: 'Grid Enforcer', name: 'Bjørn',
+    trainer({ id: 'tkEnf1', when: postStory, x: 8, y: 13, dir: 'right', sprite: 'chars/enforcer', sight: 5, cls: 'Grid Enforcer', name: 'Bjørn',
       foes: [{ species: 'golbat', level: 38 }, { species: 'magneton', level: 38 }], intro: ['c8.tk.enf1.intro'], lose: ['c8.tk.enf1.lose'] }),
-    trainer({ id: 'tkEnf2', x: 5, y: 8, dir: 'down', sprite: 'chars/enforcer', sight: 4, cls: 'Grid Enforcer', name: 'Viggo',
+    trainer({ id: 'tkEnf2', when: postStory, x: 5, y: 8, dir: 'down', sprite: 'chars/enforcer', sight: 4, cls: 'Grid Enforcer', name: 'Viggo',
       foes: [{ species: 'houndoom', level: 38 }, { species: 'toxicroak', level: 39 }], intro: ['c8.tk.enf2.intro'], lose: ['c8.tk.enf2.lose'] }),
-    trainer({ id: 'tkEnf3', x: 22, y: 8, dir: 'left', sprite: 'chars/enforcer', sight: 4, cls: 'Grid Enforcer', name: 'Dorte',
+    trainer({ id: 'tkEnf3', when: postStory, x: 22, y: 8, dir: 'left', sprite: 'chars/enforcer', sight: 4, cls: 'Grid Enforcer', name: 'Dorte',
       foes: [{ species: 'manectric', level: 39 }, { species: 'skuntank', level: 39 }], intro: ['c8.tk.enf3.intro'], lose: ['c8.tk.enf3.lose'] }),
-    trainer({ id: 'tkSci', x: 17, y: 4, dir: 'down', sprite: 'chars/scientist', sight: 3, cls: 'Vanguard Scientist', name: 'Jonas',
+    trainer({ id: 'tkSci', when: postStory, x: 17, y: 4, dir: 'down', sprite: 'chars/scientist', sight: 3, cls: 'Vanguard Scientist', name: 'Jonas',
       foes: [{ species: 'porygon2', level: 38 }, { species: 'rotom', level: 39 }], intro: ['c8.tk.sci.intro'], lose: ['c8.tk.sci.lose'] }),
     itemBall('item.tk1', 2, 17, 'hyperpotion', 2, 'Hyper Potions'),
     itemBall('item.tk2', 23, 2, 'revive', 1, 'a Revive'),
@@ -245,9 +248,9 @@ const BATTERY: MapScripts = {
     { id: 'maja8c', sprite: 'chars/maja', x: 10, y: 1, dir: 'down', hidden: true },
     { id: 'lukas8', sprite: 'chars/lukas', x: 9, y: 8, dir: 'up', hidden: true },
     sign('btboard', 14, 1, 'obj:poster', 'c8.bt.board'),
-    trainer({ id: 'btEnf1', x: 15, y: 2, dir: 'down', sprite: 'chars/enforcer', sight: 3, cls: 'Grid Enforcer', name: 'Kasper',
+    trainer({ id: 'btEnf1', when: postStory, x: 15, y: 2, dir: 'down', sprite: 'chars/enforcer', sight: 3, cls: 'Grid Enforcer', name: 'Kasper',
       foes: [{ species: 'bisharp', level: 40 }, { species: 'garbodor', level: 39 }], intro: ['c8.bt.enf1.intro'], lose: ['c8.bt.enf1.lose'] }),
-    trainer({ id: 'btEnf2', x: 1, y: 5, dir: 'right', sprite: 'chars/enforcer', sight: 4, cls: 'Grid Enforcer', name: 'Mads',
+    trainer({ id: 'btEnf2', when: postStory, x: 1, y: 5, dir: 'right', sprite: 'chars/enforcer', sight: 4, cls: 'Grid Enforcer', name: 'Mads',
       foes: [{ species: 'golbat', level: 39 }, { species: 'houndoom', level: 40 }], intro: ['c8.bt.enf2.intro'], lose: ['c8.bt.enf2.lose'] }),
     itemBall('item.bt1', 17, 8, 'fullheal', 2, 'Full Heals')
   ],

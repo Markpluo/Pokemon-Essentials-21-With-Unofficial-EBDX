@@ -1601,7 +1601,7 @@ const stables = () => room('stables', 'The Royal Stables', [
   'wwwww_wwwww',
   'w_________w',
   'w_________w',
-  'w_KK___KK_w',
+  'w_________w',
   'w_________w',
   'w_________w',
   'w_________w',
@@ -1610,53 +1610,53 @@ const stables = () => room('stables', 'The Royal Stables', [
 ], { to: 'leaguehall', x: 6, y: 1 }, { theme: 'stone', decor: [
   '..W.P.P.W..',
   '.....r.....',
+  '.X...r...X.',
+  '.XX..r..XX.',
   '.....r.....',
-  '..XX.r.XX..',
+  '.YY..r..YY.',
   '.....r.....',
-  '.....r.....',
-  '.....r.....',
-  '.....r.....',
+  '.X...r...X.',
   '...........'
 ] });
 const admiral = () => room('admiral', 'The Admiral\'s Hall', [
   'wwwww_wwwww',
   'w_________w',
   'w_________w',
-  'w_KK___KK_w',
+  'w_________w',
   'w_________w',
   'w_________w',
   'w_________w',
   'w_________w',
   'wwwwwmwwwww'
-], { to: 'leaguehall', x: 6, y: 1 }, { theme: 'palace', decor: [
-  '..W.P.P.W..',
+], { to: 'leaguehall', x: 6, y: 1 }, { theme: 'boat', decor: [
+  '..I.0.0.I..',
+  '.t...r...t.',
   '.....r.....',
+  '.Z...r...Z.',
   '.....r.....',
-  '..ZZ.r.ZZ..',
+  '.Z..DrD..Z.',
   '.....r.....',
-  '.....r.....',
-  '.....r.....',
-  '.....r.....',
+  '.Z...r...Z.',
   '...........'
 ] });
 const greathall = () => room('greathall', 'The Great Hall', [
   'wwwww_wwwww',
   'w_________w',
   'w_________w',
-  'w_KK___KK_w',
+  'w_________w',
   'w_________w',
   'w_________w',
   'w_________w',
   'w_________w',
   'wwwwwmwwwww'
 ], { to: 'leaguehall', x: 6, y: 1 }, { theme: 'palace', decor: [
-  '..W.P.P.W..',
+  '.PLP...PLP.',
   '.....r.....',
+  '..hTTrTTh..',
   '.....r.....',
-  '..pp.r.pp..',
+  '.hTThrhTTh.',
   '.....r.....',
-  '.....r.....',
-  '.....r.....',
+  '.p...r...p.',
   '.....r.....',
   '...........'
 ] });
@@ -1664,20 +1664,20 @@ const towerstairs = () => room('towerstairs', 'The Tower Stairs', [
   'wwwww_wwwww',
   'w_________w',
   'w_________w',
-  'w_KK___KK_w',
+  'w_________w',
   'w_________w',
   'w_________w',
   'w_________w',
   'w_________w',
   'wwwwwmwwwww'
 ], { to: 'leaguehall', x: 6, y: 1 }, { theme: 'stone', decor: [
-  '..W.P.P.W..',
+  '..W.L.L.W..',
   '.....r.....',
+  '.YY..r..XX.',
   '.....r.....',
-  '..YY.r.YY..',
+  '.X...r...Y.',
   '.....r.....',
-  '.....r.....',
-  '.....r.....',
+  '.YX..r..XY.',
   '.....r.....',
   '...........'
 ] });

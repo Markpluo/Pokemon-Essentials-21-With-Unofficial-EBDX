@@ -4,6 +4,7 @@
 // observatory. He plays his seismic charts as sound: the tremors are a song. Then Sif's message reaches Maja.
 import { OPPOSITE, type NpcDef, type Script, type ScriptApi } from '@hafnia/core';
 import { itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
+import { rematch } from './rematch';
 
 // ---------- The chapter starts ----------
 
@@ -116,6 +117,7 @@ const lens = (id: string, item: string, guard: { npc: string; species: string; m
 };
 
 const tychoGym: Script = function* (s) {
+  if (s.flag('champion')) { yield* rematch(s, 'tycho'); return; }
   if (s.flag('orrery')) { s.say('c6.tycho.after'); s.say('c6.tycho.hven'); return; }
   const lenses = s.hasItem('lensobjective') + s.hasItem('lenseyepiece');
   if (!s.flag('tychoLenses')) {

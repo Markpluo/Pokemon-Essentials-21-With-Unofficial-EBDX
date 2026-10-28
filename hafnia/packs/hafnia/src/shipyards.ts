@@ -6,6 +6,7 @@
 import type { NpcDef, Script, ScriptApi } from '@hafnia/core';
 import { centerNpcs } from './home';
 import { grown, itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
+import { rematch } from './rematch';
 import { lukasStarter } from './starters';
 
 // ---------- The chapter starts ----------
@@ -240,6 +241,7 @@ const technician = (i: number, x: number, y: number, dir: NpcDef['dir'], name: s
 });
 
 const astrid: Script = function* (s) {
+  if (s.flag('champion')) { yield* rematch(s, 'astrid'); return; }
   if (s.flag('turbine')) { s.say('c10.as.after'); return; }
   s.say('c10.as.1'); s.say('c10.as.2');
   const c: number = yield s.ask('c10.as.ask', ['Yes', 'Not yet'], 1);

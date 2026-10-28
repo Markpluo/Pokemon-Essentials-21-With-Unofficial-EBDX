@@ -185,7 +185,7 @@ const trialTalk = (t: (typeof TRIALS)[number]): Script => function* (s) {
   if (!s.flag('pg2')) { s.say('pg2.trial.locked'); return; }
   if (s.flag(t.flag)) { s.say(`pg2.trial.${t.key}.after`); return; }
   s.say(`pg2.trial.${t.key}.1`); s.say(`pg2.trial.${t.key}.2`);
-  const r = yield s.battle({ kind: 'trainer', ai: 3, bg: 'indoor1', prize: 0, trainer: { name: t.name, title: 'Oath Trial', sprite: t.sprite }, foes: t.foes, ...t.opts });
+  const r = yield s.battle({ kind: 'trainer', ai: 3, bg: 'indoor1', trainer: { name: t.name, title: 'Oath Trial', sprite: t.sprite }, foes: t.foes, ...t.opts });
   if (r !== 'win') return;
   s.setFlag(t.flag, true);
   s.say(`pg2.trial.${t.key}.win`);
@@ -204,7 +204,7 @@ const kaasTalk: Script = function* (s) {
     for (const [i, e] of OATH_CHAIN.entries()) {
       if (i) s.say(`pg2.trial.oath.next${i}`);
       // Only Søs, the last, still Overcharges: a whole chain of it with no healing was a wall.
-      const r = yield s.battle({ kind: 'trainer', ai: 2, bg: 'indoor1', prize: 0, overcharge: i === 2, trainer: { name: e.name, title: 'Oath Trial', sprite: 'tr/enforcer' }, foes: e.foes });
+      const r = yield s.battle({ kind: 'trainer', ai: 2, bg: 'indoor1', overcharge: i === 2, trainer: { name: e.name, title: 'Oath Trial', sprite: 'tr/enforcer' }, foes: e.foes });
       if (r !== 'win') return;
     }
     s.setFlag('oathOath', true);

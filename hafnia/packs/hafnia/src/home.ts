@@ -2,6 +2,7 @@
 // Gym 1 (Tariq), Lukas after the badge and the Chapter 1 blackout.
 import type { NpcDef, Script, ScriptApi } from '@hafnia/core';
 import { grown, itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
+import { rematch } from './rematch';
 import { lukasStarter } from './starters';
 
 export const NAMES = ['Mark', 'Asta', 'Viggo', 'Ida', 'Noor', 'Frej'];
@@ -243,6 +244,7 @@ const switchTalk = (colour: string): Script => function* (s) {
 };
 
 const tariqGym: Script = function* (s) {
+  if (s.flag('champion')) { yield* rematch(s, 'tariq'); return; }
   if (s.flag('badge')) { s.say('Tariq: Keep the squares loud.\nAnd keep an eye on that relay.'); return; }
   s.say('c1.tariq.intro.1'); s.say('c1.tariq.intro.2');
   const c: number = yield s.ask('Tariq: Ready?', ['Yes', 'Not yet'], 1);

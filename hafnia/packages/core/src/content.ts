@@ -96,7 +96,7 @@ export interface Rules {
 
 export const DEFAULT_RULES: Rules = {
   encounterRate: 0.1,
-  prizeBase: { Youngster: 16, Cyclist: 24, Skater: 20, Grunt: 40, Rival: 60, Leader: 120, 'Elite Four': 160, Champion: 200 },
+  prizeBase: { Youngster: 16, Cyclist: 24, Skater: 20, Grunt: 40, Rival: 60, Leader: 120, 'Elite Four': 160, Champion: 200, 'Oath Trial': 60 },
   prizeDefault: 24,
   whiteoutBase: [8, 16, 24, 36, 48, 64, 80, 100, 120],
   obedienceBase: 20, obediencePerBadge: 5,

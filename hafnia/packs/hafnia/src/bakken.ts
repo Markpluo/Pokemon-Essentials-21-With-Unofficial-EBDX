@@ -6,6 +6,7 @@
 import type { NpcDef, Script, ScriptApi } from '@hafnia/core';
 import { centerNpcs } from './home';
 import { itemBall, sign, talk, trainer, type MapScripts, type Step } from './lib';
+import { rematch } from './rematch';
 
 // ---------- The chapter starts ----------
 
@@ -384,6 +385,7 @@ const cart = (c: typeof CARTS[number]): NpcDef => ({
 });
 
 const pierrotGym: Script = function* (s) {
+  if (s.flag('champion') && (cardsFound(s) < CARDS.length || s.flag('laughterDone'))) { yield* rematch(s, 'pierrot'); return; }
   if (s.flag('harlequin')) {
     if (cardsFound(s) === CARDS.length && !s.flag('laughterDone')) {
       s.say('c7.laugh.1'); s.say('c7.laugh.2');

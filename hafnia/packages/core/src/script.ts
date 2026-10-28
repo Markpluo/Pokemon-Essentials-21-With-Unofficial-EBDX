@@ -91,6 +91,8 @@ export interface ScriptApi {
   setTime(period: DayPeriod): void;
   /** In-game minutes since midnight. */
   readonly clock: number;
+  /** In-game days passed since the start (for once-a-day events). */
+  readonly day: number;
   setClock(minutes: number): void;
   givePokemon(species: string, level: number): Mon;
   giveItem(item: string, qty?: number): void;

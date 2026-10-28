@@ -284,7 +284,7 @@ const PALMHOUSE: MapScripts = {
 const TUNNELS: MapScripts = {
   npcs: [
     trainer({ id: 'eng1', x: 12, y: 1, dir: 'down', sprite: 'chars/engineer', sight: 1, cls: 'Engineer', name: 'Holm',
-      foes: [{ species: 'magnemite', level: 10 }, { species: 'klink', level: 11 }], intro: ['c1.eng1.intro'], lose: ['c1.eng1.lose'] }),
+      foes: [{ species: 'magnemite', level: 9 }, { species: 'klink', level: 10 }], intro: ['c1.eng1.intro'], lose: ['c1.eng1.lose'] }),
     trainer({ id: 'eng2', x: 8, y: 6, dir: 'up', sprite: 'chars/engineer', sight: 1, cls: 'Engineer', name: 'Brandt', battle: { ai: 2 },
       foes: [{ species: 'voltorb', level: 11 }, { species: 'tadbulb', level: 12 }], intro: ['c1.eng2.intro'], lose: ['c1.eng2.lose'] }),
     { id: 'valve', sprite: 'obj:valve', x: 20, y: 13, dir: 'down', object: true, talk: function* (s) {
