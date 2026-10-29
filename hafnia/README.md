@@ -45,6 +45,8 @@ Cloudflare Pages settings:
 
 To hand out or revoke codes, edit `INVITE_CODES` and redeploy. Without both env vars the gate stays shut.
 
+On blyn.dk the game is deployed with the portal on Vercel; `blyn/middleware.js` is the same gate (`blyn/README.md`).
+
 ## Battle animations
 
 Moves animate from data, not code (`/mnt/project-files/design/battle-animations.md`). A move plays its
