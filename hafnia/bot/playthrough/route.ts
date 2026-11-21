@@ -71,12 +71,13 @@ function goal(p: P, name: string, done: () => boolean, act: () => void) {
 }
 
 /** Like a player with a new Pokémon in the box: at a Center PC, put the weakest team member away and take it out. */
-function swapIn(p: P, pc: string, species: string) {
+/** Swap a boxed Pokémon in for the weakest party member, never one named in `keep` (a careful player keeps the leader's counters). */
+function swapIn(p: P, pc: string, species: string, keep: string[] = []) {
   const mon = p.s.box.find(m => m.species === species);
   if (!mon) return;
   goto(p, pc);
   p.talkTo(6, 1);
-  const weakest = [...p.s.party].filter(m => !m.egg).sort((a, b) => a.level - b.level)[0];
+  const weakest = [...p.s.party].filter(m => !m.egg && !keep.some(k => m.species.startsWith(k))).sort((a, b) => a.level - b.level)[0];
   p.send({ t: 'pc', op: 'deposit', uid: weakest.uid });
   p.send({ t: 'pc', op: 'withdraw', uid: mon.uid });
   p.send({ t: 'pc', op: 'close' });
@@ -303,7 +304,8 @@ export function chapter9(p: P) {
   shopAndHeal(p, 'pcslotsholmen');
   goal(p, 'Margrethe reads the ledger', () => !!p.flag('vaultOpen'), () => { goto(p, 'borsen'); p.talkTo(5, 1); });
   goal(p, 'the clerk\'s Torkoal', () => !!p.flag('torkoalGift'), () => { goto(p, 'borsen'); p.talkTo(2, 4); });
-  swapIn(p, 'pcslotsholmen', 'torkoal');
+  // Toxel/Toxtricity's Electric moves are the other answer to Margrethe's Corviknight: keep it.
+  swapIn(p, 'pcslotsholmen', 'torkoal', ['tox']);
   for (const [id, x, y] of [['tokenShip', 4, 7], ['tokenSpice', 14, 7], ['tokenSalt', 4, 12]] as const) {
     goal(p, id, () => !!p.flag(id), () => { goto(p, 'gym7'); p.talkTo(x, y); });
   }
